@@ -5,14 +5,17 @@ import { motion, useReducedMotion } from 'framer-motion';
 import { Swords } from 'lucide-react';
 
 import type { GameState } from '@/engine/types';
-import { getEnemy, powerOf } from '@/engine/stubEngine';
+import { powerOf } from '@/engine/attributes';
+import { getEnemy } from '@/data/enemies';
 import { useGameStore } from '@/store/gameStore';
 import { Badge } from '@/components/ui/badge';
 import { CornerFrame, HanziWatermark } from './Ornaments';
 import { cn } from '@/lib/utils';
 
-const TACTICS: { cmd: '出手' | '术法' | '服药' | '遁走'; hint: string; danger?: boolean }[] = [
-  { cmd: '出手', hint: '拳剑相向' },
+const TACTICS: { cmd: '强攻' | '游斗' | '设伏' | '术法' | '服药' | '遁走'; hint: string; danger?: boolean }[] = [
+  { cmd: '强攻', hint: '伤敌更重 · 受创亦深' },
+  { cmd: '游斗', hint: '攻守收敛 · 可觅破绽' },
+  { cmd: '设伏', hint: '成则下合占尽先机' },
   { cmd: '术法', hint: '灵力全开 · 威能更盛' },
   { cmd: '服药', hint: '吞丹回血' },
   { cmd: '遁走', hint: '留得青山', danger: true },
@@ -173,7 +176,7 @@ export function CombatView({ state }: { state: GameState }) {
       </div>
 
       {/* tactics */}
-      <div className="grid w-full max-w-2xl grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="grid w-full max-w-2xl grid-cols-3 gap-2 sm:grid-cols-6">
         {TACTICS.map(({ cmd, hint, danger }) => {
           const fleeBlocked = cmd === '遁走' && enemy ? !enemy.fleeable : false;
           return (

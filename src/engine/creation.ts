@@ -34,6 +34,8 @@ import {
 import { initialRealmState, lifespanFor } from './realms';
 import { START_AGE } from './lifecycle';
 import { ORIGINS } from '@/data/origins';
+import { INITIAL_NPCS } from '@/data/npcs';
+import { INITIAL_QUESTS } from '@/data/quests';
 
 export const DEFAULT_NAME = '无名散人';
 
@@ -177,8 +179,8 @@ export function newGame(seed: string): GameState {
     },
     turn: 0,
     character: null,
-    npcs: {},
-    quests: [],
+    npcs: structuredClone(INITIAL_NPCS),
+    quests: structuredClone(INITIAL_QUESTS),
     combat: null,
     pendingEvent: null,
     pendingChoice: null,

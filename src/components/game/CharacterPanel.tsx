@@ -5,7 +5,9 @@ import { getOrigin } from '@/data/origins';
 import { realmLabel } from '@/data/realmData';
 import { getTechnique } from '@/data/techniques';
 import { getItem } from '@/data/items';
-import { breakthroughChance, defenseOf, powerOf, atMajorGate } from '@/engine/stubEngine';
+import { breakthroughChance } from '@/engine/breakthrough';
+import { defenseOf, powerOf } from '@/engine/attributes';
+import { atMajorGate } from '@/engine/realms';
 
 /**
  * 【面板】— identity, realm progress, visible attributes, root, technique,
@@ -13,7 +15,7 @@ import { breakthroughChance, defenseOf, powerOf, atMajorGate } from '@/engine/st
  */
 export function CharacterPanel({ state }: { state: GameState }) {
   const c = state.character as Character;
-  const gate = breakthroughChance(c);
+  const gate = breakthroughChance(state);
   const expRatio = Math.min(1, c.realm.exp / c.realm.expNeeded);
   const rootGradeGold = c.spiritRoot.grade === '天灵根' || c.spiritRoot.grade === '异灵根';
 
@@ -50,9 +52,9 @@ export function CharacterPanel({ state }: { state: GameState }) {
         <div className="bar-track h-1.5 w-full">
           <div className="bar-fill-jade" style={{ width: `${expRatio * 100}%` }} />
         </div>
-        {atMajorGate(c) && (
+        {atMajorGate(c.realm) && gate && (
           <p className="mt-1.5 text-xs text-gold-400">
-            瓶颈已至 · 突破成功率约 <span className="tabular-nums">{gate}%</span>
+            瓶颈已至 · 突破成功率约 <span className="tabular-nums">{gate.chance}%</span>
           </p>
         )}
       </section>

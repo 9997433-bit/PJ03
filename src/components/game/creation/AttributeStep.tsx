@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 
-import { ATTR_CAP, FREE_POINTS } from "@/engine/stubEngine";
+import { CREATION_CAP as ATTR_CAP, FREE_POINTS } from "@/engine/attributes";
 import { useGameStore } from "@/store/gameStore";
 import { Button } from "@/components/ui/button";
 import { ATTRIBUTE_META, VISIBLE_ATTRIBUTES, cnNum } from "../format";

@@ -3,7 +3,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { GameState } from '@/engine/types';
-import { atMajorGate } from '@/engine/stubEngine';
+import { atMajorGate } from '@/engine/realms';
 import { getItem } from '@/data/items';
 import { useGameStore } from '@/store/gameStore';
 
@@ -40,7 +40,9 @@ const BASE_SUGGESTIONS: Suggestion[] = [
 ];
 
 const COMBAT_SUGGESTIONS: Suggestion[] = [
-  { text: '出手', hint: '拼力一击' },
+  { text: '强攻', hint: '全力抢攻,伤敌更重,受创亦深' },
+  { text: '游斗', hint: '游走寻隙,攻守收敛,可觅破绽' },
+  { text: '设伏', hint: '虚招设伏,成则下合占尽先机' },
   { text: '术法', hint: '施展术法,爆发伤害' },
   { text: '服药', hint: '临阵服药回血' },
   { text: '遁走', hint: '夺路而逃(气运助之)' },
@@ -60,7 +62,7 @@ export function CommandBar({ state }: { state: GameState }) {
   const c = state.character!;
   const inCombat = state.phase === 'combat';
   const pending = state.pendingEvent ?? null;
-  const gateReady = !inCombat && atMajorGate(c);
+  const gateReady = !inCombat && atMajorGate(c.realm);
 
   const suggestions = useMemo<Suggestion[]>(() => {
     const t = input.trim();
@@ -111,10 +113,12 @@ export function CommandBar({ state }: { state: GameState }) {
 
   const actions: QuickAction[] = inCombat
     ? [
-        { label: '出手', command: '出手', accent: 'crimson', hotkey: '1' },
-        { label: '术法', command: '术法', accent: 'gold', hotkey: '2' },
-        { label: '服药', command: '服药', accent: 'jade', hotkey: '3' },
-        { label: '遁走', command: '遁走', hotkey: '4' },
+        { label: '强攻', command: '强攻', accent: 'crimson', hotkey: '1' },
+        { label: '游斗', command: '游斗', hotkey: '2' },
+        { label: '设伏', command: '设伏', hotkey: '3' },
+        { label: '术法', command: '术法', accent: 'gold', hotkey: '4' },
+        { label: '服药', command: '服药', accent: 'jade', hotkey: '5' },
+        { label: '遁走', command: '遁走', hotkey: '6' },
       ]
     : [
         { label: '修炼', command: '修炼', accent: 'jade', hotkey: '1' },
