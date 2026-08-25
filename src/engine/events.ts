@@ -10,7 +10,7 @@
 import type { EventBucket, GameEvent, GameState } from './types';
 import { recordRoll } from './audit';
 import { applyEventEffect } from './effects';
-import { say, sys } from './narrative';
+import { say, sys } from './prose';
 import { EVENTS, getEvent } from '@/data';
 
 export function bucketOf(effective: number): EventBucket {
@@ -36,7 +36,13 @@ function eligibleEvents(state: GameState, bucket: EventBucket): GameEvent[] {
     if (!e.realmTier.includes(c.realm.realm)) return false;
     if (e.minJiYuan && c.attributes.jiYuan < e.minJiYuan) return false;
     if (e.once && c.flags[`evt_${e.id}`]) return false;
-    if (e.requiresFlag && c.flags[e.requiresFlag[0]] !== e.requiresFlag[1]) return false;
+    if (e.requiresFlag) {
+      if (typeof e.requiresFlag === 'string') {
+        if (!c.flags[e.requiresFlag]) return false;
+      } else if (c.flags[e.requiresFlag[0]] !== e.requiresFlag[1]) {
+        return false;
+      }
+    }
     return true;
   });
 }
@@ -77,7 +83,14 @@ function fireEvent(state: GameState, event: GameEvent, bucket: EventBucket): voi
   if (event.once) c.flags[`evt_${event.id}`] = true;
 
   if (event.choices && event.choices.length > 0) {
-    state.pendingEvent = { eventId: event.id };
+    state.pendingEvent = {
+      eventId: event.id,
+      narrative: event.narrative,
+      choices: event.choices.map((ch) => ({
+        text: ch.text,
+        ...(ch.check ? { check: ch.check } : {}),
+      })),
+    };
     const lines = event.choices.map((ch, i) => `  ${i + 1}. ${ch.text}`).join('\n');
     sys(state, `何去何从?\n${lines}\n(输入序号抉择)`);
     return;

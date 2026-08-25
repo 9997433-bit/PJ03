@@ -16,23 +16,35 @@
  * damage = power × (0.5 + D20/20) × tacticMults − defense×0.3, min 1.
  */
 
-import type { CombatTactic, GameState } from './types';
+import type { CombatState, CombatTactic, Enemy, GameState } from './types';
 import { recordRoll } from './audit';
-import { calcDefense, calcPower } from './attributes';
+import { combatPower as calcPower, defenseValue as calcDefense } from './attributes';
 import { addItem, countItem, removeItem, resolveItem } from './inventory';
-import { checkHpDeath, endGame } from './lifecycle';
+import { checkDeath, finishGame } from './lifecycle';
 import {
   COMBAT_FLEE_FAIL,
   COMBAT_FLEE_SUCCESS,
   COMBAT_LOSE_ROBBED,
   COMBAT_TACTIC_FLAVOR,
   COMBAT_WIN_LINES,
-  battle,
+  battle as battleLine,
+  bumpStat,
   pick,
   say,
   sys,
-} from './narrative';
+} from './prose';
 import { getCombatArt, getEnemy, makeInjury } from '@/data';
+
+/** the frozen enemy snapshot taken at startCombat (data edits can't touch a live fight) */
+function foeOf(cb: CombatState): Enemy {
+  return cb.enemy ?? (getEnemy(cb.enemyId) as Enemy);
+}
+
+/** battle narration goes to both the main log and the round-by-round combat log */
+function battle(state: GameState, text: string, tone?: 'normal' | 'gold' | 'danger' | 'jade' | 'muted'): void {
+  battleLine(state, text, tone ?? 'normal');
+  state.combat?.log.push(text);
+}
 
 export function startCombat(state: GameState, enemyId: string): void {
   const enemy = getEnemy(enemyId);
@@ -41,17 +53,20 @@ export function startCombat(state: GameState, enemyId: string): void {
     enemyId,
     enemy: structuredClone(enemy),
     enemyHp: enemy.hp,
+    enemyMaxHp: enemy.hp,
+    playerHp: state.character.hp,
     round: 1,
+    log: [],
     opening: false,
     trapArmed: false,
     fleeFailures: 0,
     over: false,
   };
   state.phase = 'combat';
-  say(state, enemy.intro, 'danger');
+  if (enemy.intro) say(state, enemy.intro, 'danger');
   sys(
     state,
-    `【${enemy.name}】(${enemy.rank})拦在面前——威能${enemy.power},气血${enemy.hp}。` +
+    `【${enemy.name}】(${enemy.rank ?? '来历不明'})拦在面前——威能${enemy.power},气血${enemy.hp}。` +
       `可选:强攻 / 游斗 / 设伏 / 术法 / 服药 / 遁走${enemy.fleeable ? '' : '(此敌不容遁走)'}。`,
     'danger',
   );
@@ -60,23 +75,26 @@ export function startCombat(state: GameState, enemyId: string): void {
 function playerStrike(state: GameState, mult: number, reason: string): number {
   const cb = state.combat!;
   const c = state.character!;
+  const foe = foeOf(cb);
   const d20 = recordRoll(state, 'D20', `攻击·${reason}`);
-  const raw = calcPower(c) * (0.5 + d20 / 20) * mult - cb.enemy.defense * 0.3;
+  const raw = calcPower(c) * (0.5 + d20 / 20) * mult - (foe.defense ?? 0) * 0.3;
   const dmg = Math.max(1, Math.round(raw));
   cb.enemyHp = Math.max(0, cb.enemyHp - dmg);
-  battle(state, `汝出手(D20=${d20}),予敌 ${dmg} 点创伤。敌方气血 ${cb.enemyHp}/${cb.enemy.hp}。`);
+  battle(state, `汝出手(D20=${d20}),予敌 ${dmg} 点创伤。敌方气血 ${cb.enemyHp}/${foe.hp}。`);
   return dmg;
 }
 
 function enemyStrike(state: GameState, mult: number): number {
   const cb = state.combat!;
   const c = state.character!;
-  const boldness = 1 + cb.fleeFailures * 0.1;
-  const d20 = recordRoll(state, 'D20', `敌袭·${cb.enemy.name}`);
-  const raw = cb.enemy.power * (0.5 + d20 / 20) * mult * boldness - calcDefense(c) * 0.3;
+  const foe = foeOf(cb);
+  const boldness = 1 + (cb.fleeFailures ?? 0) * 0.1;
+  const d20 = recordRoll(state, 'D20', `敌袭·${foe.name}`);
+  const raw = foe.power * (0.5 + d20 / 20) * mult * boldness - calcDefense(c) * 0.3;
   const dmg = Math.max(1, Math.round(raw));
   c.hp = Math.max(0, c.hp - dmg);
-  battle(state, `【${cb.enemy.name}】反扑(D20=${d20}),汝受 ${dmg} 点创伤。汝之气血 ${c.hp}/${c.maxHp}。`, 'danger');
+  cb.playerHp = c.hp;
+  battle(state, `【${foe.name}】反扑(D20=${d20}),汝受 ${dmg} 点创伤。汝之气血 ${c.hp}/${c.maxHp}。`, 'danger');
   return dmg;
 }
 
@@ -99,27 +117,29 @@ function checkCombatEnd(state: GameState): boolean {
 function resolveVictory(state: GameState): void {
   const cb = state.combat!;
   const c = state.character!;
+  const foe = foeOf(cb);
   cb.over = true;
   cb.result = 'win';
 
   say(state, pick(state, COMBAT_WIN_LINES), 'jade');
-  state.stats.enemiesSlain++;
+  bumpStat(state, 'enemiesSlain', 1);
+  state.killCount = (state.killCount ?? 0) + 1;
   const killKey = `kills_${cb.enemyId}`;
   c.flags[killKey] = Number(c.flags[killKey] ?? 0) + 1;
 
   // spoils: stones (气运 nudges the take), then loot table
-  const [lo, hi] = cb.enemy.spiritStones;
+  const [lo, hi] = foe.spiritStones;
   if (hi > 0) {
     const roll = recordRoll(state, 'D100', '战利·灵石');
     const shifted = Math.min(100, roll + (c.attributes.qiYun - 5) * 2);
     const stones = Math.round(lo + ((hi - lo) * Math.max(0, shifted - 1)) / 99);
     if (stones > 0) {
       c.spiritStones += stones;
-      state.stats.stonesEarned += stones;
+      bumpStat(state, 'stonesEarned', stones);
       sys(state, `搜得灵石 ${stones} 枚。`, 'gold');
     }
   }
-  for (const drop of cb.enemy.loot) {
+  for (const drop of foe.loot) {
     const roll = recordRoll(state, 'D100', `战利·${drop.itemId}`);
     if (roll <= drop.chance + (c.attributes.qiYun - 5)) {
       addItem(state, drop.itemId, 1);
@@ -133,12 +153,13 @@ function resolveVictory(state: GameState): void {
 function resolveDefeat(state: GameState): void {
   const cb = state.combat!;
   const c = state.character!;
+  const foe = foeOf(cb);
   cb.over = true;
 
-  if (cb.enemy.lethal) {
+  if (foe.lethal) {
     cb.result = 'dead';
-    say(state, `【${cb.enemy.name}】从不留手。至死,方休。`, 'danger');
-    endGame(state, 'death_combat');
+    say(state, `【${foe.name}】从不留手。至死,方休。`, 'danger');
+    finishGame(state, 'combatDeath');
     return;
   }
 
@@ -165,6 +186,7 @@ export function combatTurn(state: GameState, tactic: CombatTactic, itemRef?: str
   const cb = state.combat;
   const c = state.character;
   if (!cb || !c || cb.over) return;
+  const foe = foeOf(cb);
 
   // 伏势 from last round applies to this round's exchange
   let playerMult = 1;
@@ -177,6 +199,7 @@ export function combatTurn(state: GameState, tactic: CombatTactic, itemRef?: str
   }
 
   switch (tactic) {
+    case '出手':
     case '强攻': {
       say(state, pick(state, COMBAT_TACTIC_FLAVOR['强攻'] ?? []));
       let mult = playerMult * 1.3;
@@ -252,7 +275,7 @@ export function combatTurn(state: GameState, tactic: CombatTactic, itemRef?: str
         return;
       }
       removeItem(state, def.id, 1);
-      if (def.kind === 'pill') state.stats.pillsConsumed++;
+      if (def.kind === 'pill') bumpStat(state, 'pillsConsumed', 1);
 
       if (fx.escape) {
         say(state, `汝拍碎【${def.name}】,遁光乍起——再回首,已在十里之外。`, 'jade');
@@ -264,12 +287,13 @@ export function combatTurn(state: GameState, tactic: CombatTactic, itemRef?: str
       }
       if (fx.damage) {
         cb.enemyHp = Math.max(0, cb.enemyHp - fx.damage);
-        battle(state, `【${def.name}】轰然炸开,予敌 ${fx.damage} 点创伤!敌方气血 ${cb.enemyHp}/${cb.enemy.hp}。`, 'gold');
+        battle(state, `【${def.name}】轰然炸开,予敌 ${fx.damage} 点创伤!敌方气血 ${cb.enemyHp}/${foe.hp}。`, 'gold');
         if (checkCombatEnd(state)) return;
       }
       if (fx.hp) {
         const before = c.hp;
         c.hp = Math.min(c.maxHp, c.hp + fx.hp);
+        cb.playerHp = c.hp;
         battle(state, `汝吞下【${def.name}】,气血 +${c.hp - before}(${c.hp}/${c.maxHp})。`, 'jade');
       }
       // using an item leaves a smaller window for the enemy
@@ -278,13 +302,13 @@ export function combatTurn(state: GameState, tactic: CombatTactic, itemRef?: str
       break;
     }
     case '遁走': {
-      if (!cb.enemy.fleeable) {
-        say(state, `退路早已被封死。【${cb.enemy.name}】没打算让任何人离开。`, 'danger');
+      if (!foe.fleeable) {
+        say(state, `退路早已被封死。【${foe.name}】没打算让任何人离开。`, 'danger');
         enemyStrike(state, enemyMult);
         if (checkCombatEnd(state)) return;
         break;
       }
-      const chance = Math.max(5, 40 + c.attributes.qiYun * 3 - cb.fleeFailures * 10);
+      const chance = Math.max(5, 40 + c.attributes.qiYun * 3 - (cb.fleeFailures ?? 0) * 10);
       const roll = recordRoll(state, 'D100', '遁走');
       if (roll <= chance) {
         say(state, pick(state, COMBAT_FLEE_SUCCESS), 'jade');
@@ -294,7 +318,7 @@ export function combatTurn(state: GameState, tactic: CombatTactic, itemRef?: str
         state.phase = 'playing';
         return;
       }
-      cb.fleeFailures += 1;
+      cb.fleeFailures = (cb.fleeFailures ?? 0) + 1;
       say(state, pick(state, COMBAT_FLEE_FAIL), 'danger');
       sys(state, `遁走失败(D100=${roll} > ${chance}),敌方气焰更盛。`, 'danger');
       enemyStrike(state, enemyMult * 1.2);
@@ -306,5 +330,5 @@ export function combatTurn(state: GameState, tactic: CombatTactic, itemRef?: str
   if (state.combat && !state.combat.over) {
     state.combat.round += 1;
   }
-  checkHpDeath(state);
+  checkDeath(state);
 }

@@ -9,11 +9,6 @@ export default defineConfig({
   },
   test: {
     include: ['src/**/*.test.{ts,tsx}'],
-    exclude: [
-      'src/engine/__tests__/turn.test.ts',
-      'src/engine/__tests__/breakthrough.test.ts',
-      'src/engine/__tests__/creation.test.ts',
-    ],
     environment: 'node',
     passWithNoTests: true,
   },

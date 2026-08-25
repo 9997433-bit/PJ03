@@ -3,8 +3,9 @@
  */
 
 import type { GameState, Npc } from './types';
-import { say, sys } from './narrative';
+import { say, sys } from './prose';
 import { countItem, removeItem, resolveItem } from './inventory';
+import { applyEventEffect } from './effects';
 
 export function resolveNpc(state: GameState, ref: string): Npc | undefined {
   const needle = ref.trim();
@@ -20,13 +21,16 @@ export function changeFavor(state: GameState, npcId: string, delta: number): voi
 
   sys(state, `${npc.name}对汝的态度${delta > 0 ? '亲近' : '冷淡'}了几分。(好感 ${before} → ${npc.favor})`, delta > 0 ? 'jade' : 'danger');
 
-  // threshold crossings fire once, tracked by flag
+  // threshold crossings fire once, tracked by flagKey (falls back to a derived key)
   for (const th of npc.thresholds) {
     const crossedUp = th.at >= 0 && before < th.at && npc.favor >= th.at;
     const crossedDown = th.at < 0 && before > th.at && npc.favor <= th.at;
-    if ((crossedUp || crossedDown) && !state.character?.flags[th.unlockFlag]) {
-      if (state.character) state.character.flags[th.unlockFlag] = true;
-      say(state, th.narrative, th.at >= 0 ? 'gold' : 'danger');
+    const flagKey = th.flagKey ?? `npc_${npc.id}_${th.at}`;
+    if ((crossedUp || crossedDown) && !th.done && !state.character?.flags[flagKey]) {
+      th.done = true;
+      if (state.character) state.character.flags[flagKey] = true;
+      say(state, `【${npc.name}】—— ${th.unlock}`, th.at >= 0 ? 'gold' : 'danger');
+      if (th.effect) applyEventEffect(state, th.effect);
     }
   }
 }

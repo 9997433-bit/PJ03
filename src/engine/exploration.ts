@@ -4,20 +4,20 @@
  */
 
 import type { GameState, LocationDef } from './types';
-import { REALM_ORDER, recordRoll } from './audit';
-import { gainExp } from './cultivation';
+import { recordRoll } from './audit';
+import { realmTier } from './realms';
 import { addItem } from './inventory';
 import { startCombat } from './combat';
-import { checkHpDeath } from './lifecycle';
-import { EXPLORE_INTRO_LINES, pick, say, sys } from './narrative';
+import { checkDeath } from './lifecycle';
+import { EXPLORE_INTRO_LINES, bumpStat, gainExp, pick, say, sys } from './prose';
 import { LOCATIONS, getLocation, makeInjury, getOrigin } from '@/data';
 
 /** locations the character may currently enter */
 export function unlockedLocations(state: GameState): LocationDef[] {
   const c = state.character;
   if (!c) return [];
-  const order = REALM_ORDER[c.realm.realm] ?? 0;
-  return LOCATIONS.filter((l) => (REALM_ORDER[l.minRealm] ?? 99) <= order);
+  const order = realmTier(c.realm.realm);
+  return LOCATIONS.filter((l) => realmTier(l.minRealm) <= order);
 }
 
 /** the 探索 command */
@@ -64,7 +64,7 @@ export function explore(state: GameState, locationId?: string): void {
         const r2 = recordRoll(state, 'D100', '探索·所获');
         const stones = Math.round(lo + ((hi - lo) * (r2 - 1)) / 99);
         c.spiritStones += stones;
-        state.stats.stonesEarned += stones;
+        bumpStat(state, 'stonesEarned', stones);
         sys(state, `灵石 +${stones}(现有${c.spiritStones})。`, 'jade');
       }
       break;
@@ -94,5 +94,5 @@ export function explore(state: GameState, locationId?: string): void {
     case 'nothing':
       break;
   }
-  checkHpDeath(state);
+  checkDeath(state);
 }

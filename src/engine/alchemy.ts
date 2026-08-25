@@ -4,7 +4,8 @@
  */
 
 import type { GameState, Recipe } from './types';
-import { REALM_ORDER, recordRoll } from './audit';
+import { recordRoll } from './audit';
+import { realmTier } from './realms';
 import { addItem, hasMaterials, removeItem } from './inventory';
 import {
   ALCHEMY_FAIL_LINES,
@@ -13,15 +14,15 @@ import {
   pick,
   say,
   sys,
-} from './narrative';
+} from './prose';
 import { RECIPES, getItem, getOrigin, getRecipe } from '@/data';
 
 /** recipes the character can currently attempt */
 export function availableRecipes(state: GameState): Recipe[] {
   const c = state.character;
   if (!c) return [];
-  const order = REALM_ORDER[c.realm.realm] ?? 0;
-  return RECIPES.filter((r) => (REALM_ORDER[r.minRealm] ?? 99) <= order);
+  const order = realmTier(c.realm.realm);
+  return RECIPES.filter((r) => realmTier(r.minRealm) <= order);
 }
 
 export function craftChance(state: GameState, recipe: Recipe): number {

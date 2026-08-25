@@ -233,9 +233,8 @@ export function generateSeed(): string {
     const buf = g.crypto.getRandomValues(new Uint32Array(3));
     return `道-${Date.now().toString(36)}-${Array.from(buf, (n) => n.toString(36)).join('')}`;
   }
-  // eslint-disable-next-line no-restricted-properties -- sanctioned: dice-authority seed entropy
+  // sanctioned: dice-authority seed entropy (rng.ts is exempt from the Math.random ban)
   const r = Math.random().toString(36).slice(2, 10);
-  // eslint-disable-next-line no-restricted-properties -- sanctioned: dice-authority seed entropy
   const r2 = Math.random().toString(36).slice(2, 6);
   return `道-${Date.now().toString(36)}-${r}${r2}`;
 }

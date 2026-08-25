@@ -148,7 +148,7 @@ export function finishGame(state: GameState, ending: EndingId | EndingResult): v
   state.ending = result;
   state.phase = 'ended';
   log(state, '天道', result.summary, result.id === 'ascension' ? 'gold' : 'danger');
-  log(state, '天道', result.closing, result.id === 'ascension' ? 'gold' : 'muted');
+  if (result.closing) log(state, '天道', result.closing, result.id === 'ascension' ? 'gold' : 'muted');
 }
 /** legacy alias */
 export const endGame = finishGame;
@@ -175,6 +175,101 @@ export function advanceAge(state: GameState): Notice[] {
   if (c.age >= c.lifespan) {
     finishGame(state, 'oldAge');
     notices.push({ kind: 'danger', title: '寿元耗尽', desc: '坐化于蒲团之上。' });
+  }
+  return notices;
+}
+
+/**
+ * One tick of world time, called by turn.ts after every time-consuming
+ * command: turn +1, injuries count down (and heal), status effects tick
+ * (with per-turn hp drains/regens), age follows the calendar, and the
+ * 坐化 / 身死道消 endings fire when their conditions are met.
+ */
+export function advanceTime(state: GameState): Notice[] {
+  const c = state.character;
+  if (!c || state.phase === 'ended') return [];
+  const notices: Notice[] = [];
+
+  state.turn += 1;
+
+  // injuries tick + age via the pure helper
+  const tick = advanceLifecycle(c, state.turn);
+  state.character = tick.character;
+  const ch = state.character;
+  for (const w of tick.warnings) {
+    log(state, '天道', w, w.includes('寿元') ? 'danger' : 'jade');
+  }
+  if (tick.healed.length > 0) {
+    notices.push({ kind: 'success', title: '伤势痊愈', desc: tick.healed.join('、') });
+  }
+
+  // status effects (丹药增益/心魔滋扰等) tick down
+  if (ch.statusEffects && ch.statusEffects.length > 0) {
+    const expired: string[] = [];
+    ch.statusEffects = ch.statusEffects
+      .map((s) => (s.turnsLeft < 0 ? s : { ...s, turnsLeft: s.turnsLeft - 1 }))
+      .filter((s) => {
+        if (s.turnsLeft === 0) {
+          expired.push(s.name);
+          return false;
+        }
+        return true;
+      });
+    for (const s of ch.statusEffects) {
+      if (s.hpPerTurn) ch.hp = Math.max(0, Math.min(ch.maxHp, ch.hp + s.hpPerTurn));
+    }
+    for (const name of expired) log(state, '系统', `【${name}】之效已尽。`, 'muted');
+  }
+
+  // mortality checks
+  if (checkDeath(state)) {
+    notices.push({ kind: 'danger', title: '身死道消', desc: '气血耗尽。' });
+    return notices;
+  }
+  if (ch.age >= ch.lifespan) {
+    finishGame(state, 'oldAge');
+    notices.push({ kind: 'danger', title: '寿元耗尽', desc: '坐化于蒲团之上。' });
+  }
+  return notices;
+}
+
+/**
+ * 静养 — spend a season nursing body and breath: restores hp and grants
+ * injuries one extra season of healing. Time itself passes via advanceTime.
+ */
+export function rest(state: GameState): Notice[] {
+  const c = state.character;
+  if (!c || state.phase !== 'playing') return [];
+  const notices: Notice[] = [];
+
+  const heal = Math.max(10, Math.round(c.maxHp * 0.3));
+  const before = c.hp;
+  c.hp = Math.min(c.maxHp, c.hp + heal);
+
+  // 调息疗伤:伤势额外痊愈一季
+  const healed: string[] = [];
+  c.injuries = c.injuries
+    .map((inj) => (inj.turnsLeft < 0 ? inj : { ...inj, turnsLeft: inj.turnsLeft - 1 }))
+    .filter((inj) => {
+      if (inj.turnsLeft === 0) {
+        healed.push(inj.name);
+        return false;
+      }
+      return true;
+    });
+
+  const gained = c.hp - before;
+  log(
+    state,
+    '天道',
+    gained > 0
+      ? `汝闭门谢客,调息静养。气血渐复,得${gained}点。`
+      : '汝闭门静坐一季。气血本无损,聊算偷闲。',
+    'jade'
+  );
+  for (const name of healed) {
+    log(state, '天道', `旧伤渐愈:${name}已无碍。`, 'jade');
+    notices.push({ kind: 'success', title: '伤势痊愈', desc: name });
   }
   return notices;
 }

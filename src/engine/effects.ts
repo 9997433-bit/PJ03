@@ -4,12 +4,11 @@
  */
 
 import type { EventEffect, GameState } from './types';
-import { gainExp } from './cultivation';
 import { addItem } from './inventory';
 import { changeFavor } from './npc';
 import { startCombat } from './combat';
-import { checkHpDeath, endGame } from './lifecycle';
-import { say, sys } from './narrative';
+import { checkDeath, finishGame } from './lifecycle';
+import { bumpStat, gainExp, say, sys } from './prose';
 import { getCombatArt, getTechnique, makeInjury } from '@/data';
 
 export function applyEventEffect(state: GameState, fx: EventEffect): void {
@@ -21,7 +20,7 @@ export function applyEventEffect(state: GameState, fx: EventEffect): void {
   if (fx.spiritStones) {
     if (fx.spiritStones > 0) {
       c.spiritStones += fx.spiritStones;
-      state.stats.stonesEarned += fx.spiritStones;
+      bumpStat(state, 'stonesEarned', fx.spiritStones);
       sys(state, `灵石 +${fx.spiritStones}(现有${c.spiritStones})。`, 'jade');
     } else {
       const loss = Math.min(c.spiritStones, -fx.spiritStones);
@@ -61,9 +60,10 @@ export function applyEventEffect(state: GameState, fx: EventEffect): void {
   }
 
   if (fx.status) {
-    const existing = c.statusEffects.find((s) => s.id === fx.status!.id);
+    const statuses = (c.statusEffects ??= []);
+    const existing = statuses.find((s) => s.id === fx.status!.id);
     if (existing) existing.turnsLeft = Math.max(existing.turnsLeft, fx.status.turnsLeft);
-    else c.statusEffects.push(structuredClone(fx.status));
+    else statuses.push(structuredClone(fx.status));
     sys(state, `获得状态【${fx.status.name}】:${fx.status.desc}`, fx.status.kind === 'buff' ? 'jade' : 'danger');
   }
 
@@ -88,11 +88,11 @@ export function applyEventEffect(state: GameState, fx: EventEffect): void {
   }
 
   if (fx.death) {
-    endGame(state, 'death_qi_deviation');
+    finishGame(state, 'qiDeviation');
     return;
   }
 
-  if (checkHpDeath(state)) return;
+  if (checkDeath(state)) return;
 
   if (fx.combat) {
     startCombat(state, fx.combat);

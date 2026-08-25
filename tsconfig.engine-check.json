@@ -1,6 +1,6 @@
 {
   "extends": "./tsconfig.json",
-  "compilerOptions": { "incremental": false, "noEmit": true },
+  "compilerOptions": { "incremental": false, "noEmit": true, "types": ["node"] },
   "include": ["src/engine/**/*.ts", "src/data/**/*.ts", "src/store/**/*.ts", "src/lib/**/*.ts"],
   "exclude": ["node_modules"]
 }

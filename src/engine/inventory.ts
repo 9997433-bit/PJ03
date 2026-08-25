@@ -3,9 +3,8 @@
  */
 
 import type { GameState, ItemDef } from './types';
-import { calcMaxHp } from './attributes';
-import { gainExp } from './cultivation';
-import { say, sys } from './narrative';
+import { deriveMaxHp } from './attributes';
+import { bumpStat, gainExp, say, sys } from './prose';
 import { ITEMS, getItem, getTechnique, getCombatArt } from '@/data';
 
 /** resolve an item reference by id OR display name */
@@ -74,7 +73,7 @@ export function useItem(state: GameState, ref: string): boolean {
   }
 
   removeItem(state, def.id, 1);
-  if (def.kind === 'pill') state.stats.pillsConsumed++;
+  if (def.kind === 'pill') bumpStat(state, 'pillsConsumed', 1);
 
   if (fx.hp) {
     const before = c.hp;
@@ -87,14 +86,14 @@ export function useItem(state: GameState, ref: string): boolean {
     sys(state, `修为 +${fx.exp}。`, 'jade');
   }
   if (fx.breakthroughBonus) {
-    c.breakthroughBonus = Math.max(c.breakthroughBonus, fx.breakthroughBonus);
+    c.breakthroughBonus = Math.max(c.breakthroughBonus ?? 0, fx.breakthroughBonus);
     say(state, `药力盘踞丹田,引而不发——只待汝叩关之日。`, 'gold');
     sys(state, `下一次突破成功率 +${fx.breakthroughBonus}%。`, 'gold');
   }
   if (fx.attribute) {
     const [attr, delta] = fx.attribute;
     c.attributes[attr] += delta;
-    c.maxHp = calcMaxHp(c);
+    c.maxHp = deriveMaxHp(c);
     c.hp = Math.min(c.hp, c.maxHp);
     const names: Record<string, string> = {
       genGu: '根骨',
@@ -114,18 +113,20 @@ export function useItem(state: GameState, ref: string): boolean {
     say(state, `药至伤除,【${worst.name}】尽愈。`, 'jade');
   }
   if (fx.cureStatus) {
-    const debuffs = c.statusEffects.filter((s) => s.kind === 'debuff');
+    const statuses = (c.statusEffects ??= []);
+    const debuffs = statuses.filter((s) => s.kind === 'debuff');
     if (debuffs.length > 0) {
-      c.statusEffects = c.statusEffects.filter((s) => s.kind !== 'debuff');
+      c.statusEffects = statuses.filter((s) => s.kind !== 'debuff');
       say(state, `丹香入脑,识海霎时清明,阴霾尽散。`, 'jade');
     } else {
       sys(state, `心境本自澄澈,此丹药力空掷。`);
     }
   }
   if (fx.status) {
-    const existing = c.statusEffects.find((s) => s.id === fx.status!.id);
+    const statuses = (c.statusEffects ??= []);
+    const existing = statuses.find((s) => s.id === fx.status!.id);
     if (existing) existing.turnsLeft = Math.max(existing.turnsLeft, fx.status.turnsLeft);
-    else c.statusEffects.push(structuredClone(fx.status));
+    else statuses.push(structuredClone(fx.status));
     sys(state, `获得状态【${fx.status.name}】:${fx.status.desc}`, 'jade');
   }
   if (fx.teachTechnique) {

@@ -9,7 +9,7 @@ import {
 import { executeCommand } from '../turn';
 import { parseCommand } from '../commands';
 import { deserializeSave, serializeSave, SAVE_CORRUPT_MESSAGE } from '../save';
-import { NO_WISHING } from '../narrative';
+import { NO_WISHING } from '../prose';
 import type { GameState } from '../types';
 
 const ALLOC = { genGu: 7, wuXing: 9, xinXing: 7, qiYun: 7 }; // 30 = 5×4 + 10

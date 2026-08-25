@@ -16,14 +16,89 @@ import { cultivate } from './cultivation';
 import { explore } from './exploration';
 import { visitMarket, buyItem, sellItem } from './economy';
 import { viewAlchemy, craftPill } from './alchemy';
-import { useItem, equipItem } from './inventory';
+import { useItem as consumeItem, equipItem } from './inventory';
 import { giftItem } from './npc';
 import { combatTurn } from './combat';
 import { resolveEventChoice, rollTurnEvent } from './events';
 import { checkQuestProgress, chooseQuestOption, viewQuests } from './quests';
-import { advanceTime, rest } from './lifecycle';
-import { NO_WISHING, UNKNOWN_COMMAND, formatRealm, sys } from './narrative';
+import { advanceAge, checkAscension, checkDeath } from './lifecycle';
+import {
+  NO_WISHING,
+  REST_LINES,
+  UNKNOWN_COMMAND,
+  ensureStats,
+  formatRealm,
+  pick,
+  say,
+  sys,
+} from './prose';
 import { getItem, getOrigin, getTechnique } from '@/data';
+
+/** phase check through a function call, immune to control-flow narrowing */
+function isEnded(state: GameState): boolean {
+  return state.phase === 'ended';
+}
+
+/**
+ * One season passes: statuses tick (with per-turn hp drift), injuries count
+ * down and heal, a sliver of natural recovery, then age / 寿元 / ascension.
+ */
+function advanceTime(state: GameState): void {
+  const c = state.character;
+  if (!c || isEnded(state)) return;
+  state.turn += 1;
+
+  // status effects tick
+  const kept: NonNullable<typeof c.statusEffects> = [];
+  for (const s of c.statusEffects ?? []) {
+    if (s.hpPerTurn) c.hp = Math.max(0, Math.min(c.maxHp, c.hp + s.hpPerTurn));
+    if (s.turnsLeft > 0) s.turnsLeft -= 1;
+    if (s.turnsLeft === 0) {
+      sys(state, `状态【${s.name}】已然消散。`, 'muted');
+      continue;
+    }
+    kept.push(s);
+  }
+  c.statusEffects = kept;
+
+  // injuries tick (permanent injuries carry turnsLeft −1)
+  const healed: string[] = [];
+  c.injuries = c.injuries
+    .map((inj) => (inj.turnsLeft < 0 ? inj : { ...inj, turnsLeft: inj.turnsLeft - 1 }))
+    .filter((inj) => {
+      if (inj.turnsLeft === 0) {
+        healed.push(inj.name);
+        return false;
+      }
+      return true;
+    });
+  for (const name of healed) sys(state, `旧伤渐愈:${name}已无碍。`, 'jade');
+
+  // a sliver of natural recovery each season
+  if (c.hp > 0 && c.hp < c.maxHp) {
+    c.hp = Math.min(c.maxHp, c.hp + Math.max(1, Math.round(c.maxHp * 0.05)));
+  }
+
+  if (checkDeath(state)) return;
+  advanceAge(state);
+  if (!isEnded(state)) checkAscension(state);
+}
+
+/** 静养 — heal 30% max hp and hasten the worst recovering injury */
+function rest(state: GameState): void {
+  const c = state.character;
+  if (!c) return;
+  say(state, pick(state, REST_LINES));
+  const heal = Math.max(5, Math.round(c.maxHp * 0.3));
+  const before = c.hp;
+  c.hp = Math.min(c.maxHp, c.hp + heal);
+  if (c.hp > before) sys(state, `气血 +${c.hp - before}(${c.hp}/${c.maxHp})。`, 'jade');
+  const worst = c.injuries.filter((i) => i.turnsLeft > 1).sort((a, b) => b.turnsLeft - a.turnsLeft)[0];
+  if (worst) {
+    worst.turnsLeft = Math.max(1, Math.ceil(worst.turnsLeft / 2));
+    sys(state, `将养得法,【${worst.name}】愈期缩短(余${worst.turnsLeft}季)。`, 'jade');
+  }
+}
 
 /** commands that consume a season (and thus trigger the event roll) */
 const TIME_COMMANDS = new Set<Command['kind']>([
@@ -73,7 +148,7 @@ export function executeCommand(prev: GameState, cmd: Command): GameState {
     return state;
   }
 
-  const firstRollId = state.nextRollId;
+  const prevRollSeq = prev.rollSeq ?? 0;
 
   // ---- dispatch ----
   switch (cmd.kind) {
@@ -102,7 +177,7 @@ export function executeCommand(prev: GameState, cmd: Command): GameState {
       craftPill(state, cmd.recipeId);
       break;
     case 'use':
-      useItem(state, cmd.item);
+      consumeItem(state, cmd.item);
       break;
     case 'equip':
       equipItem(state, cmd.item);
@@ -143,7 +218,7 @@ export function executeCommand(prev: GameState, cmd: Command): GameState {
   }
 
   // ---- time & the world breathing ----
-  if (TIME_COMMANDS.has(cmd.kind) && state.phase !== 'ended') {
+  if (TIME_COMMANDS.has(cmd.kind) && !isEnded(state)) {
     advanceTime(state);
     if (state.phase === 'playing' && !state.pendingEvent) {
       rollTurnEvent(state);
@@ -151,22 +226,22 @@ export function executeCommand(prev: GameState, cmd: Command): GameState {
   }
 
   // ---- quest scan ----
-  if (state.phase !== 'ended') {
+  if (!isEnded(state)) {
     checkQuestProgress(state);
   }
 
   // ---- audit hash chain (layer 5) ----
   const rollValues: number[] = [];
   for (const r of state.rolls) {
-    if (r.id >= firstRollId) rollValues.push(r.value);
+    if (r.id > prevRollSeq) rollValues.push(r.value);
   }
   state.auditHash = chainAuditHash(prev.auditHash, state.turn, commandKey(cmd), rollValues);
 
   // ---- invariants (layer 7): violation rolls the turn back ----
-  const violations = checkInvariants(state);
-  if (violations.length > 0) {
+  const violation = checkInvariants(state);
+  if (violation) {
     const rollback = structuredClone(prev);
-    sys(rollback, `天道回溯——此番因果不谐,尽数作废。(${violations[0]})`, 'danger');
+    sys(rollback, `天道回溯——此番因果不谐,尽数作废。(${violation})`, 'danger');
     return rollback;
   }
 
@@ -191,8 +266,8 @@ function viewPanel(state: GameState): void {
       ? c.injuries.map((i) => `${i.name}(余${i.turnsLeft === -1 ? '∞' : i.turnsLeft}季)`).join('、')
       : '无';
   const statuses =
-    c.statusEffects.length > 0
-      ? c.statusEffects.map((s) => `${s.name}(余${s.turnsLeft === -1 ? '∞' : s.turnsLeft}季)`).join('、')
+    (c.statusEffects ?? []).length > 0
+      ? c.statusEffects!.map((s) => `${s.name}(余${s.turnsLeft === -1 ? '∞' : s.turnsLeft}季)`).join('、')
       : '无';
 
   sys(
@@ -207,7 +282,7 @@ function viewPanel(state: GameState): void {
       `功法:${technique ? `《${technique.name}》(${technique.grade})` : '无'}`,
       `兵刃:${weapon?.name ?? '赤手'} · 甲胄:${armor?.name ?? '布衣'}`,
       `伤势:${injuries} · 状态:${statuses}`,
-      c.breakthroughBonus > 0 ? `丹力蓄势:下次突破 +${c.breakthroughBonus}%` : '',
+      (c.breakthroughBonus ?? 0) > 0 ? `丹力蓄势:下次突破 +${c.breakthroughBonus}%` : '',
     ]
       .filter(Boolean)
       .join('\n'),
@@ -240,7 +315,7 @@ function viewAudit(state: GameState): void {
     .join('\n');
   sys(
     state,
-    `——【天道审计】——(共掷${state.stats.totalRolls}次,校验链 ${state.auditHash.slice(0, 8)}…)\n` +
+    `——【天道审计】——(共掷${ensureStats(state).totalRolls}次,校验链 ${state.auditHash.slice(0, 8)}…)\n` +
       `${lines}\n(封=天机暗掷,只证其有,不示其值)`,
   );
 }

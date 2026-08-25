@@ -40,27 +40,6 @@
   "exclude": [
     "node_modules",
     "out",
-    "src/engine/alchemy.ts",
-    "src/engine/combat.ts",
-    "src/engine/commands.ts",
-    "src/engine/creation.ts",
-    "src/engine/cultivation.ts",
-    "src/engine/breakthrough.ts",
-    "src/engine/economy.ts",
-    "src/engine/effects.ts",
-    "src/engine/events.ts",
-    "src/engine/exploration.ts",
-    "src/engine/inventory.ts",
-    "src/engine/lifecycle.ts",
-    "src/engine/narrative.ts",
-    "src/engine/npc.ts",
-    "src/engine/quests.ts",
-    "src/engine/turn.ts",
-    "src/engine/realms.ts",
-    "src/engine/attributes.ts",
-    "src/engine/__tests__/breakthrough.test.ts",
-    "src/engine/__tests__/creation.test.ts",
-    "src/engine/__tests__/turn.test.ts",
     "src/components/game/creation/CreationWizard.tsx"
   ]
 }

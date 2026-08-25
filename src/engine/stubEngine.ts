@@ -982,7 +982,7 @@ export function runCommand(state: GameState, raw: string): CommandOutcome {
     }
   } else if (cmd.startsWith("使用")) {
     const name = cmd.slice(2).trim();
-    return { state: useItemByName(s, name), pendingEvent: null };
+    return { state: consumeItemByName(s, name), pendingEvent: null };
   } else if (cmd.startsWith("装备")) {
     const name = cmd.slice(2).trim();
     return { state: equipItemByName(s, name), pendingEvent: null };
@@ -1019,7 +1019,9 @@ export function runCommand(state: GameState, raw: string): CommandOutcome {
 }
 
 // ===== item / economy actions =====
-export function useItemByName(state: GameState, name: string): GameState {
+export { consumeItemByName as useItemByName };
+
+export function consumeItemByName(state: GameState, name: string): GameState {
   const s = clone(state);
   const c = s.character;
   if (!c) return s;

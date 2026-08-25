@@ -23,7 +23,7 @@ function mkRoll(values: number[]): RollFn & { used: () => number } {
   let i = 0;
   const fn: RollFn = () => {
     if (i >= values.length) throw new Error(`roll queue exhausted after ${values.length}`);
-    return values[i++];
+    return values[i++]!;
   };
   return Object.assign(fn, { used: () => i });
 }

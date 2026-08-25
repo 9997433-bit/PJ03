@@ -4,9 +4,9 @@
  */
 
 import type { GameState, ItemDef } from './types';
-import { REALM_ORDER } from './audit';
+import { realmTier } from './realms';
 import { addItem, countItem, removeItem, resolveItem } from './inventory';
-import { MARKET_ARRIVE_LINES, pick, say, sys } from './narrative';
+import { MARKET_ARRIVE_LINES, bumpStat, pick, say, sys } from './prose';
 import { ITEMS, getOrigin } from '@/data';
 
 export const SELL_RATE = 0.5;
@@ -17,10 +17,10 @@ export const FAVOR_DISCOUNT = 0.9;
 export function marketStock(state: GameState): ItemDef[] {
   const c = state.character;
   if (!c) return [];
-  const order = REALM_ORDER[c.realm.realm] ?? 0;
+  const order = realmTier(c.realm.realm);
   return ITEMS.filter((i) => {
-    if (i.price <= 0) return false;
-    if (i.minRealm && (REALM_ORDER[i.minRealm] ?? 99) > order) return false;
+    if (i.price <= 0 || i.hidden) return false;
+    if (i.minRealm && realmTier(i.minRealm) > order) return false;
     return true;
   });
 }
@@ -80,9 +80,13 @@ export function sellItem(state: GameState, ref: string, count = 1): void {
     sys(state, `【${def.name}】不足${n}件。`);
     return;
   }
+  if (def.sellable === false || def.price <= 0) {
+    sys(state, `曹掌柜摆手:「【${def.name}】,小店不收。」`);
+    return;
+  }
   const total = sellPrice(state, def) * n;
   removeItem(state, def.id, n);
   c.spiritStones += total;
-  state.stats.stonesEarned += total;
+  bumpStat(state, 'stonesEarned', total);
   sys(state, `售出【${def.name}】×${n},得灵石${total}(现有${c.spiritStones})。`, 'jade');
 }

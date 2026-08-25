@@ -4,7 +4,7 @@
 // ============================================================================
 
 import type { GameState, LogEntry } from './types';
-import { NARRATIVE_LOG_CAP } from './types';
+import { LOG_CAP as NARRATIVE_LOG_CAP } from './types';
 
 /** Render a template, replacing {var} placeholders. */
 export function render(template: string, vars?: Record<string, string | number>): string {
@@ -132,5 +132,5 @@ export const T = {
 
 /** Pick a line from a rotating pool deterministically by turn. */
 export function pickLine(pool: readonly string[], turn: number): string {
-  return pool[turn % pool.length];
+  return pool[turn % pool.length] ?? pool[0] ?? '';
 }

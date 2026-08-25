@@ -6,9 +6,10 @@
 
 import type { GameState, Quest, QuestObjective } from './types';
 import { realmAtLeast } from './audit';
+import { realmTier } from './realms';
 import { applyEventEffect } from './effects';
 import { countItem, removeItem } from './inventory';
-import { say, sys } from './narrative';
+import { say, sys } from './prose';
 
 export function activeQuests(state: GameState): Quest[] {
   return state.quests.filter((q) => q.status === 'active');
@@ -37,15 +38,19 @@ function objectiveMet(state: GameState, obj: QuestObjective): boolean {
   if (!c) return false;
   switch (obj.type) {
     case 'reachRealm':
-      return realmAtLeast(c.realm.realm, obj.target);
+      return !!obj.target && realmAtLeast(c.realm.realm, obj.target);
     case 'killEnemy':
-      return Number(c.flags[`kills_${obj.target}`] ?? 0) >= (obj.n ?? 1);
+      return Number(c.flags[`kills_${obj.target ?? ''}`] ?? 0) >= (obj.n ?? 1);
+    case 'killCount':
+      return (state.killCount ?? 0) >= (obj.n ?? 1);
     case 'obtainItem':
-      return countItem(state, obj.target) >= (obj.n ?? 1);
+      return !!obj.target && countItem(state, obj.target) >= (obj.n ?? 1);
     case 'favor': {
-      const npc = state.npcs[obj.target];
+      const npc = obj.target ? state.npcs[obj.target] : undefined;
       return !!npc && npc.favor >= (obj.n ?? 50);
     }
+    default:
+      return false;
   }
 }
 
@@ -53,7 +58,7 @@ function completeQuest(state: GameState, quest: Quest): void {
   quest.status = 'done';
   say(state, `【${quest.title}】已了。`, 'gold');
   // hand-in quests consume the collected goods
-  if (quest.objective?.type === 'obtainItem') {
+  if (quest.objective?.type === 'obtainItem' && quest.objective.target) {
     removeItem(state, quest.objective.target, quest.objective.n ?? 1);
   }
   applyEventEffect(state, quest.reward);
@@ -68,10 +73,26 @@ function completeQuest(state: GameState, quest: Quest): void {
   }
 }
 
-/** scan all active objective quests; complete any whose conditions are met */
+/** unlock gating: predecessor done + realm floor reached */
+function questUnlockable(state: GameState, quest: Quest): boolean {
+  const c = state.character;
+  if (!c) return false;
+  if (quest.unlockAfter) {
+    const prev = state.quests.find((q) => q.id === quest.unlockAfter);
+    if (!prev || prev.status !== 'done') return false;
+  }
+  if (quest.minRealm && realmTier(c.realm.realm) < realmTier(quest.minRealm)) return false;
+  return true;
+}
+
+/** scan all quests; unlock what has opened, complete any whose conditions are met */
 export function checkQuestProgress(state: GameState): void {
   if (!state.character || state.phase === 'ended') return;
   for (const quest of state.quests) {
+    if (quest.status === 'locked' && (quest.unlockAfter || quest.minRealm) && questUnlockable(state, quest)) {
+      quest.status = 'active';
+      say(state, `新的因果落于汝身——【${quest.title}】。`, 'jade');
+    }
     if (quest.status !== 'active' || !quest.objective) continue;
     if (objectiveMet(state, quest.objective)) {
       completeQuest(state, quest);
