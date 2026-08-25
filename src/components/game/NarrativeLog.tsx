@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import type { LogEntry } from '@/engine/types';
 import { Typewriter } from './Typewriter';
+import { turnLabel } from './format';
 import { cn } from '@/lib/utils';
 
 const TONE_CLASS: Record<string, string> = {
@@ -72,9 +73,19 @@ export function NarrativeLog({ log }: { log: LogEntry[] }) {
           {log.map((entry, i) => {
             const entryId = entry.id ?? i;
             const animate = entryId >= animateFromId.current && entryId === lastId;
+            const newTurn = entry.turn > 0 && entry.turn !== log[i - 1]?.turn;
             return (
+              <Fragment key={entryId}>
+              {newTurn && (
+                <div className="flex items-center gap-3 pt-2 select-none" aria-hidden>
+                  <span className="h-px flex-1 bg-gradient-to-r from-transparent to-ink-600" />
+                  <span className="font-sans text-[11px] tracking-[0.3em] text-mist-500">
+                    {turnLabel(entry.turn)}
+                  </span>
+                  <span className="h-px flex-1 bg-gradient-to-l from-transparent to-ink-600" />
+                </div>
+              )}
               <motion.div
-                key={entryId}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, ease: 'easeOut' }}
@@ -93,6 +104,7 @@ export function NarrativeLog({ log }: { log: LogEntry[] }) {
                   onDone={() => pinned && scrollToBottom()}
                 />
               </motion.div>
+              </Fragment>
             );
           })}
           {log.length === 0 && (
