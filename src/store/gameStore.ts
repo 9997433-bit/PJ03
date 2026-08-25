@@ -240,9 +240,7 @@ const envelopeStorage: PersistStorage<PersistedSlice> = {
 
 /** Pristine pre-game state shown until a save is hydrated or a game starts. */
 function titleState(): GameState {
-  return startCreation("__title__").state.phase === "creation"
-    ? { ...startCreation("__title__").state, phase: "title" }
-    : startCreation("__title__").state;
+  return { ...startCreation("__title__"), phase: "title" };
 }
 
 // ============================================================================
@@ -283,7 +281,7 @@ export const useGameStore = create<GameStore>()(
 
         newGame: () => {
           set({
-            game: startCreation(generateSeed()).state,
+            game: startCreation(generateSeed()),
             corrupt: false,
             breakthroughFx: null,
             activeTab: "panel",
@@ -295,7 +293,7 @@ export const useGameStore = create<GameStore>()(
           if (adapter) clearSave(adapter, SAVE_KEY);
           corruptOnLoad = false;
           set({
-            game: startCreation(generateSeed()).state,
+            game: startCreation(generateSeed()),
             corrupt: false,
             breakthroughFx: null,
             activeTab: "panel",
