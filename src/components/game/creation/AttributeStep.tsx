@@ -1,21 +1,22 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+
 import { ATTR_CAP, FREE_POINTS } from "@/engine/stubEngine";
 import { useGameStore } from "@/store/gameStore";
 import { Button } from "@/components/ui/button";
+import { ATTRIBUTE_META, VISIBLE_ATTRIBUTES, cnNum } from "../format";
+import { CornerFrame } from "../Ornaments";
+import { cn } from "@/lib/utils";
 
-const KEYS = ["genGu", "wuXing", "xinXing", "qiYun"] as const;
-const LABELS: Record<(typeof KEYS)[number], string> = {
-  genGu: "根骨",
-  wuXing: "悟性",
-  xinXing: "心性",
-  qiYun: "气运",
-};
+type Key = (typeof VISIBLE_ATTRIBUTES)[number];
 
+/** Step 1 — 命格. Interactive point allocation with live bars. */
 export function AttributeStep() {
   const game = useGameStore((s) => s.game);
   const allocate = useGameStore((s) => s.creationAllocate);
+  const reduced = useReducedMotion();
   const base = game?.character?.attributes;
 
   const initial = useMemo(
@@ -30,43 +31,101 @@ export function AttributeStep() {
 
   if (!base) return null;
 
-  const spent = KEYS.reduce((n, k) => n + (vals[k] - base[k]), 0);
+  const spent = VISIBLE_ATTRIBUTES.reduce((n, k) => n + (vals[k] - base[k]), 0);
   const left = FREE_POINTS - spent;
 
-  const bump = (key: (typeof KEYS)[number], d: number) => {
+  const bump = (key: Key, d: number) => {
     setVals((v) => {
       const next = { ...v, [key]: v[key] + d };
       if (next[key] < base[key] || next[key] > ATTR_CAP) return v;
-      const s = KEYS.reduce((n, k) => n + (next[k] - base[k]), 0);
+      const s = VISIBLE_ATTRIBUTES.reduce((n, k) => n + (next[k] - base[k]), 0);
       if (s > FREE_POINTS) return v;
       return next;
     });
   };
 
   return (
-    <div className="mx-auto max-w-md space-y-5">
-      <p className="text-center text-sm text-mist-400">
-        自由点数 {left}/{FREE_POINTS}
-        <span className="mt-1 block text-xs text-paper-500">出身已计入根骨/心性等基础值</span>
-      </p>
-      {KEYS.map((k) => (
-        <div key={k} className="flex items-center justify-between">
-          <span>
-            {LABELS[k]} <span className="text-xs text-paper-500">(底{base[k]})</span>
+    <div className="mx-auto max-w-lg space-y-5">
+      <div className="text-center">
+        <p className="font-sans text-xs tracking-[0.4em] text-mist-500">凡躯有限 · 取舍由汝</p>
+        <p className="mt-2 font-display text-lg text-paper-100">
+          可分点数{" "}
+          <span
+            className={cn(
+              "text-2xl tabular-nums",
+              left > 0 ? "text-gold-300 text-glow-gold" : "text-jade-300",
+            )}
+          >
+            {cnNum(left)}
           </span>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => bump(k, -1)} disabled={vals[k] <= base[k]}>
-              −
-            </Button>
-            <span className="w-8 text-center font-mono">{vals[k]}</span>
-            <Button size="sm" variant="outline" onClick={() => bump(k, 1)} disabled={vals[k] >= ATTR_CAP || left <= 0}>
-              +
-            </Button>
-          </div>
-        </div>
-      ))}
-      <Button disabled={left !== 0} className="w-full" onClick={() => allocate(vals)}>
-        定格命格
+          <span className="ml-1 font-sans text-xs text-mist-500">/ {FREE_POINTS}</span>
+        </p>
+        <p className="mt-1 font-sans text-xs text-mist-500">出身际遇已计入基础值,机缘一项天道自掌。</p>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {VISIBLE_ATTRIBUTES.map((k) => {
+          const meta = ATTRIBUTE_META[k];
+          const added = vals[k] - base[k];
+          return (
+            <CornerFrame
+              key={k}
+              className="rounded-md bg-ink-900/70 px-4 py-3.5 ring-1 ring-ink-700 backdrop-blur-md"
+              cornerClassName={added > 0 ? "border-gold-400/60" : "border-ink-500/60"}
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="font-display text-base tracking-widest text-paper-100">
+                    {meta.label}
+                    {added > 0 && (
+                      <span className="ml-2 font-sans text-xs text-gold-300 tabular-nums">+{added}</span>
+                    )}
+                  </p>
+                  <p className="mt-0.5 truncate font-sans text-[11px] text-mist-500">{meta.hint}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-2.5">
+                  <Button
+                    size="icon-sm"
+                    variant="outline"
+                    aria-label={`${meta.label} 减一`}
+                    onClick={() => bump(k, -1)}
+                    disabled={vals[k] <= base[k]}
+                  >
+                    −
+                  </Button>
+                  <span className="w-7 text-center font-display text-xl text-gold-300 tabular-nums">
+                    {vals[k]}
+                  </span>
+                  <Button
+                    size="icon-sm"
+                    variant="outline"
+                    aria-label={`${meta.label} 加一`}
+                    onClick={() => bump(k, 1)}
+                    disabled={vals[k] >= ATTR_CAP || left <= 0}
+                  >
+                    +
+                  </Button>
+                </div>
+              </div>
+              <div className="bar-track mt-2.5 h-1.5">
+                <motion.div
+                  className="bar-fill-jade h-full"
+                  animate={{ width: `${(vals[k] / ATTR_CAP) * 100}%` }}
+                  transition={reduced ? { duration: 0 } : { type: "spring", stiffness: 220, damping: 26 }}
+                />
+              </div>
+            </CornerFrame>
+          );
+        })}
+      </div>
+
+      <Button
+        size="lg"
+        disabled={left !== 0}
+        className="w-full tracking-[0.3em]"
+        onClick={() => allocate(vals)}
+      >
+        {left > 0 ? `尚余${cnNum(left)}点未定` : "定格命格"}
       </Button>
     </div>
   );
