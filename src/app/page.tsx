@@ -213,6 +213,14 @@ export default function TitlePage() {
         </motion.p>
       </div>
 
+      {/* version — subtle, bottom corner */}
+      <span
+        aria-hidden
+        className="absolute bottom-3 right-4 z-10 font-sans text-[10px] tracking-widest text-paper-500/35 select-none"
+      >
+        v1.0.0
+      </span>
+
       {/* ===== confirm: 开始游戏 over an existing life ===== */}
       <Dialog open={confirm === 'start'} onOpenChange={(o) => !o && setConfirm(null)}>
         <DialogContent className="border-gold-600/30 bg-ink-900">

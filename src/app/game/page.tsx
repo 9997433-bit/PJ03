@@ -26,6 +26,7 @@ import { InventoryView } from '@/components/game/InventoryView';
 import { QuestView } from '@/components/game/QuestView';
 import { AuditView } from '@/components/game/AuditView';
 import { EndingScreen } from '@/components/game/EndingScreen';
+import { TutorialHints } from '@/components/game/TutorialHints';
 import OriginStep from '@/components/game/creation/OriginStep';
 import AttributeStep from '@/components/game/creation/AttributeStep';
 import SpiritRootStep from '@/components/game/creation/SpiritRootStep';
@@ -265,6 +266,9 @@ export default function GamePage() {
       <p className="hidden border-t border-ink-800/60 bg-ink-950 px-5 py-1 text-center font-sans text-[10px] tracking-widest text-paper-500/50 select-none lg:block">
         快捷键 1修炼 2突破 3探索 · 4-9切换面板 · 战斗中1-6战法 · 抉择中1-9直选
       </p>
+
+      {/* first-time player hints (dismissed state lives in localStorage) */}
+      {game.phase === 'playing' && <TutorialHints />}
 
       {breakthroughFx && <BreakthroughModal fx={breakthroughFx} onClose={clearBreakthroughFx} />}
 
