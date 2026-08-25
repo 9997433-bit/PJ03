@@ -5,19 +5,19 @@
 // PURE TypeScript. No React, no browser APIs, no Math.random().
 // ============================================================================
 
-import type { Attributes, Injury, RealmState, VisibleAttribute } from './types';
-import { powerOf } from './realms';
+import type { Attributes, Character, Injury, RealmState } from './types';
+import { realmPower } from './realms';
+import { ITEM_BY_ID } from '@/data/items';
+import { getTechnique } from '@/data/techniques';
 
-// ===== Creation constants =====
+// ===== creation constants =====
 export const BASE_ATTRIBUTE = 5; // every visible attribute starts here
 export const FREE_POINTS = 10; // allocatable at creation
-export const CREATION_CAP = 10; // max (base + allocated) per attribute at creation
+export const CREATION_CAP = 10; // max per visible attribute at creation
 export const ATTRIBUTE_MIN = 1;
 export const ATTRIBUTE_MAX = 20; // lifetime cap (pills / events included)
 
-export const VISIBLE_ATTRIBUTES: VisibleAttribute[] = ['genGu', 'wuXing', 'xinXing', 'qiYun'];
-
-export const ATTRIBUTE_NAMES: Record<keyof Attributes, string> = {
+export const ATTR_LABELS: Record<keyof Attributes, string> = {
   genGu: '根骨',
   wuXing: '悟性',
   xinXing: '心性',
@@ -25,76 +25,74 @@ export const ATTRIBUTE_NAMES: Record<keyof Attributes, string> = {
   qiYun: '气运',
 };
 
-/** Fresh attribute block: visible attributes at base, 机缘 unset (0) until the hidden roll. */
-export function baseAttributes(): Attributes {
-  return { genGu: BASE_ATTRIBUTE, wuXing: BASE_ATTRIBUTE, xinXing: BASE_ATTRIBUTE, jiYuan: 0, qiYun: BASE_ATTRIBUTE };
+/** Engine-level notice for toasts/FX; structurally compatible with UI notices. */
+export interface Notice {
+  kind: 'info' | 'success' | 'warning' | 'danger' | 'gold';
+  title: string;
+  desc?: string;
 }
 
-export function clampAttribute(v: number): number {
+export function clampAttr(v: number): number {
   return Math.max(ATTRIBUTE_MIN, Math.min(ATTRIBUTE_MAX, Math.round(v)));
 }
 
-// ===== Point allocation (creation step 2) =====
-export type Allocation = Partial<Record<VisibleAttribute, number>>;
+// ===== creation allocation (step 2) =====
 
-export type AllocationCheck = { ok: true } | { ok: false; error: string };
+export interface AllocationInput {
+  genGu: number;
+  wuXing: number;
+  xinXing: number;
+  qiYun: number;
+}
 
 /**
- * Creation allocation rules:
- *  - only the 4 visible attributes may receive points (机缘 is never allocatable)
- *  - non-negative integers, total exactly FREE_POINTS
- *  - base + allocated may not exceed CREATION_CAP on any single attribute
+ * Validate a creation-time allocation. Convention: the input carries FINAL
+ * values (base 5 + distributed free points), i.e. each 5–10 and the four
+ * together exactly 5×4+10 = 30. 机缘 is never allocatable.
+ * Returns an error string, or null when valid.
  */
-export function validateAllocation(alloc: Allocation): AllocationCheck {
-  let total = 0;
-  for (const key of Object.keys(alloc) as VisibleAttribute[]) {
-    if (!VISIBLE_ATTRIBUTES.includes(key)) {
-      return { ok: false, error: `不可分配之属性：${String(key)}` };
-    }
-    const v = alloc[key] ?? 0;
-    if (!Number.isInteger(v) || v < 0) {
-      return { ok: false, error: '点数须为非负整数。' };
-    }
-    if (BASE_ATTRIBUTE + v > CREATION_CAP) {
-      return { ok: false, error: `${ATTRIBUTE_NAMES[key]}超出上限（创角时至多${CREATION_CAP}）。` };
-    }
-    total += v;
+export function validateAllocation(alloc: AllocationInput): string | null {
+  const values = [alloc.genGu, alloc.wuXing, alloc.xinXing, alloc.qiYun];
+  for (const v of values) {
+    if (!Number.isInteger(v)) return '属性须为整数。';
+    if (v < BASE_ATTRIBUTE) return `属性不得低于基础值${BASE_ATTRIBUTE}。`;
+    if (v > CREATION_CAP) return `创角时单项属性至多${CREATION_CAP}。`;
   }
-  if (total !== FREE_POINTS) {
-    return { ok: false, error: `须恰好分配${FREE_POINTS}点（当前${total}点）。` };
-  }
-  return { ok: true };
+  const sum = values.reduce((a, b) => a + b, 0);
+  const expected = BASE_ATTRIBUTE * 4 + FREE_POINTS;
+  if (sum !== expected) return `属性点须恰好分尽：合计应为${expected}，现为${sum}。`;
+  return null;
 }
 
-/** Base 5 + allocation. Assumes the allocation already passed validateAllocation. */
-export function applyAllocation(alloc: Allocation): Attributes {
-  const a = baseAttributes();
-  for (const key of VISIBLE_ATTRIBUTES) a[key] += alloc[key] ?? 0;
-  return a;
+/** Allocation + origin modifiers → the character's attribute block (机缘 sealed at 0). */
+export function buildAttributes(alloc: AllocationInput, mods: Partial<Attributes> = {}): Attributes {
+  return {
+    genGu: clampAttr(alloc.genGu + (mods.genGu ?? 0)),
+    wuXing: clampAttr(alloc.wuXing + (mods.wuXing ?? 0)),
+    xinXing: clampAttr(alloc.xinXing + (mods.xinXing ?? 0)),
+    qiYun: clampAttr(alloc.qiYun + (mods.qiYun ?? 0)),
+    jiYuan: 0,
+  };
 }
 
-/** Origin modifiers (or pill / event boosts) on top of an attribute block. */
-export function applyAttributeMods(attrs: Attributes, mods: Partial<Attributes>): Attributes {
-  const out = { ...attrs };
-  for (const key of Object.keys(mods) as (keyof Attributes)[]) {
-    out[key] = Math.min(ATTRIBUTE_MAX, out[key] + (mods[key] ?? 0));
-  }
-  return out;
+/** Apply a delta to one attribute, clamped. */
+export function bumpAttribute(attrs: Attributes, key: keyof Attributes, delta: number): Attributes {
+  return { ...attrs, [key]: clampAttr(attrs[key] + delta) };
 }
 
-/** Sealed hidden roll → 机缘 1–10. The mapping is never surfaced in any UI string. */
+/** Sealed hidden roll → 机缘 1–10. The mapping is never surfaced in UI text. */
 export function mapHiddenRollToJiYuan(d100: number): number {
   return Math.max(1, Math.min(10, Math.ceil(d100 / 10)));
 }
 
-// ===== Derived stats =====
+// ===== derived stats =====
 
 /** 悟性 → cultivation speed factor (1 + 悟性 × 0.05). */
 export function comprehensionSpeedFactor(wuXing: number): number {
   return 1 + wuXing * 0.05;
 }
 
-/** 根骨×2 + 心性×1 — flat bonus added to breakthrough chance. */
+/** 根骨×2 + 心性×1 — flat percentage-point bonus to breakthrough chance. */
 export function breakthroughAttributeBonus(attrs: Attributes): number {
   return attrs.genGu * 2 + attrs.xinXing;
 }
@@ -109,37 +107,98 @@ export function heartDemonResistance(xinXing: number): number {
   return xinXing;
 }
 
-/** Injuries slow cultivation: 1 + Σ effect.speed (negative values), floored at 0.3. */
-export function injurySpeedMultiplier(injuries: Injury[] | undefined): number {
+// ===== injuries =====
+
+/** Injuries slow cultivation: Π (1 + effect.speed), floored at 0.3. */
+export function injurySpeedMult(injuries: readonly Injury[] | undefined): number {
   if (!injuries || injuries.length === 0) return 1;
-  const sum = injuries.reduce((acc, inj) => acc + (inj.effect.speed ?? 0), 0);
-  return Math.max(0.3, 1 + sum);
+  let m = 1;
+  for (const inj of injuries) m *= 1 + (inj.effect.speed ?? 0);
+  return Math.max(0.3, m);
 }
 
-/** Total flat penalty injuries apply to breakthrough chance (returned ≥ 0). */
-export function injuryBreakthroughPenalty(injuries: Injury[] | undefined): number {
-  if (!injuries || injuries.length === 0) return 0;
-  return injuries.reduce((acc, inj) => acc + Math.abs(inj.effect.breakthrough ?? 0), 0);
+/** Injuries weaken combat power: Π (1 + effect.power), floored at 0.3. */
+export function injuryPowerMult(injuries: readonly Injury[] | undefined): number {
+  if (!injuries || injuries.length === 0) return 1;
+  let m = 1;
+  for (const inj of injuries) m *= 1 + (inj.effect.power ?? 0);
+  return Math.max(0.3, m);
 }
 
 /**
- * Max HP: 根骨-driven body multiplied by realm power.
- * 凡人根骨5 ≈ 100；筑基初期根骨7 ≈ 400；金丹 ≈ 1300+。
+ * Total percentage-POINT penalty injuries apply to breakthrough chance.
+ * Injury effects use the fractional dialect ({ breakthrough: -0.1 } = −10pp).
  */
+export function injuryBreakthroughPenalty(injuries: readonly Injury[] | undefined): number {
+  if (!injuries || injuries.length === 0) return 0;
+  return Math.round(injuries.reduce((acc, inj) => acc + Math.abs(inj.effect.breakthrough ?? 0), 0) * 100);
+}
+
+// ===== HP / combat =====
+
+/** Max HP: 根骨-driven body plus realm-power bonus. 凡人根骨5 ≈ 100 HP. */
 export function maxHpFor(attrs: Attributes, realm?: RealmState): number {
   const body = 40 + attrs.genGu * 12;
-  const mult = realm ? 1 + (powerOf(realm) - 5) / 50 : 1;
-  return Math.max(1, Math.round(body * mult));
+  const realmBonus = realm ? Math.round(realmPower(realm) * 0.5) : 0;
+  return Math.max(1, body + realmBonus);
 }
+
+/** Character-shaped convenience over maxHpFor (used at creation / level-up). */
+export function deriveMaxHp(char: Pick<Character, 'attributes' | 'realm'>): number {
+  return maxHpFor(char.attributes, char.realm);
+}
+
+interface LooseGear {
+  power?: number;
+  defense?: number;
+  powerBonus?: number;
+}
+
+function gearOf(id: string | null | undefined): LooseGear | undefined {
+  if (!id) return undefined;
+  return (ITEM_BY_ID as Record<string, LooseGear | undefined>)[id];
+}
+
+function techniqueOf(id: string | null | undefined): LooseGear | undefined {
+  if (!id) return undefined;
+  return getTechnique(id) as LooseGear | undefined;
+}
+
+/**
+ * 战力 = 境界底蕴×阶段系数 + 根骨×3 + 兵刃 + 功法底蕴, ×伤势 ×出身修正.
+ * (术法加成在战斗回合内另计。)
+ */
+export function combatPower(char: Character): number {
+  let p = realmPower(char.realm) + char.attributes.genGu * 3;
+  p += gearOf(char.equipped.weapon)?.power ?? 0;
+  p += techniqueOf(char.techniqueId)?.powerBonus ?? 0;
+  p *= injuryPowerMult(char.injuries);
+  if (char.flags.slayer === true) p *= 1.05; // 猎户遗孤·搏杀
+  return Math.round(p);
+}
+/** legacy alias */
+export const powerOf = combatPower;
+
+/** 防御 = 根骨 + 甲胄 + 佩饰。 */
+export function defenseValue(char: Character): number {
+  let d = char.attributes.genGu;
+  d += gearOf(char.equipped.armor)?.defense ?? 0;
+  d += gearOf(char.equipped.accessory)?.defense ?? 0;
+  return Math.round(d);
+}
+/** legacy alias */
+export const defenseOf = defenseValue;
+
+// ===== panel summary =====
 
 export interface DerivedStats {
   maxHp: number;
-  speedFactor: number; // from 悟性 alone
-  breakthroughBonus: number; // 根骨×2 + 心性
-  luckShift: number; // event-table shift from 气运
+  speedFactor: number;
+  breakthroughBonus: number;
+  luckShift: number;
 }
 
-/** Panel-facing derived stats. 机缘 deliberately contributes nothing visible here. */
+/** Panel-facing derived stats. 机缘 deliberately contributes nothing visible. */
 export function derivedStats(attrs: Attributes, realm?: RealmState): DerivedStats {
   return {
     maxHp: maxHpFor(attrs, realm),
