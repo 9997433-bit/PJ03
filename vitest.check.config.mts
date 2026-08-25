@@ -1,20 +1,16 @@
 import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
 import path from 'node:path';
 
 export default defineConfig({
-  plugins: [react()],
   resolve: {
-    alias: { '@': path.resolve(__dirname, 'src') },
+    alias: { '@': path.resolve('/workspace', 'src') },
   },
   test: {
-    include: ['src/**/*.test.{ts,tsx}'],
-    exclude: [
+    include: [
       'src/engine/__tests__/turn.test.ts',
       'src/engine/__tests__/breakthrough.test.ts',
       'src/engine/__tests__/creation.test.ts',
     ],
     environment: 'node',
-    passWithNoTests: true,
   },
 });

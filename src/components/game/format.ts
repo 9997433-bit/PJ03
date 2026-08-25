@@ -1,28 +1,95 @@
 // ============================================================================
 // Shared presentation helpers for game components.
 // Pure functions only — no React.
+//
+// NOTE ON TYPES: the engine (`@/engine/types`) and the content layer
+// (`@/data/types`) carry slightly different dialects of the item/origin
+// shapes while the codebase converges. Components therefore accept the
+// minimal structural "…Like" types below, which BOTH dialects satisfy.
 // ============================================================================
 
 import type {
-  ItemDef,
   LogEntry,
   RealmId,
   RealmState,
   SpiritRootGrade,
-  VisibleAttribute,
 } from "@/engine/types";
+
+// ----- structural display types (dialect-agnostic) -----
+
+export interface ItemLike {
+  id: string;
+  name: string;
+  kind: string;
+  grade: 1 | 2 | 3 | 4 | 5;
+  price: number;
+  desc: string;
+  power?: number;
+  defense?: number;
+  sellable?: boolean;
+  effect?: {
+    hp?: number;
+    exp?: number;
+    breakthroughBonus?: number;
+    cureInjury?: boolean;
+    lifespan?: number;
+  };
+}
+
+export interface TechniqueLike {
+  id: string;
+  name: string;
+  grade: string;
+  speedBonus: number;
+  powerBonus: number;
+  desc: string;
+}
+
+export interface ArtLike {
+  id: string;
+  name: string;
+  desc: string;
+  /** data dialect */
+  powerBonus?: number;
+  /** engine dialect */
+  power?: number;
+}
+
+export interface OriginLike {
+  id: string;
+  name: string;
+  tagline?: string;
+  story?: string;
+  desc?: string;
+  attributeMods: Partial<
+    Record<"genGu" | "wuXing" | "xinXing" | "qiYun" | "jiYuan", number>
+  >;
+  startSpiritStones: number;
+  startItems: readonly (string | { itemId: string; count: number })[];
+  perk?: { name: string; desc: string } | string;
+  perkName?: string;
+  perkDesc?: string;
+}
+
+export function originPerkText(o: OriginLike): { name: string; desc: string } {
+  if (o.perk && typeof o.perk === "object") return o.perk;
+  return {
+    name: o.perkName ?? (typeof o.perk === "string" ? o.perk : "特性"),
+    desc: o.perkDesc ?? "",
+  };
+}
 
 // ----- Chinese numerals (炼气层数) -----
 const CN_DIGITS = ["零", "一", "二", "三", "四", "五", "六", "七", "八", "九"];
 
 export function cnNum(n: number): string {
-  if (n <= 0) return CN_DIGITS[0];
-  if (n < 10) return CN_DIGITS[n];
+  if (n <= 0) return CN_DIGITS[0] ?? "零";
+  if (n < 10) return CN_DIGITS[n] ?? String(n);
   if (n === 10) return "十";
-  if (n < 20) return `十${CN_DIGITS[n - 10]}`;
+  if (n < 20) return `十${CN_DIGITS[n - 10] ?? ""}`;
   const tens = Math.floor(n / 10);
   const ones = n % 10;
-  return `${CN_DIGITS[tens]}十${ones ? CN_DIGITS[ones] : ""}`;
+  return `${CN_DIGITS[tens] ?? ""}十${ones ? (CN_DIGITS[ones] ?? "") : ""}`;
 }
 
 // ----- Realm display -----
@@ -34,6 +101,19 @@ export const REALM_NAMES: Record<RealmId, string> = {
   nascent: "元婴",
   deity: "化神",
 };
+
+export const REALM_SEQUENCE: RealmId[] = [
+  "mortal",
+  "qi",
+  "foundation",
+  "core",
+  "nascent",
+  "deity",
+];
+
+export function realmAtLeast(realm: RealmId, min: RealmId): boolean {
+  return REALM_SEQUENCE.indexOf(realm) >= REALM_SEQUENCE.indexOf(min);
+}
 
 export function formatRealm(realm: RealmState): string {
   if (realm.realm === "mortal") return "凡人之躯";
@@ -66,7 +146,7 @@ export interface GradeInfo {
   bgClass: string;
 }
 
-export const GRADE_INFO: Record<ItemDef["grade"], GradeInfo> = {
+export const GRADE_INFO: Record<1 | 2 | 3 | 4 | 5, GradeInfo> = {
   1: {
     label: "凡品",
     textClass: "text-mist-400",
@@ -99,8 +179,8 @@ export const GRADE_INFO: Record<ItemDef["grade"], GradeInfo> = {
   },
 };
 
-// ----- Item kind labels -----
-export const ITEM_KIND_LABELS: Record<ItemDef["kind"], string> = {
+// ----- Item kind labels (loose — covers both dialects) -----
+export const ITEM_KIND_LABELS: Record<string, string> = {
   pill: "丹药",
   weapon: "兵刃",
   armor: "护具",
@@ -108,13 +188,21 @@ export const ITEM_KIND_LABELS: Record<ItemDef["kind"], string> = {
   talisman: "符箓",
   material: "灵材",
   manual: "典籍",
+  treasure: "异宝",
   misc: "杂物",
 };
+
+export function itemKindLabel(kind: string): string {
+  return ITEM_KIND_LABELS[kind] ?? "杂物";
+}
 
 // ----- Spirit root grade styling -----
 export const SPIRIT_ROOT_STYLE: Record<
   SpiritRootGrade,
-  { badge: "gold" | "mystic" | "default" | "jade" | "secondary" | "outline"; glowClass: string }
+  {
+    badge: "gold" | "mystic" | "default" | "jade" | "secondary" | "outline";
+    glowClass: string;
+  }
 > = {
   天灵根: { badge: "gold", glowClass: "text-glow-gold" },
   异灵根: { badge: "mystic", glowClass: "text-glow-gold" },
@@ -126,8 +214,10 @@ export const SPIRIT_ROOT_STYLE: Record<
 };
 
 // ----- Visible attributes (机缘 deliberately absent — hidden by design) -----
+export type VisibleAttributeKey = "genGu" | "wuXing" | "xinXing" | "qiYun";
+
 export const ATTRIBUTE_META: Record<
-  VisibleAttribute,
+  VisibleAttributeKey,
   { label: string; hint: string }
 > = {
   genGu: { label: "根骨", hint: "气血与突破之本" },
@@ -136,7 +226,7 @@ export const ATTRIBUTE_META: Record<
   qiYun: { label: "气运", hint: "机遇祸福之势" },
 };
 
-export const VISIBLE_ATTRIBUTES: VisibleAttribute[] = [
+export const VISIBLE_ATTRIBUTES: VisibleAttributeKey[] = [
   "genGu",
   "wuXing",
   "xinXing",
@@ -152,6 +242,8 @@ export function toneTextClass(tone: LogEntry["tone"]): string {
       return "text-crimson-400";
     case "jade":
       return "text-jade-300";
+    case "muted":
+      return "text-mist-400";
     default:
       return "text-paper-50/90";
   }

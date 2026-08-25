@@ -15,11 +15,12 @@
  */
 import { getOrigin, ORIGINS } from "@/data/origins";
 import { bandForRoll, ELEMENTS, MUTANT_ELEMENTS } from "@/data/spiritRoots";
-import { lifespanFor, nextRealm, realmLabel, REALMS, STAGES } from "@/data/realmData";
+import { lifespanFor, nextRealm, realmLabel, REALM_BY_ID, STAGES } from "@/data/realmData";
 import { getTechnique } from "@/data/techniques";
 import { getItem } from "@/data/items";
 import { getRecipe } from "@/data/recipes";
-import { createSeed, makeAuditedRoll, seedToState, type Die } from "./rng";
+import { createSeed, makeAuditedRoll, seedToState } from "./rng";
+import type { Die } from "./types";
 import type {
   Attributes,
   Character,
@@ -28,6 +29,7 @@ import type {
   Enemy,
   GameState,
   LogEntry,
+  PendingEvent,
   Quest,
   RealmId,
   SpiritRoot,
@@ -59,11 +61,12 @@ function pushLog(s: GameState, entry: Omit<LogEntry, "turn"> & { turn?: number }
 
 /** Audited dice roll bound to game state. */
 function doRoll(s: GameState, die: Die, reason: string): number {
-  const id = s.rolls.length > 0 ? s.rolls[s.rolls.length - 1].id + 1 : 1;
+  const id = (s.rolls.at(-1)?.id ?? 0) + 1;
   const { value, nextState, roll } = makeAuditedRoll(s.rngState, die, reason, id, s.turn);
   s.rngState = nextState;
   s.rolls.push(roll);
   if (s.rolls.length > ROLL_CAP) s.rolls.splice(0, s.rolls.length - ROLL_CAP);
+  s.rollSeq = (s.rollSeq ?? 1) + 1;
   s.auditHash = cyrb53(`${s.auditHash}|${s.turn}|${reason}|${value}`);
   return value;
 }
@@ -89,6 +92,8 @@ export function titleState(): GameState {
     rolls: [],
     auditHash: cyrb53("genesis"),
     ending: null,
+    rollSeq: 1,
+    killCount: 0,
   };
 }
 
@@ -133,7 +138,7 @@ export function creationChooseOrigin(
     originId,
     attributes,
     spiritRoot: { grade: "五灵根", elements: [], speedMultiplier: 0, rollValue: 0 },
-    realm: { realm: "mortal", qiLayer: 0, stage: "初期", exp: 0, expNeeded: REALMS.mortal.baseExpPerLevel[0] },
+    realm: { realm: "mortal", qiLayer: 0, stage: "初期", exp: 0, expNeeded: REALM_BY_ID.mortal.baseExpPerLevel[0] ?? 100 },
     age: 16,
     lifespan: lifespanFor("mortal"),
     hp: 0,
@@ -147,9 +152,12 @@ export function creationChooseOrigin(
     sectId: null,
     flags: { ...(origin.startFlags ?? {}) },
   };
-  for (const itemId of origin.startItems) addItem(s.character, itemId, 1);
+  for (const itemId of origin.startItems) {
+    addItem(s.character, itemId, 1);
+  }
+  const ch = s.character;
   s.creationStep = 1;
-  pushLog(s, { speaker: "天道", text: `${origin.name}${gender === "男" ? "之子" : "之女"},名唤「${s.character.name}」。${origin.desc}` });
+  pushLog(s, { speaker: "天道", text: `${origin.name}${gender === "男" ? "之子" : "之女"},名唤「${ch.name}」。${origin.desc}` });
   return s;
 }
 
@@ -196,7 +204,8 @@ export function creationRollSpiritRoot(state: GameState): GameState {
     elements = [];
     for (let i = 0; i < band.elementCount; i++) {
       const idx = (doRoll(s, "D6", "灵根属性") - 1) % pool.length;
-      elements.push(pool.splice(idx, 1)[0]);
+      const picked = pool.splice(idx, 1)[0];
+      if (picked) elements.push(picked);
     }
   }
   const root: SpiritRoot = {
@@ -291,10 +300,10 @@ export function maxHpOf(c: Character): number {
 }
 
 export function powerOf(c: Character): number {
-  const def = REALMS[c.realm.realm];
+  const def = REALM_BY_ID[c.realm.realm];
   const stageMult = c.realm.realm === "qi" ? 1 + c.realm.qiLayer * 0.12 : 1 + STAGES.indexOf(c.realm.stage) * 0.35;
   const weapon = c.equipped.weapon ? (getItem(c.equipped.weapon)?.power ?? 0) : 0;
-  const tech = getTechnique(c.techniqueId)?.powerBonus ?? 0;
+  const tech = c.techniqueId ? getTechnique(c.techniqueId)?.powerBonus ?? 0 : 0;
   let p = def.powerBase * stageMult + c.attributes.genGu * 3 + weapon + tech;
   if (c.flags.killer) p *= 1.05;
   return Math.round(p);
@@ -309,7 +318,7 @@ function injurySpeedPenalty(c: Character): number {
 }
 
 export function cultivationGain(c: Character): number {
-  const tech = getTechnique(c.techniqueId);
+  const tech = c.techniqueId ? getTechnique(c.techniqueId) : undefined;
   let techBonus = tech?.speedBonus ?? 1;
   if (tech?.elementAffinity && tech.elementAffinity.some((e) => c.spiritRoot.elements.includes(e))) {
     techBonus *= 1.2;
@@ -322,7 +331,7 @@ export function cultivationGain(c: Character): number {
 }
 
 export function breakthroughChance(c: Character): number {
-  const def = REALMS[c.realm.realm];
+  const def = REALM_BY_ID[c.realm.realm];
   let chance = def.breakthroughBaseChance + c.attributes.genGu * 2 + c.attributes.xinXing * 1;
   chance += (c.flags.breakthroughBonus as number | undefined) ?? 0;
   for (const inj of c.injuries) chance -= (inj.effect.breakthrough ?? 0) * 100;
@@ -355,7 +364,7 @@ function checkQuests(s: GameState): void {
   if (!c) return;
   for (const q of s.quests) {
     if (q.status !== "active" || !q.objective) continue;
-    if (q.objective.type === "obtainItem" && countItem(c, q.objective.target) >= (q.objective.n ?? 1)) {
+    if (q.objective.type === "obtainItem" && q.objective.target && countItem(c, q.objective.target) >= (q.objective.n ?? 1)) {
       q.status = "done";
       pushLog(s, { speaker: "系统", tone: "jade", text: `任务达成——「${q.title}」。${q.reward.narrative}` });
     }
@@ -402,12 +411,6 @@ function advanceTime(s: GameState): void {
 }
 
 // ===== per-turn event =====
-export interface PendingEvent {
-  eventId: string;
-  narrative: string;
-  choices: { text: string; check?: { attr: keyof Attributes; dc: number }; hint?: string }[];
-}
-
 interface StubEvent {
   id: string;
   bucket: "大凶" | "小凶" | "平" | "小吉" | "大吉";
@@ -468,7 +471,7 @@ const EVENTS: StubEvent[] = [
         "一盏孤灯,一卷残经,岁月无声。",
         "溪水东流,不舍昼夜。汝之道心,亦当如是。",
       ];
-      pushLog(s, { speaker: "天道", text: lines[s.turn % lines.length] });
+      pushLog(s, { speaker: "天道", text: lines[s.turn % lines.length] ?? lines[0]! });
       return null;
     },
   },
@@ -556,6 +559,7 @@ function rollTurnEvent(s: GameState): PendingEvent | null {
   const pool = EVENTS.filter((e) => e.bucket === bucket);
   if (pool.length === 0) return null;
   const pick = pool[(raw + s.turn) % pool.length];
+  if (!pick) return null;
   return pick.run(s);
 }
 
@@ -649,7 +653,7 @@ function pickEnemy(s: GameState): Enemy {
         : c.realm.realm === "qi"
           ? [ENEMIES[1], ENEMIES[2]]
           : [ENEMIES[2], ENEMIES[3]];
-  return pool[(s.turn + s.rolls.length) % pool.length];
+  return pool[(s.turn + s.rolls.length) % pool.length]!;
 }
 
 function startCombatInner(s: GameState, enemy: Enemy): void {
@@ -730,6 +734,7 @@ export function combatAction(
       }
       clog(`「${enemy.name}」倒地气绝。得灵石 ${stones}${drops.length ? ",拾得:" + drops.join("、") : ""}。`);
       pushLog(s, { speaker: "战斗", tone: "jade", text: `斩「${enemy.name}」,得灵石 ${stones}${drops.length ? ",获 " + drops.join("、") : ""}。` });
+      s.killCount = (s.killCount ?? 0) + 1;
       s.phase = "playing";
       checkQuests(s);
       lifecycleCheck(s);
@@ -775,7 +780,7 @@ export interface BreakthroughAttempt {
   narrative: string;
 }
 
-function atMajorGate(c: Character): boolean {
+export function atMajorGate(c: Character): boolean {
   if (c.realm.realm === "qi") return c.realm.qiLayer >= 13 && c.realm.exp >= c.realm.expNeeded;
   if (c.realm.realm === "mortal") return false;
   return c.realm.stage === "大圆满" && c.realm.exp >= c.realm.expNeeded && c.realm.realm !== "deity";
@@ -790,7 +795,7 @@ export function attemptBreakthrough(state: GameState): { state: GameState; resul
     return { state: s, result: null };
   }
   const from = realmLabel(c.realm);
-  const to = REALMS[nextRealm(c.realm.realm)!].name;
+  const to = REALM_BY_ID[nextRealm(c.realm.realm)!].name;
   const chance = breakthroughChance(c);
   const v = doRoll(s, "D100", `突破·${to}`);
   const success = v <= chance;
@@ -801,20 +806,20 @@ export function attemptBreakthrough(state: GameState): { state: GameState; resul
 
   if (success) {
     const nr = nextRealm(c.realm.realm)!;
-    c.realm = { realm: nr, qiLayer: 0, stage: "初期", exp: 0, expNeeded: REALMS[nr].baseExpPerLevel[0] };
+    c.realm = { realm: nr, qiLayer: 0, stage: "初期", exp: 0, expNeeded: REALM_BY_ID[nr].baseExpPerLevel[0] ?? 100 };
     c.lifespan = lifespanFor(nr);
     c.maxHp = maxHpOf(c);
     c.hp = c.maxHp;
     delete c.flags.bottleneck;
     delete c.flags.failStreak;
-    narrative = `雷云散尽,气象一新。汝已成${REALMS[nr].name}修士,寿元增至${c.lifespan}。`;
+    narrative = `雷云散尽,气象一新。汝已成${REALM_BY_ID[nr].name}修士,寿元增至${c.lifespan}。`;
     pushLog(s, { speaker: "天道", tone: "gold", text: `天地灵气如百川归海——${from},破而后立。${narrative}` });
     if (nr === "deity") {
       pushLog(s, { speaker: "天道", tone: "gold", text: "化神已成。飞升之门,遥遥在望。" });
     }
   } else {
-    const def = REALMS[c.realm.realm];
-    c.realm.exp = Math.round(c.realm.exp * (1 - def.failurePenalty.expLoss || 0.3));
+    const def = REALM_BY_ID[c.realm.realm];
+    c.realm.exp = Math.round(c.realm.exp * (1 - (def.failurePenalty.expLossMin ?? 0.3)));
     const streak = ((c.flags.failStreak as number | undefined) ?? 0) + 1;
     c.flags.failStreak = streak;
     if (streak >= 2) c.flags.bottleneck = true;
@@ -852,7 +857,7 @@ function gainExp(s: GameState, amount: number): void {
   c.realm.exp += amount;
   // mortal → qi 引气入体
   if (c.realm.realm === "mortal" && c.realm.exp >= c.realm.expNeeded) {
-    c.realm = { realm: "qi", qiLayer: 1, stage: "初期", exp: 0, expNeeded: REALMS.qi.baseExpPerLevel[0] };
+    c.realm = { realm: "qi", qiLayer: 1, stage: "初期", exp: 0, expNeeded: REALM_BY_ID.qi.baseExpPerLevel[0] ?? 100 };
     c.lifespan = lifespanFor("qi");
     c.maxHp = maxHpOf(c);
     c.hp = c.maxHp;
@@ -864,7 +869,7 @@ function gainExp(s: GameState, amount: number): void {
     while (c.realm.qiLayer < 13 && c.realm.exp >= c.realm.expNeeded) {
       c.realm.exp -= c.realm.expNeeded;
       c.realm.qiLayer += 1;
-      c.realm.expNeeded = REALMS.qi.baseExpPerLevel[Math.min(c.realm.qiLayer - 1, 12)];
+      c.realm.expNeeded = REALM_BY_ID.qi.baseExpPerLevel[Math.min(c.realm.qiLayer - 1, 12)] ?? 100;
       c.maxHp = maxHpOf(c);
       pushLog(s, { speaker: "系统", tone: "jade", text: `修为精进——${realmLabel(c.realm)}。` });
     }
@@ -875,13 +880,15 @@ function gainExp(s: GameState, amount: number): void {
     return;
   }
   // foundation+ stage-up
-  const def = REALMS[c.realm.realm];
+  const def = REALM_BY_ID[c.realm.realm];
   const stages = def.stages ?? [];
   while (c.realm.stage !== "大圆满" && c.realm.exp >= c.realm.expNeeded) {
     c.realm.exp -= c.realm.expNeeded;
     const idx = stages.indexOf(c.realm.stage);
-    c.realm.stage = stages[idx + 1];
-    c.realm.expNeeded = def.baseExpPerLevel[Math.min(idx + 1, def.baseExpPerLevel.length - 1)];
+    const nextStage = stages[idx + 1];
+    if (!nextStage) break;
+    c.realm.stage = nextStage;
+    c.realm.expNeeded = def.baseExpPerLevel[Math.min(idx + 1, def.baseExpPerLevel.length - 1)] ?? 100;
     c.maxHp = maxHpOf(c);
     pushLog(s, { speaker: "系统", tone: "jade", text: `境界稳固——${realmLabel(c.realm)}。` });
   }
@@ -938,7 +945,7 @@ export function runCommand(state: GameState, raw: string): CommandOutcome {
         `灵气如丝,汇于丹田。(修为 +${gain})`,
         `枯坐蒲团,道行渐深。(修为 +${gain})`,
       ];
-      pushLog(s, { speaker: "天道", text: lines[s.turn % lines.length] });
+      pushLog(s, { speaker: "天道", text: lines[s.turn % lines.length] ?? lines[0]! });
       advanceTime(s);
       pendingEvent = rollTurnEvent(s);
     }

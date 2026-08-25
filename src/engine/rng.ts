@@ -150,7 +150,7 @@ function appendRoll(
   seedState: string,
   sealed: boolean,
 ): DiceRoll {
-  const id = state.rollSeq + 1;
+  const id = (state.rollSeq ?? 0) + 1;
   state.rollSeq = id;
   if (state.nextRollId !== undefined) state.nextRollId = id + 1;
   const record: DiceRoll = {

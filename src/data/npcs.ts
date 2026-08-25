@@ -1,69 +1,127 @@
-/**
- * 人物 — 6 named NPCs with favor thresholds.
- * (STUB — content agent expands; keep ids and threshold flag names.)
- */
+// ============================================================================
+// npcs.ts — 六位有名之人
+// 好感 −100…100;越过门槛,恩怨自见分晓。
+// ============================================================================
+
 import type { Npc } from '@/engine/types';
 
-export const NPCS: Record<string, Npc> = {
-  cao_zhanggui: {
-    id: 'cao_zhanggui',
-    name: '曹掌柜',
-    identity: '坊市掌柜',
+export const INITIAL_NPCS: Record<string, Npc> = {
+  qianZhangGui: {
+    id: 'qianZhangGui',
+    name: '钱掌柜',
+    identity: '坊市万宝阁掌柜,笑面藏刀,童叟“基本”无欺。',
     favor: 0,
-    desc: '万宝楼的掌柜,笑口常开,心里的算盘比谁都精。',
     thresholds: [
-      { at: 30, unlockFlag: 'discount_market', narrative: '曹掌柜拱手笑道:"老主顾了,往后货价,给道友抹个零头。"' },
-      { at: 60, unlockFlag: 'market_rare_goods', narrative: '曹掌柜引汝入内堂:"楼里压箱底的物件,道友可先过目。"' },
+      {
+        at: 20,
+        unlock: '坊市九折优待',
+        flagKey: 'npc_qian_20',
+        effect: { narrative: '钱掌柜拍着胸脯:“自家人,往后一律九折!”', flag: ['marketDiscount', true] },
+      },
+      {
+        at: 60,
+        unlock: '压箱底的好东西',
+        flagKey: 'npc_qian_60',
+        effect: { narrative: '钱掌柜引汝入内堂,取出一枚蒙尘的玉佩:“有缘者得之。”', items: [{ itemId: 'huShenYuPei', count: 1 }] },
+      },
     ],
   },
-  wang_shixiong: {
-    id: 'wang_shixiong',
-    name: '王师兄',
-    identity: '同门师兄',
-    favor: 10,
-    desc: '入门早汝三年的师兄,面冷心热,一手剑气术使得极熟。',
-    thresholds: [
-      { at: 40, unlockFlag: 'wang_teach_art', narrative: '王师兄难得一笑:"剑气术的口诀,我念一遍,你记好。"' },
-    ],
-  },
-  shenmi_laozhe: {
-    id: 'shenmi_laozhe',
-    name: '神秘老者',
-    identity: '来历不明',
+  chenShiXiong: {
+    id: 'chenShiXiong',
+    name: '陈师兄',
+    identity: '同门师兄,炼气十层,刀子嘴豆腐心。',
     favor: 0,
-    desc: '偶尔出现在坊市角落的老人,浑浊的眼睛里偶有精光一闪。',
     thresholds: [
-      { at: 50, unlockFlag: 'laozhe_secret', narrative: '老者压低声音:"小娃娃,有些话,我只说与你听。"' },
+      {
+        at: 30,
+        unlock: '倾囊相授《剑气术》',
+        flagKey: 'npc_chen_30',
+        effect: { narrative: '陈师兄把汝拽到后山:“看好了,就教这一遍。”', teachArt: 'jianQiShu' },
+      },
+      {
+        at: 70,
+        unlock: '生死之交',
+        flagKey: 'npc_chen_70',
+        effect: { narrative: '陈师兄塞来一株百年灵草:“拿着。跟我客气就是看不起我。”', items: [{ itemId: 'baiNianLingCao', count: 1 }] },
+      },
     ],
   },
-  xuanji_zhanglao: {
-    id: 'xuanji_zhanglao',
-    name: '玄机长老',
-    identity: '宗门长老',
+  qingPaoLaoZhe: {
+    id: 'qingPaoLaoZhe',
+    name: '青袍老者',
+    identity: '来历成谜的老修士,常在山道旁下棋,棋盘对面无人。',
     favor: 0,
-    desc: '掌管外门事务的长老,赏罚分明,不近人情。',
     thresholds: [
-      { at: 40, unlockFlag: 'zongmen_zhuji_dan', narrative: '玄机长老颔首:"汝勤勉,宗门看在眼里。这枚筑基丹的名额,记你一份。"' },
+      {
+        at: 40,
+        unlock: '授《大衍诀》',
+        flagKey: 'npc_qing_40',
+        effect: { narrative: '老者落下一子,头也不抬:“老夫这局棋,你替我记着。”一卷心法凭空印入汝识海。', teachTechnique: 'daYanJue' },
+      },
+      {
+        at: 70,
+        unlock: '千年灵乳',
+        flagKey: 'npc_qing_70',
+        effect: { narrative: '“棋逢对手,当浮一大白。”老者抛来一只玉瓶,内盛千年灵乳。', items: [{ itemId: 'qianNianLingRu', count: 1 }] },
+      },
     ],
   },
-  xueshou_rentu: {
-    id: 'xueshou_rentu',
-    name: '血手人屠',
-    identity: '魔道散修',
-    favor: -20,
-    desc: '恶名昭彰的魔修,与汝有过一面之缘——那一面,不算愉快。',
+  yanZhangLao: {
+    id: 'yanZhangLao',
+    name: '严长老',
+    identity: '宗门执法长老,面冷如霜,赏罚分明。',
+    favor: 0,
     thresholds: [
-      { at: -60, unlockFlag: 'rentu_ambush', narrative: '有人看见血手人屠往汝所居的方向去了。' },
+      {
+        at: 25,
+        unlock: '宗门庇护',
+        flagKey: 'npc_yan_25',
+        effect: { narrative: '严长老颔首:“宗门之内,无人可欺你。”', flag: ['sectBacking', true] },
+      },
+      {
+        at: 60,
+        unlock: '赐法衣',
+        flagKey: 'npc_yan_60',
+        effect: { narrative: '“护道之物,拿去。”一袭玄龟袍掷至汝怀中。', items: [{ itemId: 'faYiXuanGui', count: 1 }] },
+      },
     ],
   },
-  a_yao: {
-    id: 'a_yao',
+  luoSha: {
+    id: 'luoSha',
+    name: '罗刹',
+    identity: '魔道散修,睚眦必报。与之结怨,夜路当心。',
+    favor: 0,
+    thresholds: [
+      {
+        at: -50,
+        unlock: '血仇已结',
+        flagKey: 'npc_luosha_n50',
+        effect: { narrative: '有人捎来一片染血的黑巾。罗刹的规矩:此物既至,追杀不休。', flag: ['feud', true] },
+      },
+    ],
+  },
+  aYao: {
+    id: 'aYao',
     name: '阿瑶',
-    identity: '青梅故人',
-    favor: 30,
-    desc: '故乡旧识。汝踏上仙途那日,她在村口站了很久。',
+    identity: '青梅故人,仍在山下故里,守着一间药圃。',
+    favor: 0,
     thresholds: [
-      { at: 70, unlockFlag: 'ayao_token', narrative: '阿瑶将一枚平安符塞进汝手里,针脚细密。"路上……当心。"' },
+      {
+        at: 30,
+        unlock: '家乡的静心丸',
+        flagKey: 'npc_ayao_30',
+        effect: { narrative: '阿瑶托行商捎来一只布包,内有静心丸一枚,针脚细密。', items: [{ itemId: 'jingXinWan', count: 1 }] },
+      },
+      {
+        at: 70,
+        unlock: '尘缘一诺',
+        flagKey: 'npc_ayao_70',
+        effect: { narrative: '“修仙的人,也会老么?”她只问了这一句。汝无言,心性却在此问中沉淀如渊。', attribute: ['xinXing', 1] },
+      },
     ],
   },
 };
+
+export function getNpcName(id: string): string {
+  return INITIAL_NPCS[id]?.name ?? id;
+}

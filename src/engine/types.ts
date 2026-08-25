@@ -173,7 +173,13 @@ export interface Injury {
    * PLAN §2 dialect: fractional penalties, e.g. { speed: -0.2 } slows
    * cultivation by 20%, { breakthrough: -0.1 } lowers 突破 chance.
    */
-  effect: Partial<Record<'speed' | 'power' | 'breakthrough', number>>;
+  effect: Partial<
+    Record<'speed' | 'power' | 'breakthrough', number> & {
+      powerMod?: number;
+      speedMult?: number;
+      breakthroughMod?: number;
+    }
+  >;
 }
 
 // ============================================================================
@@ -270,7 +276,7 @@ export interface CombatArt {
   desc: string;
 }
 
-export type ItemKind = 'pill' | 'weapon' | 'armor' | 'talisman' | 'material' | 'manual' | 'misc';
+export type ItemKind = 'pill' | 'weapon' | 'armor' | 'talisman' | 'material' | 'manual' | 'misc' | 'treasure' | 'accessory';
 
 export interface ItemEffect {
   hp?: number;
@@ -279,6 +285,10 @@ export interface ItemEffect {
   breakthroughBonus?: number;
   attribute?: [keyof Attributes, number];
   cureInjury?: boolean;
+  cureHeartDemon?: boolean;
+  grantFlag?: [string, boolean | number];
+  rootWash?: boolean | number;
+  lifespan?: number;
   /** cures heart-demon / debuff statuses */
   cureStatus?: boolean;
   /** grants a timed status effect */
@@ -287,6 +297,9 @@ export interface ItemEffect {
   teachTechnique?: string;
   /** manuals teach a combat art */
   teachArt?: string;
+  teachTechniqueId?: string;
+  teachCombatArtId?: string;
+  special?: string;
   /** talisman: guaranteed flee from current combat */
   escape?: boolean;
   /** talisman: direct damage in combat */
@@ -303,6 +316,10 @@ export interface ItemDef {
   effect?: ItemEffect;
   power?: number;
   defense?: number;
+  slot?: 'weapon' | 'armor' | 'accessory';
+  sellable?: boolean;
+  hidden?: boolean;
+  unique?: boolean;
   /** market availability gate */
   minRealm?: RealmId;
   /** market availability gate as numeric realm tier (0 = mortal, 1 = qi, …) */
@@ -350,6 +367,7 @@ export interface EventEffect {
   /** enemyId — start combat */
   combat?: string;
   flag?: [string, boolean | number];
+  attribute?: [keyof Attributes, number];
   teachTechnique?: string;
   teachArt?: string;
   death?: boolean;
@@ -376,8 +394,7 @@ export interface GameEvent {
   kind: 'fortune' | 'neutral' | 'danger' | 'encounter' | 'combat';
   /** hidden 机缘 gate — event only eligible when 机缘 ≥ minJiYuan */
   minJiYuan?: number;
-  /** flag requirements: [flagName, requiredValue] */
-  requiresFlag?: [string, boolean | number];
+  requiresFlag?: [string, boolean | number] | string;
   /** set automatically to prevent repeats of unique events */
   once?: boolean;
   /** 0 choices = auto-resolve */
@@ -388,6 +405,8 @@ export interface GameEvent {
 /** an event waiting for the player to pick a choice */
 export interface PendingEvent {
   eventId: string;
+  narrative: string;
+  choices: { text: string; check?: EventCheck; hint?: string }[];
 }
 
 /** a pending choice presented to the player (event or quest node) */
@@ -409,14 +428,14 @@ export interface Enemy {
   /** flavor tier label, e.g. 炼气四层 / 二阶妖兽 */
   rank?: string;
   power: number;
-  defense: number;
+  defense?: number;
   hp: number;
   loot: { itemId: string; chance: number }[];
   spiritStones: [min: number, max: number];
   fleeable: boolean;
   /** if true, losing ⇒ death (身死道消); otherwise robbed/injured */
-  lethal: boolean;
-  intro: string;
+  lethal?: boolean;
+  intro?: string;
 }
 
 /** combat actions — 出手 strike / 术法 art / 服药 pill / 遁走 flee (+ optional tactics) */
@@ -450,6 +469,9 @@ export interface NpcThreshold {
   at: number;
   /** what crossing this favor threshold unlocks (PLAN §2) */
   unlock: string;
+  /** runtime flag key for one-shot threshold announcements */
+  flagKey?: string;
+  effect?: EventEffect;
   /** set at runtime once the threshold has been crossed and announced */
   done?: boolean;
 }
@@ -470,6 +492,7 @@ export interface QuestObjective {
   type: 'reachRealm' | 'killEnemy' | 'killCount' | 'obtainItem' | 'favor';
   target?: string;
   n?: number;
+  desc?: string;
 }
 
 export interface QuestChoice {
@@ -490,6 +513,8 @@ export interface Quest {
   objective?: QuestObjective;
   reward: EventEffect;
   status: QuestStatus;
+  unlockAfter?: string;
+  minRealm?: RealmId;
 }
 
 // ============================================================================
@@ -527,14 +552,16 @@ export interface EndingDef {
   id: string;
   title: string;
   /** 天道's closing line */
-  closing: string;
+  closing?: string;
+  /** alias used in data/endings.ts */
+  line?: string;
 }
 
 export interface EndingResult {
   id: string;
   title: string;
   summary: string;
-  closing: string;
+  closing?: string;
 }
 
 // ============================================================================
@@ -659,9 +686,9 @@ export interface GameState {
   nextRollId?: number;
   nextLogId?: number;
   /** monotonic dice sequence counter (starts at 1) */
-  rollSeq: number;
+  rollSeq?: number;
   /** lifetime enemies slain (quest objectives read this) */
-  killCount: number;
+  killCount?: number;
   /** lifetime stats for the ending screen */
   stats?: {
     totalRolls: number;

@@ -1,236 +1,152 @@
-"use client";
+'use client';
 
-import * as React from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { CornerDownLeft } from "lucide-react";
+import { useRef, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import type { GameState } from '@/engine/types';
+import { atMajorGate } from '@/engine/stubEngine';
+import { useGameStore } from '@/store/gameStore';
 
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
-
-export interface QuickCommand {
+interface QuickAction {
   label: string;
   command: string;
-  /** Visual weight — 突破 deserves gold. */
-  variant?: "outline" | "jade" | "default" | "destructive" | "ghost" | "secondary";
+  accent?: 'gold' | 'jade' | 'crimson';
+  hotkey: string;
 }
 
-export interface CommandBarProps {
-  onCommand: (command: string) => void;
-  /** Quick-action buttons. Defaults to the core turn commands. */
-  quickCommands?: QuickCommand[];
-  /** Whitelist used for autocomplete suggestions. */
-  knownCommands?: string[];
-  disabled?: boolean;
-  placeholder?: string;
-  className?: string;
-}
+export function CommandBar({ state }: { state: GameState }) {
+  const execute = useGameStore((s) => s.execute);
+  const [input, setInput] = useState('');
+  const historyRef = useRef<string[]>([]);
+  const [historyIdx, setHistoryIdx] = useState(-1);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-const DEFAULT_QUICK: QuickCommand[] = [
-  { label: "修炼", command: "修炼", variant: "jade" },
-  { label: "突破", command: "突破", variant: "default" },
-  { label: "探索", command: "探索", variant: "outline" },
-  { label: "坊市", command: "坊市", variant: "outline" },
-  { label: "炼丹", command: "炼丹", variant: "outline" },
-  { label: "任务", command: "任务", variant: "outline" },
-];
+  const c = state.character!;
+  const inCombat = state.phase === 'combat';
+  const pending = state.pendingChoice;
+  const gateReady = !inCombat && atMajorGate(c);
 
-const DEFAULT_KNOWN = [
-  "开始游戏",
-  "面板",
-  "修炼",
-  "突破",
-  "探索",
-  "任务",
-  "坊市",
-  "炼丹",
-  "背包",
-  "使用 ",
-  "装备 ",
-  "赠礼 ",
-  "审计",
-  "保存",
-  "重开",
-  "出手",
-  "术法",
-  "服药",
-  "遁走",
-];
+  const actions: QuickAction[] = inCombat
+    ? [
+        { label: '出手', command: '出手', accent: 'crimson', hotkey: '1' },
+        { label: '术法', command: '术法', accent: 'gold', hotkey: '2' },
+        { label: '服药', command: '服药', accent: 'jade', hotkey: '3' },
+        { label: '遁走', command: '遁走', hotkey: '4' },
+      ]
+    : [
+        { label: '修炼', command: '修炼', accent: 'jade', hotkey: '1' },
+        { label: '突破', command: '突破', accent: gateReady ? 'gold' : undefined, hotkey: '2' },
+        { label: '探索', command: '探索', hotkey: '3' },
+      ];
 
-const HISTORY_MAX = 50;
+  const submit = (raw?: string) => {
+    const text = (raw ?? input).trim();
+    if (!text) return;
+    execute(text);
+    if (!raw) {
+      historyRef.current = [text, ...historyRef.current].slice(0, 50);
+      setInput('');
+      setHistoryIdx(-1);
+    }
+  };
 
-/**
- * Quick action buttons + free-text command input.
- * ↑/↓ recalls history; typing surfaces whitelist suggestions
- * (Tab or click to complete, Enter to submit).
- */
-export function CommandBar({
-  onCommand,
-  quickCommands = DEFAULT_QUICK,
-  knownCommands = DEFAULT_KNOWN,
-  disabled = false,
-  placeholder = "书写命途，或点选常用之举……",
-  className,
-}: CommandBarProps) {
-  const [value, setValue] = React.useState("");
-  const [history, setHistory] = React.useState<string[]>([]);
-  const [historyIndex, setHistoryIndex] = React.useState(-1);
-  const [suggestIndex, setSuggestIndex] = React.useState(0);
-  const inputRef = React.useRef<HTMLInputElement>(null);
-
-  const suggestions = React.useMemo(() => {
-    const q = value.trim();
-    if (!q) return [];
-    return knownCommands
-      .filter((c) => c.trim() !== q && (c.startsWith(q) || c.includes(q)))
-      .slice(0, 6);
-  }, [value, knownCommands]);
-
-  React.useEffect(() => setSuggestIndex(0), [value]);
-
-  const submit = React.useCallback(
-    (raw: string) => {
-      const cmd = raw.trim();
-      if (!cmd || disabled) return;
-      setHistory((h) => [cmd, ...h.filter((x) => x !== cmd)].slice(0, HISTORY_MAX));
-      setHistoryIndex(-1);
-      setValue("");
-      onCommand(cmd);
-    },
-    [disabled, onCommand]
-  );
-
-  const complete = React.useCallback((s: string) => {
-    setValue(s);
-    inputRef.current?.focus();
-  }, []);
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      submit();
+    } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if (suggestions.length > 0 && suggestIndex > 0) {
-        complete(suggestions[suggestIndex]);
-        return;
+      const next = Math.min(historyIdx + 1, historyRef.current.length - 1);
+      if (next >= 0 && historyRef.current[next]) {
+        setHistoryIdx(next);
+        setInput(historyRef.current[next]);
       }
-      submit(value);
-    } else if (e.key === "Tab" && suggestions.length > 0) {
+    } else if (e.key === 'ArrowDown') {
       e.preventDefault();
-      complete(suggestions[suggestIndex] ?? suggestions[0]);
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      if (suggestions.length > 0) {
-        setSuggestIndex((i) => (i - 1 + suggestions.length) % suggestions.length);
-      } else if (history.length > 0) {
-        const next = Math.min(historyIndex + 1, history.length - 1);
-        setHistoryIndex(next);
-        setValue(history[next] ?? "");
-      }
-    } else if (e.key === "ArrowDown") {
-      e.preventDefault();
-      if (suggestions.length > 0) {
-        setSuggestIndex((i) => (i + 1) % suggestions.length);
-      } else if (historyIndex >= 0) {
-        const next = historyIndex - 1;
-        setHistoryIndex(next);
-        setValue(next >= 0 ? (history[next] ?? "") : "");
-      }
-    } else if (e.key === "Escape") {
-      setValue("");
-      setHistoryIndex(-1);
+      const next = historyIdx - 1;
+      setHistoryIdx(next);
+      setInput(next >= 0 && historyRef.current[next] ? historyRef.current[next]! : '');
+    }
+  };
+
+  const accentClass = (a?: QuickAction['accent'], emphasized = false) => {
+    switch (a) {
+      case 'gold':
+        return `border-gold-600/60 text-gold-300 hover:border-gold-400 hover:bg-gold-400/10 ${emphasized ? 'animate-jade-pulse border-gold-400' : ''}`;
+      case 'jade':
+        return 'border-jade-600/60 text-jade-400 hover:border-jade-400 hover:bg-jade-400/10';
+      case 'crimson':
+        return 'border-crimson-500/60 text-crimson-500 hover:bg-crimson-600/15';
+      default:
+        return 'border-ink-600 text-paper-200 hover:border-ink-500 hover:bg-ink-700/60';
     }
   };
 
   return (
-    <div
-      className={cn(
-        "border-t border-ink-700/80 bg-ink-900/80 backdrop-blur-xl",
-        className
-      )}
-    >
-      <div className="mx-auto flex w-full max-w-[1520px] flex-col gap-2 px-3 py-2.5 lg:px-4">
-        {/* quick actions — wraps into a grid on small screens */}
-        <div className="grid grid-cols-3 gap-1.5 sm:flex sm:flex-wrap sm:gap-2">
-          {quickCommands.map((qc) => (
-            <Button
-              key={qc.command}
-              variant={qc.variant ?? "outline"}
-              size="sm"
-              disabled={disabled}
-              onClick={() => submit(qc.command)}
-              className="min-h-9 font-serif tracking-[0.2em] sm:min-h-0"
+    <div className="border-t border-ink-600 bg-ink-900/85 backdrop-blur">
+      {/* ===== pending event choices ===== */}
+      <AnimatePresence>
+        {pending && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            className="border-b border-gold-600/30 bg-ink-800/70 px-3 py-3 sm:px-5"
+          >
+            <p className="mb-2 font-sans text-xs tracking-[0.3em] text-gold-400">【{pending.prompt}】抉择当前</p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              {pending.options.map((opt, i) => (
+                <button
+                  key={i}
+                  onClick={() => submit(String(i + 1))}
+                  className="group flex min-h-[44px] items-center gap-2.5 border border-gold-600/40 bg-ink-900/60 px-4 py-2 text-left font-serif text-sm text-paper-200 transition-all hover:border-gold-400 hover:bg-gold-400/10 hover:shadow-[0_0_16px_-6px_var(--color-gold-400)]"
+                >
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center border border-gold-600/50 font-sans text-[10px] text-gold-300 group-hover:border-gold-400">
+                    {i + 1}
+                  </span>
+                  {opt}
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ===== quick actions + input ===== */}
+      <div className="flex flex-col gap-2 px-3 py-2.5 sm:px-5">
+        <div className="flex flex-wrap gap-2">
+          {actions.map((a) => (
+            <button
+              key={a.label}
+              onClick={() => submit(a.command)}
+              disabled={!!pending}
+              title={`快捷键 ${a.hotkey}`}
+              className={`min-h-[38px] border px-4 py-1.5 font-sans text-sm tracking-[0.2em] transition-all disabled:cursor-not-allowed disabled:opacity-40 ${accentClass(a.accent, a.label === '突破' && gateReady)}`}
             >
-              {qc.label}
-            </Button>
+              {a.label}
+              <span className="ml-1.5 hidden text-[9px] text-paper-500 sm:inline">{a.hotkey}</span>
+            </button>
           ))}
         </div>
 
-        {/* free text input with autocomplete */}
-        <div className="relative">
-          <AnimatePresence>
-            {suggestions.length > 0 ? (
-              <motion.ul
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 6 }}
-                transition={{ duration: 0.12 }}
-                className="glass-panel absolute bottom-full left-0 z-20 mb-2 w-56 overflow-hidden rounded-md py-1 shadow-[0_8px_32px_rgba(0,0,0,0.55)]"
-              >
-                {suggestions.map((s, i) => (
-                  <li key={s}>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => {
-                        e.preventDefault();
-                        complete(s);
-                      }}
-                      onMouseEnter={() => setSuggestIndex(i)}
-                      className={cn(
-                        "flex w-full items-center px-3 py-1.5 text-left font-serif text-sm tracking-widest transition-colors",
-                        i === suggestIndex
-                          ? "bg-gold-400/10 text-gold-300"
-                          : "text-paper-200 hover:bg-ink-800"
-                      )}
-                    >
-                      {s}
-                    </button>
-                  </li>
-                ))}
-              </motion.ul>
-            ) : null}
-          </AnimatePresence>
-
-          <div className="flex items-center gap-2">
-            <span
-              aria-hidden
-              className="font-mono text-base leading-none text-jade-400 select-none"
-            >
-              &gt;
-            </span>
-            <Input
-              ref={inputRef}
-              value={value}
-              disabled={disabled}
-              onChange={(e) => {
-                setValue(e.target.value);
-                setHistoryIndex(-1);
-              }}
-              onKeyDown={handleKeyDown}
-              placeholder={placeholder}
-              aria-label="命令输入"
-              autoComplete="off"
-              spellCheck={false}
-              className="flex-1 font-serif tracking-wider"
-            />
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="执行"
-              disabled={disabled || !value.trim()}
-              onClick={() => submit(value)}
-            >
-              <CornerDownLeft />
-            </Button>
-          </div>
+        <div className="flex items-center gap-2 border border-ink-600 bg-ink-950/70 px-3 focus-within:border-gold-600/50">
+          <span className="font-sans text-jade-400 select-none">›</span>
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={(e) => {
+              setInput(e.target.value);
+              setHistoryIdx(-1);
+            }}
+            onKeyDown={onKeyDown}
+            placeholder={pending ? `输入 1-${pending.options.length} 抉择` : '输入指令，如：修炼 · 使用 聚气丹 · 帮助'}
+            className="min-h-[40px] w-full bg-transparent font-sans text-sm text-paper-50 caret-gold-400 outline-none placeholder:text-paper-500/60"
+            data-command-input
+          />
+          <button
+            onClick={() => submit()}
+            className="shrink-0 py-1 pl-2 font-sans text-xs tracking-widest text-gold-600 transition-colors hover:text-gold-300"
+          >
+            执行
+          </button>
         </div>
       </div>
     </div>
