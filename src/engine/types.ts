@@ -169,14 +169,11 @@ export interface Injury {
   severity: 1 | 2 | 3;
   /** -1 = permanent until cured (e.g. 道基受损) */
   turnsLeft: number;
-  effect: {
-    /** multiplies cultivation speed (e.g. 0.7) */
-    speedMult?: number;
-    /** flat power penalty */
-    powerMod?: number;
-    /** flat breakthrough chance penalty */
-    breakthroughMod?: number;
-  };
+  /**
+   * PLAN §2 dialect: fractional penalties, e.g. { speed: -0.2 } slows
+   * cultivation by 20%, { breakthrough: -0.1 } lowers 突破 chance.
+   */
+  effect: Partial<Record<'speed' | 'power' | 'breakthrough', number>>;
 }
 
 // ============================================================================
@@ -202,7 +199,7 @@ export interface Character {
   hp: number;
   maxHp: number;
   injuries: Injury[];
-  statusEffects: StatusEffect[];
+  statusEffects?: StatusEffect[];
   /** equipped 功法 */
   techniqueId: string | null;
   /** learned 战斗术法 (item/technique ids) */
@@ -217,7 +214,7 @@ export interface Character {
    * one-shot bonus to the next 突破 attempt (from pills such as 筑基丹);
    * consumed whether the attempt succeeds or fails.
    */
-  breakthroughBonus: number;
+  breakthroughBonus?: number;
   /** story/event flags — includes per-gate failure pity counters */
   flags: Record<string, boolean | number>;
 }
@@ -308,6 +305,8 @@ export interface ItemDef {
   defense?: number;
   /** market availability gate */
   minRealm?: RealmId;
+  /** market availability gate as numeric realm tier (0 = mortal, 1 = qi, …) */
+  minRealmTier?: number;
 }
 
 export interface ItemStack {
@@ -391,6 +390,13 @@ export interface PendingEvent {
   eventId: string;
 }
 
+/** a pending choice presented to the player (event or quest node) */
+export interface PendingChoice {
+  eventId: string;
+  prompt: string;
+  options: string[];
+}
+
 // ============================================================================
 // Combat
 // ============================================================================
@@ -398,9 +404,10 @@ export interface PendingEvent {
 export interface Enemy {
   id: string;
   name: string;
-  realm: RealmId;
+  /** PLAN §2 allows a full RealmState snapshot; a bare RealmId also accepted */
+  realm: RealmId | RealmState;
   /** flavor tier label, e.g. 炼气四层 / 二阶妖兽 */
-  rank: string;
+  rank?: string;
   power: number;
   defense: number;
   hp: number;
@@ -412,26 +419,27 @@ export interface Enemy {
   intro: string;
 }
 
-/** tactical choices — 强攻 aggressive / 游斗 probing / 设伏 feint-trap / 遁走 flee */
-export type CombatTactic = '强攻' | '游斗' | '设伏' | '术法' | '服药' | '遁走';
+/** combat actions — 出手 strike / 术法 art / 服药 pill / 遁走 flee (+ optional tactics) */
+export type CombatTactic = '出手' | '强攻' | '游斗' | '设伏' | '术法' | '服药' | '遁走';
 
 export interface CombatState {
   enemyId: string;
-  /** snapshot so data changes can't alter a running fight */
-  enemy: Enemy;
   enemyHp: number;
+  playerHp: number;
   round: number;
-  /**
-   * 破绽 — earned by successful 游斗 probing; the next 强攻 strikes true
-   * (damage ×1.6) and consumes it.
-   */
-  opening: boolean;
-  /** 伏势 — successful 设伏: next round enemy damage halved, your strike ×1.8 */
-  trapArmed: boolean;
-  /** consecutive failed flee attempts embolden the enemy (+10% dmg each) */
-  fleeFailures: number;
+  /** round-by-round combat narration */
+  log: string[];
+  enemyMaxHp?: number;
   over: boolean;
   result?: 'win' | 'lose' | 'fled' | 'dead';
+  /** optional snapshot so data changes can't alter a running fight */
+  enemy?: Enemy;
+  /** 破绽 — earned by successful 游斗 probing; the next strike hits harder */
+  opening?: boolean;
+  /** 伏势 — successful 设伏: next round enemy damage halved, your strike boosted */
+  trapArmed?: boolean;
+  /** consecutive failed flee attempts embolden the enemy */
+  fleeFailures?: number;
 }
 
 // ============================================================================
@@ -440,9 +448,10 @@ export interface CombatState {
 
 export interface NpcThreshold {
   at: number;
-  /** flag set when crossed */
-  unlockFlag: string;
-  narrative: string;
+  /** what crossing this favor threshold unlocks (PLAN §2) */
+  unlock: string;
+  /** set at runtime once the threshold has been crossed and announced */
+  done?: boolean;
 }
 
 export interface Npc {
@@ -452,14 +461,14 @@ export interface Npc {
   /** -100…100 */
   favor: number;
   thresholds: NpcThreshold[];
-  desc: string;
+  desc?: string;
 }
 
 export type QuestStatus = 'locked' | 'active' | 'done' | 'failed';
 
 export interface QuestObjective {
-  type: 'reachRealm' | 'killEnemy' | 'obtainItem' | 'favor';
-  target: string;
+  type: 'reachRealm' | 'killEnemy' | 'killCount' | 'obtainItem' | 'favor';
+  target?: string;
   n?: number;
 }
 
@@ -535,10 +544,10 @@ export interface EndingResult {
 export type LogTone = 'normal' | 'gold' | 'danger' | 'jade' | 'muted';
 
 export interface LogEntry {
-  /** monotonic id for stable rendering keys */
-  id: number;
+  /** monotonic id for stable rendering keys (assigned by the log appender) */
+  id?: number;
   turn: number;
-  speaker: '天道' | '系统' | '战斗';
+  speaker: '天道' | '系统' | '战斗' | '汝';
   text: string;
   tone?: LogTone;
 }
@@ -558,6 +567,29 @@ export interface CreationDraft {
   attributes: Pick<Attributes, 'genGu' | 'wuXing' | 'xinXing' | 'qiYun'> | null;
   spiritRoot: SpiritRoot | null;
   hiddenRolled: boolean;
+}
+
+// ============================================================================
+// Engine results
+// ============================================================================
+
+/** transient UI notification emitted by engine modules (toasts etc.) */
+export interface Notice {
+  kind: 'success' | 'info' | 'warning' | 'danger';
+  title: string;
+  desc?: string;
+}
+
+/** result of the single-writer turn resolver (anti-cheat layer 8) */
+export interface TurnResult {
+  state: GameState;
+  notices: Notice[];
+}
+
+/** result of a pure engine step that also emits narrative lines */
+export interface EngineResult {
+  state: GameState;
+  logs: LogEntry[];
 }
 
 // ============================================================================
@@ -607,14 +639,16 @@ export interface GameState {
   phase: 'title' | 'creation' | 'playing' | 'combat' | 'ended';
   /** mandatory 4-step creation gate */
   creationStep: CreationStep;
-  creationDraft: CreationDraft | null;
+  creationDraft?: CreationDraft | null;
   /** 1 turn ≈ 3 months in-world */
   turn: number;
   character: Character | null;
   npcs: Record<string, Npc>;
   quests: Quest[];
   combat: CombatState | null;
-  pendingEvent: PendingEvent | null;
+  /** an event whose choices await the player */
+  pendingEvent?: PendingEvent | null;
+  pendingChoice?: PendingChoice | null;
   /** capped ring buffer */
   narrativeLog: LogEntry[];
   /** audit trail (capped, hash-chained) */
@@ -622,10 +656,14 @@ export interface GameState {
   /** chained checksum */
   auditHash: string;
   /** monotonic counters that survive log/roll capping */
-  nextRollId: number;
-  nextLogId: number;
+  nextRollId?: number;
+  nextLogId?: number;
+  /** monotonic dice sequence counter (starts at 1) */
+  rollSeq: number;
+  /** lifetime enemies slain (quest objectives read this) */
+  killCount: number;
   /** lifetime stats for the ending screen */
-  stats: {
+  stats?: {
     totalRolls: number;
     stonesEarned: number;
     enemiesSlain: number;
