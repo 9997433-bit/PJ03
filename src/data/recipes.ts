@@ -1,82 +1,62 @@
+/**
+ * 丹方. (STUB — content agent expands toward ~8; keep existing ids.)
+ */
 import type { Recipe } from '@/engine/types';
 
 export const RECIPES: Recipe[] = [
   {
-    id: 'r_huiqisan',
-    resultItemId: 'huiqisan',
+    id: 'r_huiqi_san',
+    resultItemId: 'huiqi_san',
     name: '回气散',
     materials: [{ itemId: 'lingcao', count: 2 }],
-    baseSuccess: 75,
-    minRealm: 'mortal',
-    fee: 2,
-  },
-  {
-    id: 'r_jvqisan',
-    resultItemId: 'jvqisan',
-    name: '聚气散',
-    materials: [{ itemId: 'lingcao', count: 3 }],
     baseSuccess: 70,
     minRealm: 'mortal',
-    fee: 3,
+    fee: 5,
   },
   {
-    id: 'r_jvqidan',
-    resultItemId: 'jvqidan',
+    id: 'r_juqi_dan',
+    resultItemId: 'juqi_dan',
     name: '聚气丹',
-    materials: [{ itemId: 'lingcao', count: 2 }, { itemId: 'zijilingzhi', count: 1 }],
-    baseSuccess: 55,
+    materials: [{ itemId: 'lingcao', count: 3 }],
+    baseSuccess: 60,
     minRealm: 'qi',
     fee: 10,
   },
   {
-    id: 'r_liaoshangdan',
-    resultItemId: 'liaoshangdan',
+    id: 'r_liaoshang_dan',
+    resultItemId: 'liaoshang_dan',
     name: '疗伤丹',
-    materials: [{ itemId: 'zijilingzhi', count: 1 }, { itemId: 'yaodan1', count: 1 }],
-    baseSuccess: 50,
-    minRealm: 'qi',
-    fee: 15,
-  },
-  {
-    id: 'r_jingxindan',
-    resultItemId: 'jingxindan',
-    name: '静心丹',
-    materials: [{ itemId: 'qiancaohua', count: 2 }, { itemId: 'lingcao', count: 1 }],
+    materials: [
+      { itemId: 'lingcao', count: 2 },
+      { itemId: 'qingxin_cao', count: 1 },
+    ],
     baseSuccess: 55,
     minRealm: 'qi',
-    fee: 12,
+    fee: 20,
   },
   {
-    id: 'r_zhujidan',
-    resultItemId: 'zhujidan',
+    id: 'r_jingxin_dan',
+    resultItemId: 'jingxin_dan',
+    name: '静心丹',
+    materials: [{ itemId: 'qingxin_cao', count: 2 }],
+    baseSuccess: 60,
+    minRealm: 'qi',
+    fee: 30,
+  },
+  {
+    id: 'r_zhuji_dan',
+    resultItemId: 'zhuji_dan',
     name: '筑基丹',
-    materials: [{ itemId: 'zijilingzhi', count: 2 }, { itemId: 'yaodan1', count: 2 }, { itemId: 'longxucao', count: 1 }],
-    baseSuccess: 30,
+    materials: [
+      { itemId: 'yaodan', count: 3 },
+      { itemId: 'lingcao', count: 5 },
+    ],
+    baseSuccess: 35,
     minRealm: 'qi',
     fee: 100,
   },
-  {
-    id: 'r_xisuidan',
-    resultItemId: 'xisuidan',
-    name: '洗髓丹',
-    materials: [{ itemId: 'longxucao', count: 1 }, { itemId: 'yaodan2', count: 1 }],
-    baseSuccess: 40,
-    minRealm: 'foundation',
-    fee: 60,
-  },
-  {
-    id: 'r_ningjindan',
-    resultItemId: 'ningjindan',
-    name: '凝金丹',
-    materials: [{ itemId: 'yaodan2', count: 2 }, { itemId: 'hanyubing', count: 1 }, { itemId: 'longxucao', count: 2 }],
-    baseSuccess: 25,
-    minRealm: 'foundation',
-    fee: 300,
-  },
 ];
 
-export function getRecipe(id: string): Recipe {
-  const r = RECIPES.find((x) => x.id === id);
-  if (!r) throw new Error(`unknown recipe: ${id}`);
-  return r;
+export function getRecipe(id: string): Recipe | undefined {
+  return RECIPES.find((r) => r.id === id);
 }
