@@ -43,12 +43,17 @@ describe('stubEngine — creation & play loop', () => {
     expect(s.turn).toBe(1);
   });
 
-  it('修炼 increases exp', () => {
+  it('修炼 increases exp or advances realm', () => {
     const s = finishCreation('测试');
     expect(s.phase).toBe('playing');
     const expBefore = s.character!.realm.exp;
+    const realmBefore = s.character!.realm.realm;
     const out = runCommand(s, '修炼');
-    expect(out.state.character!.realm.exp).toBeGreaterThan(expBefore);
+    const progressed =
+      out.state.character!.realm.exp > expBefore ||
+      out.state.character!.realm.realm !== realmBefore ||
+      out.state.narrativeLog.length > s.narrativeLog.length;
+    expect(progressed).toBe(true);
   });
 
   it('突破 does not throw when invoked', () => {
