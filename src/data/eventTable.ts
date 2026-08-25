@@ -1,8 +1,10 @@
 // ============================================================================
-// eventTable.ts — 岁月事件表 (~42)
+// eventTable.ts — 岁月事件表(67)
 // 每回合终掷一枚 D100,受气运偏移:1–10 大凶 / 11–30 小凶 / 31–70 平 /
 // 71–90 小吉 / 91–100 大吉。命中桶后,按境界与因果加权抽取一事。
-// 机缘 ≥ 8 者,可窥「天命」之门。
+// 机缘 ≥ 8 者,可窥「天命」之门。requiresFlag 一律元组形式(引擎按下标取)。
+// 物品/敌手引用一律 canonical id。神秘小瓶藏于大吉桶,通算约 2% 一遇,
+// 得瓶后另有月华、怀璧诸事,秘而不宣者方能长久。
 // ============================================================================
 
 import type { GameEvent } from '@/engine/types';
@@ -17,7 +19,7 @@ export const EVENTS: GameEvent[] = [
     weight: 30,
     kind: 'combat',
     narrative: '暮色四合,林间腥风忽起。一头饿狼自坡上扑下,目露凶光。',
-    autoEffect: { narrative: '避无可避。', combat: 'yeLang' },
+    autoEffect: { narrative: '避无可避。', combat: 'ye_lang' },
   },
   {
     id: 'demonWolfAmbush',
@@ -27,7 +29,7 @@ export const EVENTS: GameEvent[] = [
     weight: 25,
     kind: 'combat',
     narrative: '青芒两点,悬于道旁暗处。妖狼嗅到了汝身上的灵气。',
-    autoEffect: { narrative: '妖狼扑至。', combat: 'yaoLang' },
+    autoEffect: { narrative: '妖狼扑至。', combat: 'qingmu_yaolang' },
   },
   {
     id: 'rogueAmbush',
@@ -37,7 +39,7 @@ export const EVENTS: GameEvent[] = [
     weight: 20,
     kind: 'combat',
     narrative: '“道友留步。”黑衣人拦在路中,刀光半掩,“借些灵石花花。”',
-    autoEffect: { narrative: '言语无用,唯有一战。', combat: 'heiYiSanXiu' },
+    autoEffect: { narrative: '言语无用,唯有一战。', combat: 'heiyi_sanxiu' },
   },
   {
     id: 'luoChaHunt',
@@ -46,9 +48,96 @@ export const EVENTS: GameEvent[] = [
     realmTier: ['foundation'],
     weight: 15,
     kind: 'combat',
-    requiresFlag: 'feud',
+    requiresFlag: ['feud', true],
     narrative: '血腥气自四面八方涌来。魔道罗刹终于寻到了汝的踪迹——旧怨,今日了结。',
-    autoEffect: { narrative: '狭路相逢。', combat: 'moDaoLuoCha' },
+    autoEffect: { narrative: '狭路相逢。', combat: 'modao_luocha' },
+  },
+  {
+    id: 'moXiuZhuiSha',
+    name: '魔修追杀',
+    bucket: '大凶',
+    realmTier: ['qi', 'foundation'],
+    weight: 18,
+    kind: 'combat',
+    requiresFlag: ['legacyKarma', true],
+    narrative:
+      '连着三日,汝总觉得背后有目光。第四日雨夜,客栈的灯尽数熄灭,血袍人推门而入,靴底碾着碎瓷,不紧不慢:“那位前辈的遗物,你收了。他欠魔宗的账,自然也归你还。”',
+    choices: [
+      {
+        text: '拔剑——遗泽既受,因果自担',
+        success: { narrative: '汝踏翻桌案,剑光先至。今夜这笔账,以命清算。', combat: 'xuepao_moxiu' },
+      },
+      {
+        text: '掷出灵石,虚与委蛇,伺机遁走',
+        check: { attr: 'qiYun', dc: 13 },
+        success: { narrative: '灵石炸开的一瞬,汝破窗而出,雨幕吞了汝的背影。财去人安。', spiritStones: -100 },
+        failure: { narrative: '血袍人一步跨到窗前,先汝半步。“跑?”他笑了。', spiritStones: -100, combat: 'xuepao_moxiu' },
+      },
+    ],
+  },
+  {
+    id: 'duoSheLaiXi',
+    name: '夺舍来袭',
+    bucket: '大凶',
+    realmTier: ['core', 'nascent'],
+    weight: 15,
+    kind: 'danger',
+    narrative:
+      '静坐中,识海忽然挤进来一缕陌生的意念,苍老、贪婪、带着四百年的阴寒:“好根骨。借老夫用用。”神魂交锋,无处可逃——这一战,败即万事皆休。',
+    choices: [
+      {
+        text: '凝聚神魂,正面绞杀',
+        check: { attr: 'xinXing', dc: 16 },
+        success: { narrative: '汝之识海升起一轮心月,照得残魂无所遁形。绞杀殆尽后,其数百年感悟竟为汝所得。', exp: 300 },
+        failure: { narrative: '残魂在识海中撕开一道口子,汝以秘法强行驱之,神魂俱创。', injury: 'xinMo', hp: -100 },
+      },
+      {
+        text: '自燃一缕神魂,玉石俱焚以慑之',
+        success: { narrative: '汝焚魂明志,残魂见汝竟真敢死,惨嚎遁去。此法伤己极深,然魂魄未失寸土。', exp: -150, hp: -60 },
+      },
+    ],
+  },
+  {
+    id: 'wenYiGuoJing',
+    name: '瘟疫过境',
+    bucket: '大凶',
+    realmTier: ['mortal'],
+    weight: 18,
+    kind: 'danger',
+    narrative:
+      '入秋,时疫过境。镇上十室三病,药铺门槛被踏破,棺材铺连夜赶工。汝略通药性,袋中亦有几枚灵石——救,是一身腥;不救,是一生记得。',
+    choices: [
+      {
+        text: '倾囊施药,守在病坊',
+        success: { narrative: '汝熬药三旬,十指焦黄。疫气退去那日,满镇的人对汝作揖,汝闻着自己一身药味,忽觉此身此心,都干净。', spiritStones: -10, exp: 30, favor: ['aYao', 10] },
+      },
+      {
+        text: '闭门谢客,静待疫散',
+        success: { narrative: '汝封了门窗,如期无恙。只是开门那日,对门的宅子已经空了。天道记下,不置一词。', flag: ['coldEye', true] },
+      },
+    ],
+  },
+  {
+    id: 'shouChao',
+    name: '兽潮先至',
+    bucket: '大凶',
+    realmTier: ['qi', 'foundation'],
+    weight: 15,
+    kind: 'danger',
+    narrative:
+      '大地深处传来闷雷般的震动——不是雷,是蹄声与爪音。十年一遇的兽潮提前了,黑压压的兽群漫过山脊,所过之处,林木成泥。汝恰在其锋。',
+    choices: [
+      {
+        text: '抢上高崖,自狭道截杀头兽',
+        check: { attr: 'genGu', dc: 14 },
+        success: { narrative: '头狼授首,兽群失了主心骨,轰然改道。汝立于崖口,一身兽血,半座山替汝记得今日。', combat: 'tieya_lang' },
+        failure: { narrative: '兽潮如墙推来,汝且战且退,终被裹挟着冲下山坡,遍体鳞伤。', hp: -50, injury: 'waiShang' },
+      },
+      {
+        text: '弃了行囊,伏入石缝待其过境',
+        success: { narrative: '兽潮踏着汝的行囊过去了,一夜一日。汝自石缝里爬出来时,天地一新,家当全无。', spiritStones: -40 },
+      },
+    ],
   },
   {
     id: 'qiDeviation',
@@ -104,7 +193,7 @@ export const EVENTS: GameEvent[] = [
         text: '直面心魔,斩念明心',
         check: { attr: 'xinXing', dc: 15 },
         success: { narrative: '一念斩万念。心魔溃散处,道心愈发澄澈。', exp: 200 },
-        failure: { narrative: '一步踏错,万念俱灰。道基震荡,元气大伤。', injury: 'daoShang', hp: -80 },
+        failure: { narrative: '一步踏错,万念俱灰。道基震荡,元气大伤。', injury: 'daoji_shang', hp: -80 },
       },
       {
         text: '闭目诵经,避其锋芒',
@@ -169,7 +258,7 @@ export const EVENTS: GameEvent[] = [
       },
       {
         text: '拳脚说话',
-        success: { narrative: '不必天道出手。', combat: 'shanZei' },
+        success: { narrative: '不必天道出手。', combat: 'shanzei' },
       },
     ],
   },
@@ -180,8 +269,8 @@ export const EVENTS: GameEvent[] = [
     realmTier: ['mortal', 'qi'],
     weight: 15,
     kind: 'danger',
-    narrative: '梅雨连月,储物袋中的灵草沤出了黑斑,药力尽失。',
-    autoEffect: { narrative: '天时不由人。', items: [{ itemId: 'lingCao', count: -2 }] },
+    narrative: '梅雨连月,储物袋中的灵草沤出了黑斑,药力尽失。汝挑拣半日,拣出来的还不如扔掉的多。',
+    autoEffect: { narrative: '天时不由人。补购药材,又是一笔嚼用。', spiritStones: -12 },
   },
   {
     id: 'gossipTrouble',
@@ -213,6 +302,107 @@ export const EVENTS: GameEvent[] = [
     narrative: '连夜噩梦,似有无数手掌将汝拖向深渊。醒时,冷汗浸透道袍。',
     autoEffect: { narrative: '梦由心生。', hp: -10 },
   },
+  {
+    id: 'danluBaoZha',
+    name: '丹炉炸裂',
+    bucket: '小凶',
+    realmTier: ['qi', 'foundation'],
+    weight: 14,
+    kind: 'danger',
+    narrative: '借来的丹炉用得不称手,火候差之毫厘。轰然一声,炉盖掀上房梁,满屋药烟,眉毛焦了一半。',
+    autoEffect: { narrative: '丹道一途,炸炉是学费。赔炉子,又是一笔。', spiritStones: -20, hp: -10 },
+  },
+  {
+    id: 'fuluShiLing',
+    name: '符箓失灵',
+    bucket: '小凶',
+    realmTier: ['qi', 'foundation'],
+    weight: 12,
+    kind: 'danger',
+    narrative: '存放经年的符箓受了潮气,朱砂晕开,灵光尽散。撕下去,只当撕了张厕纸。',
+    autoEffect: { narrative: '符师的钱,白花了。', spiritStones: -15 },
+  },
+  {
+    id: 'zongmenFaYi',
+    name: '宗门罚役',
+    bucket: '小凶',
+    realmTier: ['qi', 'foundation'],
+    weight: 12,
+    kind: 'danger',
+    requiresFlag: ['joinedSect', true],
+    narrative: '执法堂稽查功课,汝上月的巡山簿缺了两笔。严长老面无表情,朱笔一勾:罚扫丹房三月。',
+    autoEffect: { narrative: '规矩比天大。三个月的扫帚,磨掉的不止是修行功夫。', exp: -20 },
+  },
+  {
+    id: 'huaiBiQiZui',
+    name: '怀璧其罪',
+    bucket: '小凶',
+    realmTier: ['mortal', 'qi', 'foundation'],
+    weight: 20,
+    kind: 'danger',
+    requiresFlag: ['secretBottle', true],
+    once: true,
+    narrative:
+      '“道友近来出手的灵草,药龄可有些说不通啊。”茶肆里,一个生面孔修士笑吟吟凑近,声音压得只有两人可闻,“百年份的灵草,月月都有。道友的药圃,种在哪座仙山?”',
+    choices: [
+      {
+        text: '面不改色:家传药圃,恕不奉告',
+        check: { attr: 'xinXing', dc: 12 },
+        success: { narrative: '汝呷茶的手稳如磐石,反问他坊市药价。那人盯了汝半晌,悻悻而去。此事,揭过了——汝的秘密,又深埋了一层。', exp: 20 },
+        failure: { narrative: '汝端茶的手,慢了半拍。那人笑意更深:“不说也罢。”此后数月,汝总觉得有目光黏在背上——破财免灾,汝托人递了封口的“茶钱”。', spiritStones: -50 },
+      },
+      {
+        text: '眼中寒光一闪——知道得太多的人,不能留',
+        success: { narrative: '汝随他出了茶肆,行至无人处,先出了手。秘密以血封缄——只是掌心的血迹,今夜洗了三遍。', combat: 'heiyi_sanxiu', flag: ['heartStain', true] },
+      },
+    ],
+  },
+  {
+    id: 'zhoushiXunXin',
+    name: '周氏寻衅',
+    bucket: '小凶',
+    realmTier: ['mortal', 'qi'],
+    weight: 20,
+    kind: 'danger',
+    requiresFlag: ['clanFeud', true],
+    once: true,
+    narrative:
+      '坊市街口,周氏的打手斜挎着膀子拦住汝:“韩家的?啧,你家那块灵田,我家老爷种得可好了。”周遭渐渐围拢看热闹的人。祖辈的屈辱,隔了两代,又递到了汝的面前。',
+    choices: [
+      {
+        text: '当街出手,打断他的门牙',
+        success: { narrative: '拳头落下的那一刻,汝听见的不是骨响,是韩家憋了两代人的一口气。', combat: 'zhoushi_dashi' },
+      },
+      {
+        text: '拂袖而去——来日方长',
+        success: { narrative: '汝转身离开,哄笑声钉在背上。汝记下了今日,天道也记下了。君子报仇,修士更是。', exp: 15, flag: ['zhouGrudge', true] },
+      },
+    ],
+  },
+  {
+    id: 'zhaoShiXiongDiaoNan',
+    name: '赵师兄刁难',
+    bucket: '小凶',
+    realmTier: ['mortal', 'qi'],
+    weight: 20,
+    kind: 'danger',
+    requiresFlag: ['sectMenial', true],
+    once: true,
+    narrative:
+      '“哟,杂役也开始修仙了?”赵师兄堵在药园门口,身后两个帮闲嗤嗤地笑,“正好,我这三个月的洗剑池活计,你替了。不然——”他掂了掂手里的戒尺,“你懂的。”',
+    choices: [
+      {
+        text: '今时不同往日——接下他的戒尺',
+        success: { narrative: '戒尺落下时,汝抬手,握住了。赵师兄脸色变了三变。旧账,今日当面算清。', combat: 'zhao_shixiong' },
+      },
+      {
+        text: '忍下这口气,活计照接',
+        check: { attr: 'xinXing', dc: 11 },
+        success: { narrative: '汝低头应了。洗剑池水寒彻骨,汝借寒气淬体,三个月的苦役,竟磨出一分道行。忍字头上一把刀,刀刀削出心性来。', exp: 40 },
+        failure: { narrative: '汝忍了,却没忍干净。夜里越想越恨,行功岔了两次气。', exp: -10 },
+      },
+    ],
+  },
 
   // ======================= 平 =======================
   {
@@ -236,7 +426,7 @@ export const EVENTS: GameEvent[] = [
     choices: [
       {
         text: '买下一株',
-        success: { narrative: '银货两讫。行商拱手作别。', spiritStones: -5, items: [{ itemId: 'lingCao', count: 1 }] },
+        success: { narrative: '银货两讫。行商拱手作别。', spiritStones: -5, items: [{ itemId: 'lingcao', count: 1 }] },
       },
       {
         text: '拱手而过',
@@ -326,6 +516,113 @@ export const EVENTS: GameEvent[] = [
     narrative: '山行疲极,就涧而饮。泉水清冽,涤尽一身尘气。',
     autoEffect: { narrative: '偷得浮生半日闲。', hp: 20 },
   },
+  {
+    id: 'shuoShuRen',
+    name: '茶馆说书',
+    bucket: '平',
+    realmTier: ['mortal', 'qi', 'foundation'],
+    weight: 15,
+    kind: 'neutral',
+    narrative:
+      '茶馆里说书人惊堂木一拍:“却说那位韩姓老祖,五灵根出身,一步一个脚印,硬生生熬死了同辈所有天才——”满堂哄笑,只当话本。汝端着茶,没有笑。',
+    autoEffect: { narrative: '话本里的道理,比功法便宜,不比功法浅。', exp: 8 },
+  },
+  {
+    id: 'shanShenMiao',
+    name: '山神庙避雨',
+    bucket: '平',
+    realmTier: ['mortal', 'qi'],
+    weight: 14,
+    kind: 'neutral',
+    narrative: '骤雨如注,汝奔入一座破败山神庙。神像金漆剥落,蛛网结在慈眉善目之间。香案上,不知谁供了半个还新鲜的果子。',
+    choices: [
+      {
+        text: '拂去香案尘灰,上一炷心香',
+        success: { narrative: '汝无香,便以指代香,躬身一揖。雨停时,云破日出,一道虹横在山口——巧了,正照着汝要走的那条道。', exp: 12 },
+      },
+      {
+        text: '拆两块庙板,生火烘衣',
+        success: { narrative: '火光暖人,神像在明灭间看着汝,不言不语。汝烘干了衣裳,给香案上留了一枚铜钱。两讫。', hp: 15 },
+      },
+    ],
+  },
+  {
+    id: 'tongMenJieShi',
+    name: '同门借贷',
+    bucket: '平',
+    realmTier: ['qi', 'foundation'],
+    weight: 14,
+    kind: 'encounter',
+    requiresFlag: ['joinedSect', true],
+    narrative: '陈师兄难得吞吞吐吐,半晌才开口:“那个……手头紧。三十枚,下月双倍还。”他耳根通红——这话他大约练了一路。',
+    choices: [
+      {
+        text: '如数借出,还不还随缘',
+        success: { narrative: '汝把灵石拍在他掌心:“还什么还,拿去。”陈师兄嘴硬了一句“必还”,转身时脚步都轻快了。', spiritStones: -30, favor: ['chenShiXiong', 15] },
+      },
+      {
+        text: '婉言相拒',
+        success: { narrative: '“……也是,谁的灵石都不是大风刮来的。”他讪讪走了。此后照面,称呼从“师弟”变回了“道友”。', favor: ['chenShiXiong', -5] },
+      },
+    ],
+  },
+  {
+    id: 'jiashuWanJin',
+    name: '家书抵万金',
+    bucket: '平',
+    realmTier: ['mortal', 'qi'],
+    weight: 20,
+    kind: 'encounter',
+    requiresFlag: ['hookVillage', true],
+    once: true,
+    narrative:
+      '行商捎来一封皱巴巴的家书。母亲不识字,是托村里老秀才写的,满纸都是“家中一切都好”——只有末尾一句露了馅:“妹子的咳疾入冬又重了,勿念。”',
+    choices: [
+      {
+        text: '倾囊寄回,再附一封长信',
+        success: { narrative: '灵石与信一并寄出。三个月后回信到了,妹妹亲笔,字歪歪扭扭:“哥,药很苦,我全喝了。你也要好好的。”汝把这封信,压在了功法之上。', spiritStones: -30, exp: 40 },
+      },
+      {
+        text: '修行要紧,他日衣锦还乡',
+        success: { narrative: '汝把家书折好收起,继续行功。只是当夜的吐纳,总归不那么匀。', flag: ['guiltLetter', true] },
+      },
+    ],
+  },
+  {
+    id: 'miWuXianSuo',
+    name: '雾泽残讯',
+    bucket: '平',
+    realmTier: ['mortal', 'qi'],
+    weight: 20,
+    kind: 'encounter',
+    requiresFlag: ['lostCaravan', true],
+    once: true,
+    narrative:
+      '酒肆角落,一个烂醉的老脚夫抓住汝的袖子:“迷雾泽……我见过那支商队!领头的使一杆秤,宁三分利……”他忽然酒醒了大半,压低声音:“雾里那东西收人,只收活的。你爹——兴许还……”话没说完,他夺门而逃。',
+    autoEffect: { narrative: '两年了,这是头一条像样的线索。乌木算盘在行囊里,硌得人心口发沉。泽中水鬼,该去会一会了。', exp: 20, flag: ['caravanClue', true] },
+  },
+  {
+    id: 'guRenFangBang',
+    name: '故人来信',
+    bucket: '平',
+    realmTier: ['mortal', 'qi'],
+    weight: 20,
+    kind: 'encounter',
+    requiresFlag: ['scholarVow', true],
+    once: true,
+    narrative:
+      '同窗来信,絮絮叨叨半页科场近况,末了笔锋一转:“陆家小姐退婚后亦离了家,有人说在城南庵里带发修行,有人说往仙山去了。兄台当年一去,倒像是带走了两个人的功名。”',
+    choices: [
+      {
+        text: '提笔回信:科场之外,或有大道',
+        success: { narrative: '汝把祖父那句话原样写了回去。信寄出后,胸中一块压了多年的东西,轻了。', exp: 30 },
+      },
+      {
+        text: '掷信于炉,过往皆焚',
+        success: { narrative: '信纸蜷曲成灰。汝盯着炉火看了很久——烧掉的是纸,烧不掉的,夜里自会来找汝。', flag: ['burnedPast', true] },
+      },
+    ],
+  },
 
   // ======================= 小吉 =======================
   {
@@ -336,7 +633,7 @@ export const EVENTS: GameEvent[] = [
     weight: 25,
     kind: 'fortune',
     narrative: '道旁石隙,两株灵草藏于蕨叶之下,药香隐隐。',
-    autoEffect: { narrative: '俯拾即是,亦是缘法。', items: [{ itemId: 'lingCao', count: 2 }] },
+    autoEffect: { narrative: '俯拾即是,亦是缘法。', items: [{ itemId: 'lingcao', count: 2 }] },
   },
   {
     id: 'seniorGuidance',
@@ -356,7 +653,7 @@ export const EVENTS: GameEvent[] = [
     weight: 15,
     kind: 'fortune',
     narrative: '地摊角落压着一张蒙尘的符箓,摊主只当废纸贱卖。汝认出那是张真符。',
-    autoEffect: { narrative: '独具慧眼。', spiritStones: -2, items: [{ itemId: 'dunDiFu', count: 1 }] },
+    autoEffect: { narrative: '独具慧眼。', spiritStones: -2, items: [{ itemId: 'dundifu', count: 1 }] },
   },
   {
     id: 'saveALife',
@@ -408,7 +705,7 @@ export const EVENTS: GameEvent[] = [
     kind: 'encounter',
     once: true,
     narrative: '一封无名书信辗转送到汝手中,信内无字,只包着一枚静心丸。字迹熟悉——是阿瑶。',
-    autoEffect: { narrative: '千里寄丹,情意自明。', items: [{ itemId: 'jingXinWan', count: 1 }], favor: ['aYao', 5] },
+    autoEffect: { narrative: '千里寄丹,情意自明。', items: [{ itemId: 'jingxin_wan', count: 1 }], favor: ['aYao', 5] },
   },
   {
     id: 'strangerPill',
@@ -418,7 +715,106 @@ export const EVENTS: GameEvent[] = [
     weight: 12,
     kind: 'encounter',
     narrative: '桥头醉汉拉住汝袖,塞来一粒丹药:“小娃娃,骨相不错,拿去拿去。”转眼人已不见。',
-    autoEffect: { narrative: '丹香扑鼻,竟是真品。', items: [{ itemId: 'juQiDan', count: 1 }] },
+    autoEffect: { narrative: '丹香扑鼻,竟是真品。', items: [{ itemId: 'juqi_dan', count: 1 }] },
+  },
+  {
+    id: 'shiYiGuiZhu',
+    name: '拾遗',
+    bucket: '小吉',
+    realmTier: ['mortal', 'qi'],
+    weight: 15,
+    kind: 'encounter',
+    narrative: '官道旁躺着一只鼓囊囊的钱袋,四下无人。半里外,一个书生模样的人正满地乱找,快要哭出来了。',
+    choices: [
+      {
+        text: '物归原主',
+        success: { narrative: '书生千恩万谢,硬塞来十枚灵石作谢仪,又留下一封荐信:“家舅在万宝阁做掌柜,他日若有难处,可去寻他。”', spiritStones: 10, favor: ['qianZhangGui', 15] },
+      },
+      {
+        text: '天予不取,反受其咎',
+        success: { narrative: '钱袋入怀,脚步加快。身后的寻找声渐渐远了,袋中灵石硌着心口,一路都在。', spiritStones: 40, flag: ['pocketedPurse', true] },
+      },
+    ],
+  },
+  {
+    id: 'duShiXingYun',
+    name: '坊市赌石',
+    bucket: '小吉',
+    realmTier: ['qi', 'foundation'],
+    weight: 14,
+    kind: 'encounter',
+    narrative: '坊市新到一批原石,灵光内蕴,真假难辨。摊主吆喝得唾沫横飞:“一刀穷一刀富!五十灵石,赌个前程!”',
+    choices: [
+      {
+        text: '重金押一块暗纹石',
+        check: { attr: 'qiYun', dc: 13 },
+        success: { narrative: '石破天惊——切出一汪上品灵石髓!摊主脸都绿了,围观人群炸了锅。', spiritStones: 150 },
+        failure: { narrative: '一刀下去,石心灰白,空空如也。摊主憋着笑安慰汝:“十赌九输,道友想开些。”', spiritStones: -50 },
+      },
+      {
+        text: '只买最小的一块碰运气',
+        success: { narrative: '小石切开,得碎灵石数枚,不赔不赚,买个热闹。', spiritStones: 10 },
+      },
+    ],
+  },
+  {
+    id: 'lingYuRunTi',
+    name: '灵雨润体',
+    bucket: '小吉',
+    realmTier: ['mortal', 'qi', 'foundation', 'core', 'nascent', 'deity'],
+    weight: 14,
+    kind: 'fortune',
+    narrative: '夜半落雨,雨丝竟带着微弱灵光——不知哪位大能行云布雨的余泽。满山草木都在贪婪吮吸,汝亦敞开周身毛孔。',
+    autoEffect: { narrative: '春雨润物,道体亦然。', exp: 30, hp: 20 },
+  },
+  {
+    id: 'guYuWeiGuang',
+    name: '古玉微光',
+    bucket: '小吉',
+    realmTier: ['mortal', 'qi'],
+    weight: 20,
+    kind: 'fortune',
+    requiresFlag: ['orphanJade', true],
+    once: true,
+    narrative:
+      '月圆之夜,怀中的半块古玉忽然烫了一下。汝取出一看,断口处极淡的一线微光,直直指向西北方——掩月谷的方向。老乞丐咽气前那个含混的词,忽然在耳边响起:掩月。',
+    autoEffect: { narrative: '玉有来处,人有去处。这半块玉的另一半,在等汝。', exp: 30, flag: ['jadeHint', true] },
+  },
+  {
+    id: 'xiaoPingYueHua',
+    name: '瓶中月华',
+    bucket: '小吉',
+    realmTier: ['mortal', 'qi', 'foundation', 'core', 'nascent', 'deity'],
+    weight: 15,
+    kind: 'fortune',
+    requiresFlag: ['secretBottle', true],
+    narrative:
+      '月圆。汝闩死门窗,熄了灯,自贴身处取出那只墨绿小瓶。瓶口对月,云纹渐亮,一夜吸纳,凝出一滴翠绿液珠。滴于灵草——肉眼可见地,草叶疯长,须根盘曲,药龄百年。',
+    autoEffect: { narrative: '天亮前,汝把一切收拾得干干净净。此事,天知,地知,汝知。', items: [{ itemId: 'bainian_lingcao', count: 1 }] },
+  },
+  {
+    id: 'zongMenDaBi',
+    name: '宗门大比',
+    bucket: '小吉',
+    realmTier: ['qi'],
+    weight: 20,
+    kind: 'encounter',
+    requiresFlag: ['joinedSect', true],
+    once: true,
+    narrative:
+      '三年一度,宗门大比。演武台四周旌旗猎猎,长老高坐,同辈环伺。抽签的竹筒递到汝面前——签上是谁不重要,重要的是:满宗门的眼睛,今日都会看见汝。',
+    choices: [
+      {
+        text: '全力争锋,打出一个名次',
+        check: { attr: 'genGu', dc: 13 },
+        success: { narrative: '三战三捷!最后一场汝险险翻盘,台下喝彩如雷。严长老不动声色,在名册上汝的名字旁画了个圈。', exp: 80, favor: ['yanZhangLao', 15], items: [{ itemId: 'qingfeng_jian', count: 1 }] },
+        failure: { narrative: '第二轮憾负于人,汝在台上站了片刻,躬身下台。输了名次,没输气度——看得懂的人,都看懂了。', exp: 25, favor: ['chenShiXiong', 5] },
+      },
+      {
+        text: '藏拙守分,点到即止',
+        success: { narrative: '汝赢了不该输的,输了不该赢的,名次不上不下,无人多看一眼。树大招风——树小,先长根。', exp: 15, flag: ['lowProfile', true] },
+      },
+    ],
   },
 
   // ======================= 大吉 =======================
@@ -430,7 +826,7 @@ export const EVENTS: GameEvent[] = [
     weight: 20,
     kind: 'fortune',
     narrative: '避雨的山洞深处,一截石壁在雷光下显出人工凿痕。凿开,内藏一具朽坏的储物匣。',
-    autoEffect: { narrative: '前人身死,遗泽后来。', spiritStones: 80, items: [{ itemId: 'baiNianLingCao', count: 1 }] },
+    autoEffect: { narrative: '前人身死,遗泽后来。', spiritStones: 80, items: [{ itemId: 'bainian_lingcao', count: 1 }] },
   },
   {
     id: 'epiphany',
@@ -462,7 +858,7 @@ export const EVENTS: GameEvent[] = [
     kind: 'encounter',
     once: true,
     narrative: '云头落下一名白发修士,端详汝片刻:“筑基无丹,如渡海无舟。”袖袍一拂,一枚玉瓶落入汝手。',
-    autoEffect: { narrative: '瓶中之物,正是筑基丹。', items: [{ itemId: 'zhuJiDan', count: 1 }] },
+    autoEffect: { narrative: '瓶中之物,正是筑基丹。', items: [{ itemId: 'zhuji_dan', count: 1 }] },
   },
   {
     id: 'spiritTide',
@@ -482,7 +878,7 @@ export const EVENTS: GameEvent[] = [
     weight: 12,
     kind: 'fortune',
     narrative: '雷雨夜,一道紫电劈开古崖,崖心露出莹白石乳——千年灵乳,正缓缓垂凝。',
-    autoEffect: { narrative: '汝以玉瓶承接,得灵乳一份。', items: [{ itemId: 'qianNianLingRu', count: 1 }] },
+    autoEffect: { narrative: '汝以玉瓶承接,得灵乳一份。', items: [{ itemId: 'qiannian_lingru', count: 1 }] },
   },
   {
     id: 'ancientLegacy',
@@ -494,7 +890,7 @@ export const EVENTS: GameEvent[] = [
     minJiYuan: 8,
     once: true,
     narrative: '迷途误入一处无名谷地。谷心石碑无字,汝抚之,碑面忽现万千符文,尽数涌入眉心。',
-    autoEffect: { narrative: '传承既受,因果亦结。此《大衍诀》,不可示人。', teachTechnique: 'daYanJue', exp: 100 },
+    autoEffect: { narrative: '传承既受,因果亦结。此《大衍诀》,不可示人。', teachTechnique: 'dayan_jue', exp: 100 },
   },
   {
     id: 'immortalBlessing',
@@ -517,7 +913,100 @@ export const EVENTS: GameEvent[] = [
     kind: 'fortune',
     once: true,
     narrative: '涧底寒潭,一柄古剑倒插石中,青芒不灭。汝伸手,剑身微颤,竟自出鞘三寸相迎。',
-    autoEffect: { narrative: '剑有灵,择主而事。', items: [{ itemId: 'faQiQingHong', count: 1 }] },
+    autoEffect: { narrative: '剑有灵,择主而事。', items: [{ itemId: 'faqi_qinghong', count: 1 }] },
+  },
+  {
+    id: 'qingHongZhuiDi',
+    name: '青虹坠地',
+    bucket: '大吉',
+    realmTier: ['qi', 'foundation'],
+    weight: 12,
+    kind: 'fortune',
+    once: true,
+    narrative:
+      '夜半,天穹两道遁光绞杀,一青一红,快如闪电。忽听一声闷哼,青虹自云端坠落,砸入十里外的乱石岗——红光徘徊片刻,遁远了。修士陨落,遗蜕与随身之物,就躺在那片乱石之下。这等事,瞒不了多久。',
+    choices: [
+      {
+        text: '星夜赶往,抢在众人之前',
+        check: { attr: 'qiYun', dc: 13 },
+        success: { narrative: '汝第一个赶到。陨落修士遗蜕已不可辨,一只储物袋半埋石中。汝合其遗骨,取其遗物,来去无声。', spiritStones: 120, items: [{ itemId: 'dundifu', count: 1 }, { itemId: 'canjuan', count: 1 }] },
+        failure: { narrative: '汝赶到时,乱石岗上已有一道黑影翻检多时。黑吃黑的买卖,向来先见血。', combat: 'heiyi_sanxiu' },
+      },
+      {
+        text: '横死之财,不取也罢',
+        success: { narrative: '汝望着那片乱石岗,想起一句老话:修士的储物袋,一半是遗产,一半是催命符。转身,走了。', exp: 20 },
+      },
+    ],
+  },
+  {
+    id: 'dongFuXianShi',
+    name: '洞府现世',
+    bucket: '大吉',
+    realmTier: ['qi', 'foundation'],
+    weight: 12,
+    kind: 'fortune',
+    once: true,
+    narrative:
+      '地动三日,后山塌了半面崖壁,露出一道森然石门——上古洞府现世!门上禁制明灭不定,已是强弩之末。消息不胫而走,各路修士正连夜赶来。此刻入内,汝是第一人;此刻转身,汝什么也不欠。',
+    choices: [
+      {
+        text: '闯入深处,直取主殿',
+        check: { attr: 'jiYuan', dc: 14 },
+        success: { narrative: '禁制在汝身前寸寸熄灭,如迎故人。主殿蒲团之上,一只阵盘静候千年——聚灵阵盘,前主人留给「有缘人」的坐化礼。', items: [{ itemId: 'juling_zhenpan', count: 1 }], exp: 100 },
+        failure: { narrative: '行至中庭,残存禁制轰然暴起!汝且退且挡,硬生生被轰出洞府,道基震荡。身后,石门重新合拢。', injury: 'daoji_shang', hp: -60 },
+      },
+      {
+        text: '只取外堂,见好就收',
+        success: { narrative: '外堂陈设朽坏,唯灵石灯座里的灵石尚有灵光。汝取了灵石,赶在人潮涌至前离开。转日听闻:三名修士殁于主殿禁制。', spiritStones: 150, items: [{ itemId: 'lingcao', count: 2 }] },
+      },
+    ],
+  },
+  {
+    id: 'qianBeiYiZe',
+    name: '前辈遗泽',
+    bucket: '大吉',
+    realmTier: ['mortal', 'qi'],
+    weight: 10,
+    kind: 'encounter',
+    once: true,
+    narrative:
+      '破庙里,一名重伤的老修士靠墙而坐,胸口的伤透着黑气,已是灯枯之相。他看了汝很久,忽然笑了:“也罢,也罢。小友,老夫这一身家当,替我收着——外加一笔债。魔宗的债。敢不敢接?”',
+    choices: [
+      {
+        text: '接。人死账不烂,晚辈替前辈记着',
+        success: { narrative: '老修士大笑三声,气绝而逝。汝葬其于庙后,得其储物袋:灵石、符箓,与半部批注密密麻麻的功法残卷。自此,魔宗的名册上多了一个名字——汝的。', spiritStones: 100, items: [{ itemId: 'canjuan', count: 1 }, { itemId: 'jinren_fu', count: 1 }], flag: ['legacyKarma', true], exp: 60 },
+      },
+      {
+        text: '不接。只替前辈收殓遗骨',
+        success: { narrative: '老修士眼中闪过一丝赞许:“不贪,好。”他将一枚丹药弹入汝手,阖目而逝。汝葬其遗蜕,分文未取。走出破庙时,脚步很轻。', items: [{ itemId: 'jingxin_dan', count: 1 }], exp: 40 },
+      },
+    ],
+  },
+  {
+    id: 'shenMiXiaoPing',
+    name: '地摊旧瓶',
+    bucket: '大吉',
+    realmTier: ['mortal', 'qi'],
+    weight: 15,
+    kind: 'fortune',
+    once: true,
+    narrative:
+      '收摊前的地摊角落,杂物筐里滚出一只拇指大的墨绿小瓶,似玉非玉,似铁非铁。摊主摆摆手:“死人堆里收来的,五枚灵石,拿走拿走。”汝拈起小瓶的一瞬,指尖微微一麻——像是错觉。可当夜月光落在行囊上时,行囊里,有极淡的一线绿光,一闪即灭。',
+    choices: [
+      {
+        text: '贴身收起,只字不提',
+        success: {
+          narrative: '汝以三层布帛裹瓶,贴肉藏之。当夜月下细察:瓶身云纹遇月而亮,瓶底凝出一滴翠绿欲滴的液珠——滴于枯草,枯草生芽。汝袖手而立,心跳如鼓,面上无波。此物不可示人。此物,不可示人。',
+          spiritStones: -5,
+          items: [{ itemId: 'shenmi_xiaoping', count: 1 }],
+          flag: ['secretBottle', true],
+        },
+      },
+      {
+        text: '来历不明,恐是邪物,不碰',
+        success: { narrative: '汝放下小瓶,拂袖而去。当夜大雨,地摊尽收。此后汝再未见过那只瓶,也再未见过那个摊主。有些门,只在人面前开一次。', exp: 10, flag: ['bottleRefused', true] },
+      },
+    ],
   },
 ];
 
