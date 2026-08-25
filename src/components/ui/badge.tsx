@@ -9,16 +9,26 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
-        secondary:
-          "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
+        // 鎏金 — subtle gilded chip (realm names, rare tags)
+        default:
+          "border-gold-600/40 bg-gold-400/12 text-gold-300 [a]:hover:bg-gold-400/20",
+        // solid gold — reserved for the rarest moments (天灵根, 大吉)
+        gold: "border-gold-400/60 bg-gradient-to-b from-gold-300 to-gold-500 text-ink-950 font-semibold shadow-[0_0_14px_rgba(242,190,69,0.35)]",
+        // 碧玉 — vitality / success
+        jade: "border-jade-600/50 bg-jade-400/12 text-jade-300 [a]:hover:bg-jade-400/20",
+        // 胭脂 — danger / injury
         destructive:
-          "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
+          "border-crimson-600/50 bg-crimson-600/15 text-crimson-400 focus-visible:ring-destructive/20 [a]:hover:bg-crimson-600/25",
+        // 紫棠 — legendary tier
+        mystic:
+          "border-mystic-600/60 bg-mystic-900/30 text-mystic-400 [a]:hover:bg-mystic-900/50",
+        secondary:
+          "border-ink-700 bg-ink-800 text-paper-200 [a]:hover:bg-ink-700",
         outline:
-          "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
+          "border-ink-600 text-paper-200 [a]:hover:bg-ink-800 [a]:hover:text-paper-50",
         ghost:
-          "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
-        link: "text-primary underline-offset-4 hover:underline",
+          "hover:bg-ink-800 hover:text-paper-200",
+        link: "text-gold-300 underline-offset-4 hover:underline",
       },
     },
     defaultVariants: {
