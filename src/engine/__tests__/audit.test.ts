@@ -4,25 +4,23 @@ import { describe, expect, it } from 'vitest';
 import {
   ANTI_CHEAT_LAYERS,
   GENESIS_HASH,
-  HIDDEN_ROLL_DISPLAY,
-  HIDDEN_ROLL_MARKER,
-  MAX_ROLL_LOG,
+  SEALED_ROLL_DISPLAY,
   WISH_REJECTION,
-  advanceChain,
-  appendRolls,
   buildAuditTable,
   buildChainEntry,
+  chainAuditHash,
   checkInvariants,
   formatAuditId,
   formatAuditRecord,
   isForbiddenWish,
-  isHiddenRoll,
+  realmAtLeast,
+  recordRoll,
+  saveChecksum,
   sha256Hex,
   verifyChain,
   type AuditChainEntry,
-  type InvariantSubject,
 } from '../audit';
-import { createRng, roll, rollD100, type DiceRoll } from '../rng';
+import { initRngState } from '../rng';
 import {
   CURRENT_SAVE_VERSION,
   SAVE_CORRUPT_MESSAGE,
@@ -39,9 +37,71 @@ import {
   type Migration,
   type SaveableState,
 } from '../save';
+import { SAVE_VERSION, type Character, type DiceRoll, type GameState } from '../types';
 
 function nodeSha256(input: string): string {
   return createHash('sha256').update(input, 'utf8').digest('hex');
+}
+
+function makeCharacter(overrides: Partial<Character> = {}): Character {
+  return {
+    name: '韩立',
+    gender: '男',
+    originId: 'farmer',
+    attributes: { genGu: 7, wuXing: 6, xinXing: 5, jiYuan: 4, qiYun: 8 },
+    spiritRoot: {
+      grade: '四灵根',
+      elements: ['金', '木', '水', '火'],
+      speedMultiplier: 0.7,
+      rollValue: 55,
+    },
+    realm: { realm: 'qi', qiLayer: 3, stage: '初期', exp: 30, expNeeded: 100 },
+    age: 18,
+    lifespan: 120,
+    hp: 80,
+    maxHp: 100,
+    injuries: [],
+    statusEffects: [],
+    techniqueId: null,
+    combatArts: [],
+    spiritStones: 50,
+    inventory: [{ itemId: 'huiqisan', count: 2 }],
+    equipped: {},
+    sectId: null,
+    breakthroughBonus: 0,
+    flags: {},
+    ...overrides,
+  };
+}
+
+function makeState(seed = 'audit-test-seed', overrides: Partial<GameState> = {}): GameState {
+  return {
+    version: SAVE_VERSION,
+    seed,
+    rngState: initRngState(seed),
+    phase: 'playing',
+    creationStep: 4,
+    turn: 1,
+    character: null,
+    npcs: {},
+    quests: [],
+    combat: null,
+    narrativeLog: [],
+    rolls: [],
+    auditHash: GENESIS_HASH,
+    rollSeq: 0,
+    killCount: 0,
+    stats: {
+      totalRolls: 0,
+      stonesEarned: 0,
+      enemiesSlain: 0,
+      breakthroughsFailed: 0,
+      pillsConsumed: 0,
+      peakRealmLabel: '凡人',
+    },
+    ending: null,
+    ...overrides,
+  };
 }
 
 function makeRoll(id: number, overrides: Partial<DiceRoll> = {}): DiceRoll {
@@ -51,7 +111,7 @@ function makeRoll(id: number, overrides: Partial<DiceRoll> = {}): DiceRoll {
     die: 'D100',
     value: 42,
     reason: '遭遇事件',
-    seedState: 'mcls-rng-v1:s:ff:0',
+    seedState: 'deadbeef',
     ...overrides,
   };
 }
@@ -69,7 +129,7 @@ describe('sha256Hex — synchronous SHA-256', () => {
   it('matches node:crypto across padding boundaries, UTF-8 and long input', () => {
     const samples = [
       '天道无情,以万物为刍狗。',
-      'a'.repeat(55), // last block boundary: length byte fits
+      'a'.repeat(55), // length byte still fits in the last block
       'b'.repeat(56), // forces an extra padding block
       'c'.repeat(64), // exactly one block
       'd'.repeat(1000),
@@ -87,14 +147,57 @@ describe('sha256Hex — synchronous SHA-256', () => {
   });
 });
 
+describe('recordRoll — number-returning audited gateway (layer 1)', () => {
+  it('returns a plain in-range number and appends the record', () => {
+    const state = makeState();
+    const before = state.rngState;
+    const value = recordRoll(state, 'D100', '突破·筑基');
+
+    expect(typeof value).toBe('number');
+    expect(value).toBeGreaterThanOrEqual(1);
+    expect(value).toBeLessThanOrEqual(100);
+    expect(state.rngState).not.toBe(before);
+    expect(state.rolls).toHaveLength(1);
+    expect(state.rolls[0]).toMatchObject({
+      id: 1,
+      turn: 1,
+      die: 'D100',
+      value,
+      reason: '突破·筑基',
+      seedState: before, // pre-roll snapshot — replayable
+    });
+    expect(state.rollSeq).toBe(1);
+    expect(state.stats!.totalRolls).toBe(1);
+  });
+
+  it('is deterministic: same seed ⇒ same roll sequence (layer 4)', () => {
+    const s1 = makeState('同种');
+    const s2 = makeState('同种');
+    const a = Array.from({ length: 50 }, () => recordRoll(s1, 'D20', 'x'));
+    const b = Array.from({ length: 50 }, () => recordRoll(s2, 'D20', 'x'));
+    expect(a).toEqual(b);
+    expect(s1.rngState).toBe(s2.rngState);
+  });
+
+  it('marks sealed rolls (explicitly or via the 暗掷 marker)', () => {
+    const state = makeState();
+    recordRoll(state, 'D100', '天命', true);
+    recordRoll(state, 'D100', '暗掷·机缘');
+    recordRoll(state, 'D100', '灵根抽取');
+    expect(state.rolls[0]!.sealed).toBe(true);
+    expect(state.rolls[1]!.sealed).toBe(true);
+    expect(state.rolls[2]!.sealed).toBeUndefined();
+  });
+});
+
 describe('hash chain (anti-cheat layer 5)', () => {
   it('is deterministic and sensitive to every input', () => {
-    const h = advanceChain(GENESIS_HASH, 1, '修炼', [55, 12]);
-    expect(h).toBe(advanceChain(GENESIS_HASH, 1, '修炼', [55, 12]));
+    const h = chainAuditHash(GENESIS_HASH, 1, '修炼', [55, 12]);
+    expect(h).toBe(chainAuditHash(GENESIS_HASH, 1, '修炼', [55, 12]));
     expect(h).toMatch(/^[0-9a-f]{64}$/);
-    expect(advanceChain(GENESIS_HASH, 2, '修炼', [55, 12])).not.toBe(h);
-    expect(advanceChain(GENESIS_HASH, 1, '探索', [55, 12])).not.toBe(h);
-    expect(advanceChain(GENESIS_HASH, 1, '修炼', [55, 13])).not.toBe(h);
+    expect(chainAuditHash(GENESIS_HASH, 2, '修炼', [55, 12])).not.toBe(h);
+    expect(chainAuditHash(GENESIS_HASH, 1, '探索', [55, 12])).not.toBe(h);
+    expect(chainAuditHash(GENESIS_HASH, 1, '修炼', [55, 13])).not.toBe(h);
   });
 
   it('verifies an honest chain end to end', () => {
@@ -115,7 +218,7 @@ describe('hash chain (anti-cheat layer 5)', () => {
     const result = verifyChain(entries);
     expect(result.valid).toBe(true);
     expect(result.brokenAt).toBeNull();
-    expect(result.headHash).toBe(entries[entries.length - 1].hash);
+    expect(result.headHash).toBe(entries[entries.length - 1]!.hash);
   });
 
   it('detects a tampered roll value mid-chain', () => {
@@ -127,7 +230,7 @@ describe('hash chain (anti-cheat layer 5)', () => {
       prev = entry.hash;
     }
     // the cheater edits a die from 30 to 100 without recomputing the chain
-    entries[2] = { ...entries[2], rollValues: [100] };
+    entries[2] = { ...entries[2]!, rollValues: [100] };
 
     const result = verifyChain(entries);
     expect(result.valid).toBe(false);
@@ -151,7 +254,7 @@ describe('hash chain (anti-cheat layer 5)', () => {
   });
 });
 
-describe('审计 roll log — TZ-XXXX records (layer 9)', () => {
+describe('审计 records — TZ-XXXX numbering (layer 9)', () => {
   it('formats numbered audit ids, zero-padded to 4', () => {
     expect(formatAuditId(1)).toBe('TZ-0001');
     expect(formatAuditId(42)).toBe('TZ-0042');
@@ -159,58 +262,37 @@ describe('审计 roll log — TZ-XXXX records (layer 9)', () => {
     expect(formatAuditId(10000)).toBe('TZ-10000');
   });
 
-  it('builds a full audit table from real rolls', () => {
-    let state = createRng('audit-table');
-    const rolls: DiceRoll[] = [];
-    const reasons = ['灵根抽取', '突破·筑基', '遭遇事件'];
-    for (const reason of reasons) {
-      const r = rollD100(state, reason, rolls.length);
-      rolls.push(r.roll);
-      state = r.nextState;
-    }
+  it('builds a full audit table from real recorded rolls', () => {
+    const state = makeState('audit-table');
+    recordRoll(state, 'D100', '灵根抽取');
+    recordRoll(state, 'D100', '突破·筑基');
+    recordRoll(state, 'D20', '遭遇事件');
 
-    const table = buildAuditTable(rolls);
-    expect(table).toHaveLength(3);
-    expect(table[0].recordId).toBe('TZ-0001');
-    expect(table[1].recordId).toBe('TZ-0002');
-    expect(table[2].recordId).toBe('TZ-0003');
-    expect(table[1].reason).toBe('突破·筑基');
-    expect(table[1].display).toBe(String(rolls[1].value));
-    expect(table.every((r) => !r.hidden)).toBe(true);
-  });
-
-  it('caps the roll log, keeping the newest records', () => {
-    const log = Array.from({ length: 10 }, (_, i) => makeRoll(i + 1));
-    const appended = appendRolls(log, [makeRoll(11), makeRoll(12)], 5);
-    expect(appended).toHaveLength(5);
-    expect(appended.map((r) => r.id)).toEqual([8, 9, 10, 11, 12]);
-    expect(MAX_ROLL_LOG).toBeGreaterThan(0);
-  });
-
-  it('does not mutate the existing log when appending', () => {
-    const log = Object.freeze([makeRoll(1)]) as readonly DiceRoll[];
-    const appended = appendRolls(log, [makeRoll(2)]);
-    expect(log).toHaveLength(1);
-    expect(appended).toHaveLength(2);
+    const table = buildAuditTable(state.rolls);
+    expect(table.map((r) => r.recordId)).toEqual(['TZ-0001', 'TZ-0002', 'TZ-0003']);
+    expect(table[1]!.reason).toBe('突破·筑基');
+    expect(table[1]!.display).toBe(String(state.rolls[1]!.value));
+    expect(table[2]!.die).toBe('D20');
+    expect(table.every((r) => !r.sealed)).toBe(true);
   });
 });
 
 describe('hidden roll seal (layer 3)', () => {
   it('redacts the sealed 机缘 roll value, but still lists the roll', () => {
-    const hidden = makeRoll(4, { reason: `${HIDDEN_ROLL_MARKER}·机缘`, value: 97 });
-    expect(isHiddenRoll(hidden)).toBe(true);
+    const state = makeState('sealed');
+    recordRoll(state, 'D100', '暗掷·机缘');
 
-    const record = formatAuditRecord(hidden);
-    expect(record.hidden).toBe(true);
-    expect(record.recordId).toBe('TZ-0004');
-    expect(record.display).toBe(HIDDEN_ROLL_DISPLAY);
-    expect(record.display).not.toContain('97');
+    const record = formatAuditRecord(state.rolls[0]!);
+    expect(record.sealed).toBe(true);
+    expect(record.recordId).toBe('TZ-0001');
+    expect(record.display).toBe(SEALED_ROLL_DISPLAY);
+    expect(record.display).not.toContain(String(state.rolls[0]!.value));
     expect(record.reason).toContain('天道已掷,命数已定');
   });
 
   it('leaves ordinary rolls fully visible', () => {
     const record = formatAuditRecord(makeRoll(5, { reason: '突破·金丹', value: 13 }));
-    expect(record.hidden).toBe(false);
+    expect(record.sealed).toBe(false);
     expect(record.display).toBe('13');
   });
 });
@@ -244,53 +326,46 @@ describe('no player wishing (layer 2)', () => {
 });
 
 describe('state invariants (layer 7)', () => {
-  const validState = (): InvariantSubject => ({
-    turn: 12,
-    character: {
-      spiritStones: 50,
-      hp: 80,
-      maxHp: 100,
-      age: 18,
-      lifespan: 120,
-      realm: { exp: 30, expNeeded: 100, qiLayer: 3 },
-      attributes: { genGu: 7, wuXing: 6, xinXing: 5, jiYuan: 4, qiYun: 8 },
-    },
-    rolls: [{ id: 1 }, { id: 2 }, { id: 5 }],
-  });
-
-  it('passes a healthy state (and a character-less creation state)', () => {
-    expect(checkInvariants(validState())).toEqual([]);
-    expect(checkInvariants({ turn: 0, character: null })).toEqual([]);
+  it('passes a healthy state (and a character-less creation state) with null', () => {
+    expect(checkInvariants(makeState('ok', { character: makeCharacter() }))).toBeNull();
+    expect(checkInvariants(makeState('creation', { phase: 'creation', turn: 0 }))).toBeNull();
   });
 
   it('flags negative spirit stones', () => {
-    const s = validState();
-    s.character!.spiritStones = -1;
-    expect(checkInvariants(s).map((v) => v.rule)).toContain('spiritStones');
+    const state = makeState('x', { character: makeCharacter({ spiritStones: -1 }) });
+    expect(checkInvariants(state)).toContain('灵石为负');
   });
 
-  it('flags hp out of [0, maxHp] and exp out of bounds', () => {
-    const s = validState();
-    s.character!.hp = 150;
-    s.character!.realm.exp = 999;
-    const rules = checkInvariants(s).map((v) => v.rule);
-    expect(rules).toContain('hp');
-    expect(rules).toContain('exp');
+  it('flags hp over max and exp overflow', () => {
+    const c = makeCharacter({ hp: 150 });
+    c.realm.exp = 999;
+    const violations = checkInvariants(makeState('x', { character: c }));
+    expect(violations).toContain('气血逾上限');
+    expect(violations).toContain('修为溢出');
   });
 
-  it('flags an impossible 炼气 layer and NaN attributes', () => {
-    const s = validState();
-    s.character!.realm.qiLayer = 14;
-    s.character!.attributes = { genGu: Number.NaN };
-    const rules = checkInvariants(s).map((v) => v.rule);
-    expect(rules).toContain('qiLayer');
-    expect(rules).toContain('attributes');
+  it('flags an impossible 炼气 layer, bad attributes and bad stacks', () => {
+    const c = makeCharacter({
+      attributes: { genGu: Number.NaN, wuXing: 6, xinXing: 5, jiYuan: 4, qiYun: 8 },
+      inventory: [{ itemId: 'x', count: 0 }],
+    });
+    c.realm.qiLayer = 14;
+    const violations = checkInvariants(makeState('x', { character: c }));
+    expect(violations).toContain('炼气层数异常');
+    expect(violations).toContain('属性越界');
+    expect(violations).toContain('物品堆叠异常');
   });
 
   it('flags non-monotonic roll ids', () => {
-    const s = validState();
-    s.rolls = [{ id: 3 }, { id: 3 }];
-    expect(checkInvariants(s).map((v) => v.rule)).toContain('rolls');
+    const state = makeState('x', { rolls: [makeRoll(3), makeRoll(3)] });
+    expect(checkInvariants(state)).toContain('掷序紊乱');
+  });
+
+  it('orders realms for progression checks', () => {
+    expect(realmAtLeast('foundation', 'qi')).toBe(true);
+    expect(realmAtLeast('qi', 'qi')).toBe(true);
+    expect(realmAtLeast('mortal', 'core')).toBe(false);
+    expect(realmAtLeast('unknown', 'mortal')).toBe(false);
   });
 });
 
@@ -315,10 +390,10 @@ interface FakeState extends SaveableState {
   spiritStones: number;
 }
 
-function fakeState(overrides: Partial<FakeState> = {}): FakeState {
+function fakeSaveState(overrides: Partial<FakeState> = {}): FakeState {
   return {
     version: CURRENT_SAVE_VERSION,
-    auditHash: advanceChain(GENESIS_HASH, 1, '修炼', [61]),
+    auditHash: chainAuditHash(GENESIS_HASH, 1, '修炼', [61]),
     seed: 'save-test-seed',
     turn: 1,
     spiritStones: 5,
@@ -327,9 +402,18 @@ function fakeState(overrides: Partial<FakeState> = {}): FakeState {
 }
 
 describe('save integrity (layer 6) — round-trip', () => {
+  it('saveChecksum is deterministic and state-sensitive', () => {
+    const state = makeState('checksum');
+    const a = saveChecksum(state);
+    expect(a).toBe(saveChecksum(state));
+    expect(a).toMatch(/^[0-9a-f]{64}$/);
+    const richer = makeState('checksum', { character: makeCharacter() });
+    expect(saveChecksum(richer)).not.toBe(a);
+  });
+
   it('saves and loads through an injected storage adapter', () => {
     const storage = createMemoryStorage();
-    const state = fakeState();
+    const state = fakeSaveState();
 
     expect(hasSave(storage)).toBe(false);
     saveGame(storage, state);
@@ -347,9 +431,25 @@ describe('save integrity (layer 6) — round-trip', () => {
     expect(loadGame<FakeState>(storage)).toMatchObject({ ok: false, code: 'empty' });
   });
 
+  it('round-trips a real GameState with recorded rolls', () => {
+    const storage = createMemoryStorage();
+    const state = makeState('full-state', { character: makeCharacter() });
+    const v1 = recordRoll(state, 'D100', '灵根抽取');
+    const v2 = recordRoll(state, 'D100', '暗掷·机缘');
+    state.auditHash = chainAuditHash(GENESIS_HASH, 1, '开始游戏', [v1, v2]);
+
+    saveGame(storage, state);
+    const loaded = loadGame<GameState>(storage);
+    expect(loaded.ok).toBe(true);
+    if (loaded.ok) {
+      expect(loaded.state).toEqual(state);
+      expect(loaded.state.rolls[1]!.sealed).toBe(true);
+    }
+  });
+
   it('rejects a payload tampered after save (checksum mismatch)', () => {
     const storage = createMemoryStorage();
-    saveGame(storage, fakeState({ spiritStones: 5 }));
+    saveGame(storage, fakeSaveState({ spiritStones: 5 }));
 
     const blob = JSON.parse(storage.getItem(SAVE_KEY)!);
     blob.payload.spiritStones = 999999; // the cheater edits localStorage
@@ -359,11 +459,10 @@ describe('save integrity (layer 6) — round-trip', () => {
     expect(loaded).toMatchObject({ ok: false, code: 'checksum', message: SAVE_CORRUPT_MESSAGE });
   });
 
-  it('rejects an auditHash swap even when the checksum is recomputed shallowly', () => {
-    const state = fakeState();
-    const raw = serializeSave(state, 1234567890);
+  it('rejects an auditHash desync between envelope and payload', () => {
+    const raw = serializeSave(fakeSaveState(), 1234567890);
     const blob = JSON.parse(raw);
-    blob.payload.auditHash = 'f'.repeat(64); // desync envelope vs payload
+    blob.payload.auditHash = 'f'.repeat(64);
     const loaded = deserializeSave<FakeState>(JSON.stringify(blob));
     expect(loaded.ok).toBe(false);
     if (!loaded.ok) expect(['checksum', 'audit']).toContain(loaded.code);
@@ -377,14 +476,14 @@ describe('save integrity (layer 6) — round-trip', () => {
   });
 
   it('refuses saves from a future schema version', () => {
-    const raw = serializeSave(fakeState({ version: CURRENT_SAVE_VERSION + 1 }));
+    const raw = serializeSave(fakeSaveState({ version: CURRENT_SAVE_VERSION + 1 }));
     expect(deserializeSave(raw)).toMatchObject({ ok: false, code: 'version' });
   });
 });
 
 describe('save schema migration', () => {
   it('migrates an old save up to the current version', () => {
-    const oldState = fakeState({ version: CURRENT_SAVE_VERSION - 1 });
+    const oldState = fakeSaveState({ version: CURRENT_SAVE_VERSION - 1 });
     const raw = serializeSave(oldState);
 
     const migrations: Record<number, Migration> = {
@@ -401,14 +500,14 @@ describe('save schema migration', () => {
   });
 
   it('fails cleanly when a migration step is missing', () => {
-    const raw = serializeSave(fakeState({ version: CURRENT_SAVE_VERSION - 1 }));
+    const raw = serializeSave(fakeSaveState({ version: CURRENT_SAVE_VERSION - 1 }));
     expect(deserializeSave(raw, {})).toMatchObject({ ok: false, code: 'version' });
   });
 });
 
 describe('save export/import (Base64)', () => {
   it('round-trips a state through the portable string', () => {
-    const state = fakeState({ turn: 33, spiritStones: 888 });
+    const state = fakeSaveState({ turn: 33, spiritStones: 888 });
     const b64 = exportSave(state, 1700000000000);
     expect(b64).toMatch(/^[A-Za-z0-9+/]+=*$/);
 
@@ -419,7 +518,7 @@ describe('save export/import (Base64)', () => {
 
   it('rejects corrupted import strings', () => {
     expect(importSave('!!!not-base64!!!')).toMatchObject({ ok: false, code: 'corrupt' });
-    const b64 = exportSave(fakeState());
+    const b64 = exportSave(fakeSaveState());
     const tampered = `${b64.slice(0, 10)}AAAA${b64.slice(14)}`;
     expect(importSave(tampered).ok).toBe(false);
   });
@@ -428,27 +527,28 @@ describe('save export/import (Base64)', () => {
 describe('audit + rng integration — replayable run', () => {
   it('a full audited run reproduces the same head hash from the same seed', () => {
     const playOnce = () => {
-      let rng = createRng('integration-seed');
-      let prev = GENESIS_HASH;
+      const state = makeState('integration-seed');
       const entries: AuditChainEntry[] = [];
+      let prev = GENESIS_HASH;
       const commands = ['修炼', '修炼', '突破', '探索', '修炼'];
       commands.forEach((command, i) => {
-        const turn = i + 1;
-        const r1 = roll(rng, 'D100', `${command}·主掷`, turn);
-        rng = r1.nextState;
-        const r2 = roll(rng, 'D20', '遭遇事件', turn);
-        rng = r2.nextState;
-        const entry = buildChainEntry(prev, turn, command, [r1.value, r2.value]);
+        state.turn = i + 1;
+        const v1 = recordRoll(state, 'D100', `${command}·主掷`);
+        const v2 = recordRoll(state, 'D20', '遭遇事件');
+        const entry = buildChainEntry(prev, state.turn, command, [v1, v2]);
         entries.push(entry);
         prev = entry.hash;
       });
-      return { entries, head: prev };
+      state.auditHash = prev;
+      return { entries, head: prev, state };
     };
 
     const runA = playOnce();
     const runB = playOnce();
     expect(runA.head).toBe(runB.head);
+    expect(runA.state.rolls.map((r) => r.value)).toEqual(runB.state.rolls.map((r) => r.value));
     expect(verifyChain(runA.entries).valid).toBe(true);
-    expect(verifyChain(runA.entries).headHash).toBe(runA.head);
+    expect(verifyChain(runA.entries).headHash).toBe(runA.state.auditHash);
+    expect(checkInvariants(runA.state)).toBeNull();
   });
 });

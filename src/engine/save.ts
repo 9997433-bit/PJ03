@@ -21,9 +21,8 @@ export const SAVE_CORRUPT_MESSAGE = '此界因果紊乱,不可续。';
 const SAVE_MAGIC = 'MCLS';
 
 /**
- * Minimal structural requirement on the persisted state — GameState
- * (PLAN §2) satisfies this. Swap to `import type { GameState } from './types'`
- * once types.ts lands.
+ * Minimal structural requirement on the persisted state —
+ * `GameState` (./types) satisfies this.
  */
 export interface SaveableState {
   version: number;
@@ -35,6 +34,9 @@ export interface StorageAdapter {
   setItem(key: string, value: string): void;
   removeItem(key: string): void;
 }
+
+/** Alias kept for callers written against a `StorageLike` name. */
+export type StorageLike = StorageAdapter;
 
 export interface SaveEnvelope {
   magic: typeof SAVE_MAGIC;
@@ -228,13 +230,14 @@ const B64_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz012345
 function bytesToBase64(bytes: Uint8Array): string {
   let out = '';
   for (let i = 0; i < bytes.length; i += 3) {
-    const b0 = bytes[i];
-    const b1 = i + 1 < bytes.length ? bytes[i + 1] : 0;
-    const b2 = i + 2 < bytes.length ? bytes[i + 2] : 0;
-    out += B64_ALPHABET[b0 >> 2];
-    out += B64_ALPHABET[((b0 & 0x03) << 4) | (b1 >> 4)];
-    out += i + 1 < bytes.length ? B64_ALPHABET[((b1 & 0x0f) << 2) | (b2 >> 6)] : '=';
-    out += i + 2 < bytes.length ? B64_ALPHABET[b2 & 0x3f] : '=';
+    // In-range indices (noUncheckedIndexedAccess): bounds handled explicitly.
+    const b0 = bytes[i]!;
+    const b1 = i + 1 < bytes.length ? bytes[i + 1]! : 0;
+    const b2 = i + 2 < bytes.length ? bytes[i + 2]! : 0;
+    out += B64_ALPHABET[b0 >> 2]!;
+    out += B64_ALPHABET[((b0 & 0x03) << 4) | (b1 >> 4)]!;
+    out += i + 1 < bytes.length ? B64_ALPHABET[((b1 & 0x0f) << 2) | (b2 >> 6)]! : '=';
+    out += i + 2 < bytes.length ? B64_ALPHABET[b2 & 0x3f]! : '=';
   }
   return out;
 }
