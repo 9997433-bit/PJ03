@@ -16,6 +16,8 @@ export interface OriginData extends Origin {
   story: string;
   /** 埋线钩子 — 后续以专属事件/支线回收 */
   hookLines: string[];
+  /** 开局即修的功法(creation.ts 读取;家学渊源专属) */
+  startTechniqueId?: string;
 }
 
 export const ORIGINS: OriginData[] = [
@@ -62,6 +64,7 @@ export const ORIGINS: OriginData[] = [
     startSpiritStones: 40,
     startItems: ['jiachuan_canyu', 'juqi_dan', 'juqi_dan'],
     startFlags: { clanArts: true, clanFeud: true },
+    startTechniqueId: 'yinqi_jue',
     perk: 'clanTechnique',
     perkName: '家学渊源',
     perkDesc: '开局即习得黄阶《引气诀》,家传口诀在身,入门便不走弯路。',

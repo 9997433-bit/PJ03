@@ -1,6 +1,5 @@
 /**
  * gameStore.ts — Zustand store wrapping stubEngine (single runtime path).
- * Every mutation flows through pure engine functions; UI has no direct setters.
  */
 
 import { create } from 'zustand';
@@ -24,17 +23,9 @@ import {
 } from '@/engine/stubEngine';
 import { deserializeSave, SAVE_KEY, serializeSave } from '@/engine/save';
 
-// ============================================================================
-// UI-only types
-// ============================================================================
-
 export type ContextTab = 'panel' | 'inventory' | 'quests' | 'market' | 'alchemy' | 'audit';
 
 export type BreakthroughFx = BreakthroughAttempt & { realmName: string };
-
-// ============================================================================
-// Checksummed persistence
-// ============================================================================
 
 let corruptSaveDetected = false;
 
@@ -57,7 +48,7 @@ const checksummedStorage: StateStorage = {
       const game = parsed.state?.game;
       if (game) window.localStorage.setItem(name, serializeSave(game));
     } catch {
-      /* ignore corrupt writes */
+      /* ignore */
     }
   },
   removeItem: (name) => {
@@ -65,10 +56,6 @@ const checksummedStorage: StateStorage = {
     window.localStorage.removeItem(name);
   },
 };
-
-// ============================================================================
-// Store
-// ============================================================================
 
 export interface GameStore {
   game: GameState | null;
@@ -118,11 +105,14 @@ export const useGameStore = create<GameStore>()(
 
       continueGame: () => {
         const g = get().game;
-        if (!g || g.phase === 'title') return false;
-        return true;
+        return g !== null && g.phase !== 'title';
       },
 
-      restart: () => set({ game: null, breakthroughFx: null }),
+      restart: () => {
+        if (typeof window !== 'undefined') window.localStorage.removeItem(SAVE_KEY);
+        corruptSaveDetected = false;
+        set({ game: null, breakthroughFx: null });
+      },
 
       creationChoose: (name, gender, originId) => {
         const g = get().game;
@@ -156,6 +146,7 @@ export const useGameStore = create<GameStore>()(
         const g = get().game;
         if (!g) return;
         const cmd = text.trim();
+        if (!cmd) return;
 
         if (g.phase === 'combat' && ['出手', '术法', '服药', '遁走'].includes(cmd)) {
           set({ game: combatAction(g, cmd as '出手' | '术法' | '服药' | '遁走') });
@@ -165,10 +156,7 @@ export const useGameStore = create<GameStore>()(
         if (cmd === '突破' && g.phase === 'playing') {
           const { state, result } = attemptBreakthrough(g);
           if (result) {
-            set({
-              game: state,
-              breakthroughFx: { ...result, realmName: result.toLabel },
-            });
+            set({ game: state, breakthroughFx: { ...result, realmName: result.toLabel } });
           } else {
             set({ game: state });
           }
@@ -212,7 +200,6 @@ export const useGameStore = create<GameStore>()(
       },
 
       clearBreakthroughFx: () => set({ breakthroughFx: null }),
-
       setActiveTab: (tab) => set({ activeTab: tab }),
     }),
     {

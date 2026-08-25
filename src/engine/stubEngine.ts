@@ -19,6 +19,7 @@ import { lifespanFor, nextRealm, realmLabel, REALM_BY_ID, STAGES } from "@/data/
 import { getTechnique } from "@/data/techniques";
 import { getItem } from "@/data/items";
 import { getRecipe } from "@/data/recipes";
+import { INITIAL_NPCS } from "@/data/npcs";
 import { createSeed, makeAuditedRoll, seedToState } from "./rng";
 import type { Die } from "./types";
 import type {
@@ -243,6 +244,7 @@ export function creationEnterWorld(state: GameState): GameState {
   s.phase = "playing";
   s.turn = 1;
   s.quests = initialQuests();
+  s.npcs = JSON.parse(JSON.stringify(INITIAL_NPCS)) as GameState['npcs'];
   pushLog(s, {
     speaker: "天道",
     text: `${s.character.name},年十六,踏出乡关。青山遮目,大道无声。自此一饮一啄,皆有定数。`,
@@ -984,8 +986,29 @@ export function runCommand(state: GameState, raw: string): CommandOutcome {
   } else if (cmd.startsWith("装备")) {
     const name = cmd.slice(2).trim();
     return { state: equipItemByName(s, name), pendingEvent: null };
+  } else if (cmd.startsWith("赠礼")) {
+    const name = cmd.slice(2).trim();
+    const npc = Object.values(s.npcs).find((n) => n.name === name)
+      ?? Object.values(s.npcs).find((n) => name.length >= 2 && n.name.includes(name));
+    if (!npc) {
+      pushLog(s, { speaker: "系统", tone: "muted", text: "汝所言之人,不在此界名册。(赠礼 <人名>)" });
+    } else if (c.spiritStones < 20) {
+      pushLog(s, { speaker: "系统", tone: "muted", text: "两手空空,何以为礼。(需灵石 20)" });
+    } else {
+      c.spiritStones -= 20;
+      const before = npc.favor;
+      npc.favor = Math.min(100, npc.favor + 5);
+      pushLog(s, { speaker: "汝", tone: "muted", text: `奉上灵石二十枚,赠予${npc.name}。` });
+      pushLog(s, { speaker: "系统", tone: "jade", text: `${npc.name}对汝好感渐生。(好感 ${before} → ${npc.favor})` });
+      for (const t of npc.thresholds) {
+        if (!t.done && before < t.at && npc.favor >= t.at) {
+          t.done = true;
+          pushLog(s, { speaker: "系统", tone: "gold", text: `【${npc.name}】${t.unlock}。` });
+        }
+      }
+    }
   } else if (cmd === "帮助" || cmd.toLowerCase() === "help") {
-    pushLog(s, { speaker: "系统", text: "可用指令:修炼 / 突破 / 探索 / 坊市 / 炼丹 / 背包 / 任务 / 面板 / 审计 / 使用 <物品> / 装备 <物品> / 保存 / 重开。" });
+    pushLog(s, { speaker: "系统", text: "可用指令:修炼 / 突破 / 探索 / 坊市 / 炼丹 / 背包 / 任务 / 面板 / 审计 / 使用 <物品> / 装备 <物品> / 赠礼 <人名> / 保存 / 重开。" });
   } else {
     pushLog(s, { speaker: "天道", text: "天道不受愿。" });
   }

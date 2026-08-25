@@ -127,6 +127,11 @@ export const ITEMS: ItemData[] = [
     desc: '清心涤虑,可镇心魔。丹香清冽如雪后松风。心病还须心药医,此丹只保汝撑到医好心病的那天。',
   },
   {
+    id: 'jingxin_wan', name: '静心丸', kind: 'pill', grade: 1, price: 30,
+    effect: { hp: 15, cureStatus: true },
+    desc: '民间土方所制的安神药丸,药力粗浅,胜在一片心意。搓丸的手若细致,针脚般的纹路还留在丸上。',
+  },
+  {
     id: 'pozhang_dan', name: '破障丹', kind: 'pill', grade: 3, price: 300, minRealm: 'qi',
     effect: { clearBottleneck: true },
     desc: '专破修行瓶颈的猛药(解除瓶颈)。药力如锥,凿开卡关处的淤塞——壁障凿不开,淤塞总凿得开。',
@@ -189,6 +194,10 @@ export const ITEMS: ItemData[] = [
     desc: '中品火行法器,御使时剑身赤芒流转,如一线晚霞裁空。见过它出鞘的人,评价出奇一致:快。',
   },
   {
+    id: 'faqi_qinghong', name: '古剑·青虹', kind: 'weapon', grade: 4, price: 0, power: 42, unique: true, sellable: false,
+    desc: '涧底寒潭中倒插千年的古剑,青芒不灭,出鞘时如一道青虹裁开夜幕。剑身无铭,唯有旧主的一缕剑意未散——它在等一个配得上它的人。',
+  },
+  {
     id: 'qingzhu_fengyun_jian', name: '青竹蜂云剑', kind: 'weapon', grade: 5, price: 0, power: 60, unique: true,
     desc: '七十二柄小剑合铸一体,御使如蜂群出巢,遮天蔽日。得剑者可参悟《青竹蜂云剑术》。剑柄内侧刻着极小的两个字:韩制。',
   },
@@ -213,6 +222,10 @@ export const ITEMS: ItemData[] = [
   {
     id: 'qingmang_ruanjia', name: '青蟒软甲', kind: 'armor', grade: 3, price: 700, defense: 16, minRealm: 'foundation',
     desc: '一阶巅峰青蟒的蜕皮所制,轻若无物,韧如百炼钢。蟒死的时候,它正准备化蛟。',
+  },
+  {
+    id: 'fayi_xuangui', name: '玄龟法衣', kind: 'armor', grade: 3, price: 0, defense: 18, unique: true, sellable: false, minRealm: 'qi',
+    desc: '以三阶玄龟蜕甲织入法衣,水火难侵。宗门执法长老亲手所赐之物,穿在身上的不止是甲,是靠山。',
   },
   {
     id: 'jinsi_daopao', name: '金丝道袍', kind: 'armor', grade: 4, price: 2600, defense: 26, minRealm: 'core',
@@ -479,6 +492,11 @@ export function findItemByName(nameOrId: string): ItemData | undefined {
 
 /** 玩家输入解析别名 */
 export const resolveItem = findItemByName;
+
+/** 引擎契约:按字面 id 直取(attributes.ts 装备加成查表用) */
+export const ITEM_BY_ID: Record<string, ItemData> = Object.fromEntries(
+  ITEMS.map((i) => [i.id, i]),
+);
 
 /** 典籍 → 所授功法(旧引用兼容) */
 export const MANUAL_TECHNIQUE: Record<string, string> = Object.fromEntries(

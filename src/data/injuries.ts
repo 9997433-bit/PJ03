@@ -83,14 +83,30 @@ export const INJURY_DEFS: Record<string, InjuryTemplate> = {
 /** 兼容旧名 */
 export const INJURIES = INJURY_DEFS;
 
-/** 由模板生成一份伤势实例;enduring(山野村童·耐苦)减一回合。 */
-export function makeInjuryFromDef(id: string, enduring = false): Injury {
-  const t = INJURY_DEFS[id] ?? INJURY_DEFS.waiShang!;
+/** id 归一化 + 历史别名(daoShang → daoji_shang 等) */
+function normKey(id: string): string {
+  return id.replace(/[_\-\s]/g, '').toLowerCase();
+}
+const INJURY_INDEX = new Map<string, InjuryTemplate>();
+for (const t of Object.values(INJURY_DEFS)) INJURY_INDEX.set(normKey(t.id), t);
+INJURY_INDEX.set('daoshang', INJURY_DEFS.daoji_shang!);
+
+/**
+ * 引擎契约:由模板生成一份伤势实例。
+ * reduceTurns — 痊愈回合减免(山野村童·耐苦 传 1)。查无此伤时以外伤兜底。
+ */
+export function makeInjury(id: string, reduceTurns = 0): Injury {
+  const t = INJURY_INDEX.get(normKey(id)) ?? INJURY_DEFS.waiShang!;
   return {
     id: t.id,
     name: t.name,
     severity: t.severity,
-    turnsLeft: Math.max(1, t.baseTurns - (enduring ? 1 : 0)),
+    turnsLeft: Math.max(1, t.baseTurns - reduceTurns),
     effect: { ...t.effect },
   };
+}
+
+/** 旧名兼容(boolean 形参) */
+export function makeInjuryFromDef(id: string, enduring = false): Injury {
+  return makeInjury(id, enduring ? 1 : 0);
 }

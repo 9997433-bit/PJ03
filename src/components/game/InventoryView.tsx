@@ -16,6 +16,7 @@ const GRADE_COLOR: Record<number, string> = {
 /** 储物袋 */
 export function InventoryView({ state }: { state: GameState }) {
   const execute = useGameStore((s) => s.execute);
+  const sell = useGameStore((s) => s.sell);
   const c = state.character!;
   const inCombat = state.phase === 'combat';
 
@@ -60,8 +61,9 @@ export function InventoryView({ state }: { state: GameState }) {
               {equipped && <span className="px-1 py-0.5 text-xs text-gold-400">已装备</span>}
               {!inCombat && !equipped && (
                 <button
-                  onClick={() => execute(`出售 ${item.name}`)}
-                  className="border border-ink-600 px-2.5 py-0.5 text-xs text-paper-500 transition-colors hover:border-crimson-500/50 hover:text-crimson-500"
+                  onClick={() => sell(item.id)}
+                  disabled={item.price <= 0}
+                  className="border border-ink-600 px-2.5 py-0.5 text-xs text-paper-500 transition-colors hover:border-crimson-500/50 hover:text-crimson-500 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   出售
                 </button>
