@@ -1,194 +1,185 @@
-# 《烂柯棋缘 · 人生模拟器》
+# 烂柯棋缘 · 人生模拟器
 
-> 山中方一日，世上已千年。
-> 汝提斧上山，只为看完一局棋。
+> 王质入山采樵，见二童子对弈。一局未终，斧柯已烂。
 
-A text-driven daoist life simulator about a wanderer who finds the Dao not
-through fighting, but through watching games of go, walking a lot of roads, and
-being decent to the local spirits. One life, one seed, one closing scroll.
+一个安静的文字人生模拟器。这里没有仗可打：你只是走路、看棋、与山精鬼怪对坐，
+在七重境界之上，把一局下完。冲突系统是**弈道**——赢输以**目数**计，没有人流血。
 
-There is no combat in this game. Conflict is resolved on a 19×19 board.
+- 完全离线：静态导出，零外部请求，字体自托管。
+- 每一次掷骰都进**棋录**，附 SHA-256 哈希链，任何人都可以复核。
+- 十二种结局，全部由引擎的触发表驱动，无一是摆设。
 
----
+## 快速开始
 
-## Running it
-
-Requires Node 20 or newer.
+依赖由仓库根目录的 npm workspace 统一管理，**请在仓库根目录安装**，不要在本子包内
+单独 `npm install`（子包里的 `package-lock.json` 会造成 `next` 的重复安装，
+prerender 阶段会以 `Invariant: Expected workStore to be initialized` 失败）。
 
 ```bash
-cd games/lanke-qiyuan
+# 仓库根目录
 npm install
-npm run dev          # http://localhost:3000
+
+# 本目录
+npm run dev        # 开发服务器
+npm run build      # 静态导出到 out/
+npm run serve      # 本地预览 out/（http://localhost:8100）
+npm test           # vitest，292 项
+npm run typecheck  # tsc --noEmit
+npm run lint       # eslint
 ```
 
-Other scripts:
+`npm run build` 产出 `out/index.html`（标题页）与 `out/game/index.html`（正文），
+可直接由任意静态服务器托管。
 
-```bash
-npm test             # vitest — 211 tests
-npm run typecheck    # tsc --noEmit
-npm run build        # static export into ./out
+## 玩法
+
+### 创角（四步，落子无悔）
+
+1. **立名** — 姓名与道号。道号可留白，山精鬼怪自会替你取一个。
+2. **出身（六选一）** — 落第书生〔笔生〕、棋馆学徒〔听子〕、采药山民〔行脚〕、
+   出走道童〔静者〕、破产行商〔疏财〕、孤庙遗孤〔博览〕。各自决定初始属性、
+   银钱、器物与一项终身特长。
+3. **心性** — 28 点分配到心境 / 悟性 / 才学 / 气韵，每项 4–10。
+4. **棋缘** — 由天道掷一次 D100 定品第（顽石 … 太虚），决定终身修为速率与弈道加成。
+   **另有一掷你看不见**：隐藏的「缘法」影响你一生遇事的吉凶，此后不出现在任何面板上。
+
+每一步都由引擎的 `creationStep` 把关：刷新页面会回到你离开的那一步，UI 也无法跳步。
+
+### 境界
+
+| 境界 | 寿元 | 棋道门槛 |
+|---|---:|---:|
+| 凡尘 | 72 | 12 |
+| 明心 | 110 | 26 |
+| 养气 | 180 | 42 |
+| 通玄 | 320 | 58 |
+| 坐忘 | 600 | 74 |
+| 逍遥 | 1200 | 90 |
+| 天人 | 3000 | 100 |
+
+境界内的三段（初境 / 中境 / 圆融）随修为自动晋升；**跨境界的破境是一场赌**，
+需要同时过三道门：修为满、棋道过门槛、心尘低于上限。失败会烧修为、涨心尘，
+但每次失败累积「垫底」加成，不会永远卡死。
+
+### 指令
+
+一条指令走一季，四季一年。
+
+| 指令 | 作用 | 耗时 |
+|---|---|:-:|
+| `修炼` / `打谱` | 累积修为 | ✓ |
+| `观棋` | 掷 D20 争棋道与「悟」，难度随棋道水涨船高 | ✓ |
+| `坐忘` | 回心神、洗心尘 | ✓ |
+| `游历 <地名>` | 移动并掷事件表；不指地名则原地信步 | ✓ |
+| `破境` | 尝试跨境界 | |
+| `弈道 <对手>` | 开局 | |
+| `稳守` `急攻` `弃子` `试探` `封盘` | 一手棋 | |
+| `投子` | 认负 | |
+| `参谱` / `悟谱 <谱名>` | 研读 / 参透棋谱 | |
+| `买` `卖` `用` `赠 <精怪> <物>` | 坊市与行囊 | |
+| `命盘` `行囊` `舆图` `坊市` `精怪录` `棋录` | 只读面板，不耗时 | |
+
+不在表内的输入一律被拒，不掷骰、不走钟。以「我希望……」「给我……」「作弊」之类
+许愿开头的输入，会被单独挡在管线最前面：**枰上无侥幸，天道不受愿。**
+
+### 弈道
+
+一局是固定手数的交换，每手：
+
+```
+D20 + 悟性 + 枰加成 + 棋风修正 + 先手  vs  对手手筋（strength ÷ 3 + 8）
 ```
 
-`npm run build` produces a fully static site in `out/`. Serve it with anything:
+差值折成**目数**。五种棋风各有性格：`稳守` 波动小、`急攻` 波动大且吃先手、
+`弃子` 主动认输一手换一个劫（下一手目数加倍）、`试探` 所得不多但抢到先手、
+`封盘` 第三手后可提前收官锁定目数。每个对手都克一种棋风、怕一种棋风，
+所以**读人比算子重要**。
 
-```bash
-npx serve out
-```
+### 结局
 
-The game is client-only: no server, no network calls, no accounts. A life is
-saved to `localStorage` after every season and picked up again from the title
-screen.
+十二种，六条走向：破境至天人、悟《无字谱》且棋道圆满、接过云海棋台、
+烂柯山见过那一局、坐忘功深、棋友遍天下、踏遍舆图、著述等身，
+以及心尘满溢、心神枯竭两条坏结局，与寿终的两条（有名 / 无名）。
 
----
+`ENDING_TRIGGERS` 是唯一的判定来源，测试直接从这张表推导可达集合并与
+`data/endings.ts` 对齐——所以不存在「写了但打不到」的结局。
 
-## How a life goes
+## 内容规模
 
-You are born into one of six 出身, roll your 棋缘 once, and then spend seasons
-until your 寿元 runs out. Four seasons make a year. Every action that consumes
-a season is a decision about what this life was for.
+| | 数量 |
+|---|---:|
+| 游历事件 | 60（含 112 个选项） |
+| 器物 | 49 |
+| 结局 | 12 |
+| 棋谱 | 10 |
+| 弈道对手 | 14 |
+| 精怪 | 12 |
+| 地点 | 12 |
+| 出身 | 6 |
+| 境界 | 7 |
 
-**Creation** is four steps, in order, and the order is enforced by the engine:
-
-1. 名 — your name and 道号
-2. 出身 — one of six starting lives, each with a distinct perk
-3. 心性 — spend 28 points across 心境 / 悟性 / 才学 / 气韵 (4–10 each)
-4. 棋缘 — a single D100 the game rolls for you, and will not let you re-roll
-
-**The loop**, once you are playing:
-
-| Action | Costs a season | What it is for |
-| --- | --- | --- |
-| 修炼 | yes | 修为 toward the next 境界; spends 心神, accrues 心尘 |
-| 观棋 | yes | watch a game — the main source of 悟 and 棋道 |
-| 坐忘 | yes | sit and forget; sheds 心尘 and restores 心神 |
-| 游历 | yes | move, or wander where you are; rolls the event table |
-| 弈道 | no (the match holds time still) | play a match, hand by hand |
-| 坊市 | yes | browse the stalls |
-| 破境 | yes | attempt the next stage or realm |
-| 买/卖/用/赠/参谱/悟谱 | no | small deliberate acts, free at any time |
-
-**A life ends** in one of four ways: 寿元 runs out, the mind stays clouded
-(心尘 100 for four seasons), 心神 stays exhausted for four seasons, or you
-reach the top of the ladder. Which of the twelve scrolls gets written depends
-on the whole life, not the last moment.
-
----
-
-## The parts that are not the usual xianxia parts
-
-**棋道悟性 — insight instead of grinding.** 悟 is the game's real currency.
-It comes mostly from *watching* other people play, not from playing yourself,
-and it is the only way to comprehend a 棋谱. A studied manual multiplies every
-season of 修炼 afterwards, so an hour spent on someone else's game is usually
-worth more than an hour spent on your own cultivation.
-
-**棋缘 instead of 灵根.** One hidden D100 at creation decides your affinity
-grade and a speed multiplier. It is rolled once, audited, and never offered
-again. 缘法 — the hidden fifth attribute — is derived from it and never
-displayed anywhere in the UI, including the panel; it quietly shifts which
-events find you.
-
-**弈道 — conflict without blood.** A match runs a fixed number of hands. Each
-hand you pick one of five styles (稳守 / 急攻 / 弃子 / 试探 / 封盘), the
-opponent has a style they punish and a style they handle badly, and 目数
-accumulate. 封盘 spends two hands at once. Losing costs your stake and some
-face; nobody dies.
-
-**山精鬼怪好感 instead of factions.** Twelve beings live at fixed places, each
-gated behind a realm and each with ordered favour thresholds that unlock gifts
-and small permanent benefits. Taste matters more than price when you give a
-gift — a cheap thing they like beats an expensive thing they do not.
-
-**心尘 as the real antagonist.** Cultivating hard clouds the mind. A clouded
-mind pulls the event table toward 波折 and eventually ends the life outright.
-坐忘 is the only reliable way back, and it costs a season you could have spent
-climbing. The whole difficulty curve is that trade.
-
-**天道棋录 — every roll is auditable.** Every die the game throws is recorded
-with a reason and chained into a SHA-256 hash. The 天道棋录 panel shows the
-whole ledger; the hidden 缘法 rolls appear as `封`, proving a roll happened
-without revealing its face. Saves carry a checksum and the chain head, so an
-edited save is detected on load.
-
----
-
-## Layout
+## 架构
 
 ```
 src/
-  engine/          the rules — no React, no browser APIs
-    types.ts       every shape in the game
-    rng.ts         seeded mulberry32, audited at the gateway
-    audit.ts       SHA-256 hash chain, invariants, redaction
-    save.ts        versioned saves with checksums and migrations
-    creation.ts    the four-step gate
-    attributes.ts  allocation rules and check bonuses
-    effects.ts     the single door every consequence walks through
-    cultivation.ts 修炼 / 观棋 / 坐忘
-    chess.ts       弈道
-    travel.ts      游历 and the event table
-    market.ts      坊市, gifts, manuals
-    breakthrough.ts 破境 and its gates
-    lifecycle.ts   seasons, attrition, and how a life closes
-    turn.ts        THE SINGLE WRITER
-  data/            content tables (events, items, endings, …)
-  store/           zustand, the only bridge between React and the engine
-  components/      the UI
-  app/             Next.js app router
+  engine/      纯 TypeScript。零 React、零浏览器 API。
+    rng.ts        种子化 PRNG，唯一的随机源，可序列化
+    audit.ts      SHA-256、哈希链、许愿拦截、回合后不变式
+    turn.ts       单写者：clone → 拒愿 → 解析 → 相位守卫 → 派发
+                  → 季末结算 → 结局扫描 → 哈希链 → 不变式 → 提交或回滚
+    creation.ts   四步状态机   cultivation.ts 修为与晋段
+    insight.ts    观棋 / 坐忘 / 参谱   breakthrough.ts 破境
+    board.ts      弈道        events.ts 事件表      travel.ts 游历
+    economy.ts    坊市        inventory.ts 行囊     spirits.ts 精怪好感
+    effects.ts    事件与器物效果的唯一落点
+    endings.ts    触发表      commands.ts 白名单解析器
+    save.ts       版本化 + 校验和存档信封，存档键 `lanke_save_v1`
+  data/        纯数据表，不含逻辑
+  store/       Zustand：把引擎接到 UI，管水合、持久化与瞬时提示
+  components/  UI，全部从 state 渲染，不自行改状态
+  app/         标题页 / 正文页
 ```
 
-Two rules hold the thing together:
+三条铁律：
 
-1. **`executeCommand` in `turn.ts` is the only function that produces a new
-   `GameState` during play.** Everything else mutates a draft it was handed.
-   The turn pipeline is: phase guards → dispatch → advance the season →
-   life-end check → hash chain → invariants. An invariant violation rolls the
-   entire turn back, so a bad rule can cost you a season but can never corrupt
-   a life.
+1. **引擎里没有 React。** `src/engine/` 只 import 自己和 `src/data/`。
+2. **`turn.ts` 是唯一的写者。** 任何状态变化都要经过它，包括回滚。
+   不变式一旦被破坏，整个 clone 作废，玩家只损失一行拒绝语。
+3. **所有随机数来自 `rng.ts`。** 种子存进存档，重放同一份存档得到同一串骰子——
+   测试正是这样验证「重载不改命」的。
 
-2. **Every die goes through `roll()` in `rng.ts`**, which advances the seeded
-   state and appends an audit record. Nothing in the engine calls `Math.random`.
+## 存档
 
-The engine is a standalone copy adapted from the root game's patterns. Nothing
-here imports from the repository root at runtime.
+`localStorage` 键 `lanke_save_v1`（四个模拟器共用一个 origin，故按游戏区分）。
+存档是一个信封：magic + 版本 + 时间戳 + 审计哈希 + SHA-256 校验和 + 载荷。
+任何一项对不上，标题页只给「重开」一条路，并明说
+「此局棋谱残损，不可续弈。」——不猜、不修、不半载。
 
----
+「抄录此谱」把整局导出成一串 Base64，可以贴给别人；导入时走同一套校验。
 
-## Tests
+## 测试
 
 ```bash
 npm test
 ```
 
-211 tests across eight suites:
+292 项，覆盖：
 
-| Suite | Covers |
-| --- | --- |
-| `rng` | determinism, ranges, replay from a seed, the audited gateway |
-| `audit` | SHA-256, the hash chain, redaction, invariants |
-| `save` | round-trips, corruption detection, migration, base64 export |
-| `creation` | the lottery table, allocation rules, the four-step gate |
-| `chess` | board power, styles, hand resolution, match outcomes |
-| `world` | travel, the event table, market, gifts, manuals, effects |
-| `turn` | immutability, season advance, guards, long-run invariants |
-| `content` | content counts and every cross-reference in `src/data` |
+- **rng** — 决定性、骰面区间、封印掷、加权抽取
+- **creation** — 四步门禁、点数校验、棋缘表全覆盖、隐藏缘法不外泄
+- **cultivation / insight** — 乘数栈、自动晋段、心境状态、观棋难度曲线、坐忘、参悟
+- **breakthrough** — 三道门、成算算式、成败结算与垫底累积
+- **board** — 开局门槛、五种棋风各自的性格、劫争、封盘、四种结算
+- **events** — 桶阈值、四类门禁、抽取回落、选项检定，并逐一跑通凡尘期所有选项
+- **world** — 游历与盘缠、坊市买卖价差、行囊堆叠、精怪好感阈值只触发一次
+- **turn** — 指令解析、五种相位守卫、许愿拦截、季末与年岁、长局不变式
+- **audit** — 哈希链的决定性与敏感性、篡改检出、棋录封印
+- **save** — 往返、篡改的四种拒绝码、迁移、Base64 导出导入
+- **data integrity** — 交叉引用全部可解析、事件表按境界与桶的覆盖、
+  十二种结局逐一构造可达状态
 
-The `content` suite is the one that catches most real bugs: it walks every
-event, item, opponent and origin and asserts that each id they point at
-actually exists.
+## 设计说明
 
----
-
-## Known issues
-
-- **No audio.** The game is silent by design for now.
-- **Narrow screens reflow rather than adapt.** Below roughly 900px the side
-  panel moves under the log; it works, but the wide layout is the intended one.
-- **The event table can repeat non-`once` events** within a single life. This
-  is deliberate for common events but occasionally reads as a loop when you
-  travel many seasons in a row at a low realm, where the eligible pool is small.
-- **Endings are resolved most-specific-first**, so a life that qualifies for
-  several only ever sees one scroll. There is no "you also nearly earned…"
-  hint on the ending screen.
-- **No mid-life save slots.** One life, one autosave. Starting a new life
-  overwrites it after a confirmation.
+`PLAN.md` 是 Round 1 的设计草案，与最终实现有出入（草案中的三主道并行、
+因果账本、命星棋盘等，最终收敛为单一的棋道主线与弈道冲突系统）。
+以本文件和代码为准。
