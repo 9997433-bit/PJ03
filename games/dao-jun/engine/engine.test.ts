@@ -593,4 +593,38 @@ describe('complete game loop', () => {
       expect(typeof result.reason).toBe('string');
     }
   });
+
+  it('never soft-locks: 悟道 stays available as a rest turn when all resources are drained', () => {
+    const state = fresh();
+    state.character.qi = 0;
+    state.soul.power = 0;
+    state.territory.food = 0;
+    expect(actionAvailability(state, '悟道').available).toBe(true);
+    const result = performAction(state, '悟道');
+    expect(result.ok).toBe(true);
+    expect(result.state.turn).toBe(1);
+    expect(result.state.character.qi).toBeGreaterThan(0);
+    expect(result.state.soul.power).toBeGreaterThan(0);
+    expect(result.state.daoPattern.insight).toBe(0);
+  });
+
+  it('prefers the rank-天 path ending over milestone endings on the same turn', () => {
+    const state = fresh();
+    state.character.realm = REALMS.length - 1;
+    state.territory.nodes = 8;
+    state.territory.spiritStones = 2000;
+    state.daoPattern.engraved = 12;
+    expect(evaluateEnding(state)).toBe('swordSupreme');
+  });
+
+  it('replays byte-identically for the same seed and command sequence', () => {
+    const play = (): GameState => {
+      let state = fresh(777);
+      for (const action of ['悟道', '悟道', '斗法', '占地', '悟道'] as const) {
+        state = settle(performAction(state, action).state);
+      }
+      return state;
+    };
+    expect(JSON.stringify(play())).toBe(JSON.stringify(play()));
+  });
 });
