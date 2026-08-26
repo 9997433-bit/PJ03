@@ -24,6 +24,7 @@ package_has_script() {
 
 tested=0
 skipped=0
+failed=0
 
 for index in "${!GAME_NAMES[@]}"; do
   name="${GAME_NAMES[$index]}"
@@ -38,13 +39,23 @@ for index in "${!GAME_NAMES[@]}"; do
 
   if ! package_has_script "${package_json}" test; then
     printf '[error] %-7s has no npm test script\n' "${name}" >&2
-    exit 1
+    ((failed += 1))
+    continue
   fi
 
   printf '\n[test] %s (%s)\n' "${name}" "${game_dir}"
-  npm --prefix "${game_dir}" run test
-  printf '[done] %s\n' "${name}"
-  ((tested += 1))
+  if npm --prefix "${game_dir}" run test; then
+    printf '[done] %s\n' "${name}"
+    ((tested += 1))
+  else
+    printf '[error] %s test suite failed\n' "${name}" >&2
+    ((failed += 1))
+  fi
 done
 
-printf '\nTest summary: %d suites passed, %d skipped.\n' "${tested}" "${skipped}"
+printf '\nTest summary: %d suites passed, %d skipped, %d failed.\n' \
+  "${tested}" "${skipped}" "${failed}"
+
+if ((failed > 0)); then
+  exit 1
+fi

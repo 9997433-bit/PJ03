@@ -41,7 +41,9 @@ exported file count, and total uncompressed static-export bytes in
 All orchestrators print a clear skip when a game directory has not landed yet,
 so the scripts remain usable while games are integrated concurrently. Once a
 game has a `package.json`, a missing required `build` or `test` script is an
-error rather than a silent skip.
+error rather than a silent skip. A failure in one available game does not stop
+the remaining games from running; the command prints an aggregate summary and
+returns a nonzero status after all attempts finish.
 
 ## Smoke coverage
 
@@ -51,7 +53,16 @@ benchmark CLI entry point.
 
 ## Benchmark baseline
 
-Run the benchmark on the target build machine after all games are present.
-Compare `bytes` directly across runs; build duration is machine- and
-cache-dependent. Generated exports, archives, and benchmark reports under
-`dist/` are intentionally ignored by Git.
+Round 1 baseline on Node v22.14.0 / Linux x64:
+
+| Game | Build | Exported files | Export bytes | Integration state |
+|---|---:|---:|---:|---|
+| `mortal` | 2.898 s | 332 | 16,213,806 | valid |
+| `lanke` | 2.339 s | — | — | only `/404`; no `out/index.html` yet |
+| `mieyun` | 0.455 s | — | — | build failed; app/pages directory not landed yet |
+| `daojun` | 0.789 s | — | — | build failed; `app/globals.css` not landed yet |
+
+The three child workspaces were still being authored when this baseline was
+captured. Re-run it after their integration. Compare `bytes` directly across
+runs; build duration is machine- and cache-dependent. Generated exports,
+archives, and benchmark reports under `dist/` are intentionally ignored by Git.

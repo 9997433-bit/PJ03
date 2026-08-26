@@ -49,6 +49,7 @@ mkdir -p "${ZIP_DIR}"
 
 packaged=0
 skipped=0
+failed=0
 
 for index in "${!GAME_NAMES[@]}"; do
   name="${GAME_NAMES[$index]}"
@@ -66,15 +67,24 @@ for index in "${!GAME_NAMES[@]}"; do
   out_dir="${game_dir}/out"
   if [[ ! -f "${out_dir}/index.html" ]]; then
     printf '[error] %s/index.html is missing; run npm run build:all first\n' "${out_dir}" >&2
-    exit 1
+    ((failed += 1))
+    continue
   fi
 
   rm -f "${archive}"
-  create_zip "${out_dir}" "${archive}"
+  if ! create_zip "${out_dir}" "${archive}"; then
+    printf '[error] failed to package %s\n' "${name}" >&2
+    ((failed += 1))
+    continue
+  fi
   size="$(du -h "${archive}" | awk '{print $1}')"
   printf '[done] %-7s -> %s (%s)\n' "${name}" "${archive}" "${size}"
   ((packaged += 1))
 done
 
-printf '\nPackage summary: %d archives created, %d skipped. Output: %s\n' \
-  "${packaged}" "${skipped}" "${ZIP_DIR}"
+printf '\nPackage summary: %d archives created, %d skipped, %d failed. Output: %s\n' \
+  "${packaged}" "${skipped}" "${failed}" "${ZIP_DIR}"
+
+if ((failed > 0)); then
+  exit 1
+fi

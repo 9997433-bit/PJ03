@@ -45,9 +45,12 @@
 ## R1-S2 工具链
 - 根项目采用 npm workspaces（`games/*`），统一提供 `build:all`、`test:all`、`package:all` 与 `benchmark`
 - 四游戏固定产物目录：`dist/{mortal,lanke,mieyun,daojun}/`
-- 缺席的并发游戏会明确跳过；游戏目录落地后，缺少 `build` / `test` 脚本将作为错误处理
-- 基准报告写入 `dist/benchmark.json`；完整游戏基线待三个子项目合入后复测
+- 缺席的并发游戏会明确跳过；已存在游戏的失败会聚合报告，但不会阻止其余游戏运行
+- 根级 smoke test 已随 163 项测试通过；Mortal 构建、复制与 zip 打包已验证
+- 基准报告写入 `dist/benchmark.json`；Mortal 基线为 2.898s / 16,213,806 bytes / 332 files
+- 三个并发子项目仍未形成有效首页导出（Lanke 仅 404、Mieyun 缺 app/pages、Daojun 缺 CSS），合入后须复测完整基线
 
 ## 日志
 - 2026-08-26: 初始化分支与 PROGRESS.md，启动 Round 1（6 并发子代理）
 - 2026-08-26: R1-S2 添加 monorepo 构建、测试、打包、基准脚本及根级 smoke test
+- 2026-08-26: R1-S2 完成 Mortal 基线；工具链能隔离 workspace 类型检查并聚合报告子游戏失败
