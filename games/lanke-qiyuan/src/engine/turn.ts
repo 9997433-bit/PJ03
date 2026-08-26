@@ -1,288 +1,330 @@
 /**
- * turn.ts — the SINGLE WRITER.
+ * turn.ts — the single writer.
  *
- * `executeCommand` is the only function permitted to produce a new GameState
- * during play. Pipeline:
+ * Nothing outside this file may hand a mutated GameState back to the store.
+ * The pipeline is always the same:
  *
- *   phase guards → dispatch → advance the season (for time commands) →
- *   life-end check → audit hash chain → invariants
+ *   clone → 许愿 refusal → parse → phase guard → dispatch
+ *        → (time verbs only) season upkeep → ending scan
+ *        → hash chain → invariant check → commit or roll back
  *
- * An invariant violation rolls the entire turn back to the previous state, so
- * a bad rule can cost the player a season but can never corrupt a life.
+ * An invariant violation discards the whole clone, so a bad content entry
+ * costs the player nothing but a refusal line.
  */
 
-import type { Command, GameState } from './types';
-import { buildAuditTable, chainAuditHash, checkInvariants } from './audit';
-import { LIFE_OVER, MATCH_PENDING, NOT_PLAYING, UNKNOWN_COMMAND, formatRealm, note, say } from './prose';
+import { chainAuditHash, checkInvariants, isForbiddenWish, WISH_REJECTION } from './audit';
 import { attemptBreakthrough } from './breakthrough';
-import { cultivate, sitForget, spectate } from './cultivation';
-import { playHand, resignMatch, startMatch } from './chess';
-import { resolveEventChoice, travel } from './travel';
+import { openMatch, playHand, resign } from './board';
+import { commandKey, isFreeCommand, isTimeCommand, parseCommand } from './commands';
+import { deriveMaxSpirit } from './attributes';
+import { cultivate, settleStageUps, tickMoods } from './cultivation';
+import { buy, sell } from './economy';
+import { checkLivingEndings, chooseDeathEnding, finishGame, isPastLifespan } from './endings';
+import { resolveChoice } from './events';
+import { giftItem, useItem } from './inventory';
+import { learnManual, sitForget, spectate, studyManual } from './insight';
 import {
-  buyItem,
-  giftItem,
-  learnManual,
-  sellItem,
-  studyManual,
-  useItem,
-  viewSatchel,
-  visitMarket,
-} from './market';
-import { advanceSeason, checkLifeEnd, endLife } from './lifecycle';
-import { getOrigin } from '@/data/origins';
-import { getPlace } from '@/data/places';
-import { getManual } from '@/data/manuals';
-import { ATTRIBUTE_LABELS } from './types';
+  addDust,
+  EVENT_PENDING,
+  LIFE_OVER,
+  MATCH_PENDING,
+  NOT_PLAYING,
+  UNKNOWN_COMMAND,
+  formatSeason,
+  note,
+  say,
+} from './prose';
+import { travel } from './travel';
+import type { Command, GameState } from './types';
+import { TURNS_PER_YEAR } from './types';
 
-/** Commands that consume a season. */
-const TIME_COMMANDS = new Set<Command['kind']>([
-  'cultivate',
-  'travel',
-  'spectate',
-  'sitForget',
-  'market',
-  'breakthrough',
-]);
+export type NoticeTone = 'info' | 'good' | 'bad';
 
-/** Free looks permitted while an event awaits a choice. */
-const ALLOWED_WHEN_PENDING = new Set<Command['kind']>([
-  'eventChoice',
-  'panel',
-  'satchel',
-  'register',
-  'audit',
-]);
-
-/** Commands permitted mid-match. */
-const ALLOWED_IN_MATCH = new Set<Command['kind']>([
-  'play',
-  'resign',
-  'panel',
-  'satchel',
-  'register',
-  'audit',
-]);
-
-/** A stable string key per command, for the hash chain. */
-export function commandKey(cmd: Command): string {
-  switch (cmd.kind) {
-    case 'travel':
-      return `travel:${cmd.placeId ?? '-'}`;
-    case 'match':
-      return `match:${cmd.opponentId ?? '-'}`;
-    case 'play':
-      return `play:${cmd.style}`;
-    case 'buy':
-      return `buy:${cmd.itemId}x${cmd.count ?? 1}`;
-    case 'sell':
-      return `sell:${cmd.itemId}x${cmd.count ?? 1}`;
-    case 'use':
-      return `use:${cmd.itemId}`;
-    case 'gift':
-      return `gift:${cmd.spiritId}:${cmd.itemId}`;
-    case 'study':
-      return `study:${cmd.manualId}`;
-    case 'learn':
-      return `learn:${cmd.manualId}`;
-    case 'eventChoice':
-      return `choice:${cmd.choiceIndex}`;
-    case 'unknown':
-      return 'unknown';
-    default:
-      return cmd.kind;
-  }
+export interface Notice {
+  tone: NoticeTone;
+  text: string;
 }
 
-function isEnded(state: GameState): boolean {
-  return state.phase === 'ended';
+export interface TurnResult {
+  state: GameState;
+  /** false when the command was refused and the state is unchanged */
+  accepted: boolean;
+  notices: Notice[];
+  /** true when the season advanced */
+  advanced: boolean;
+  /** set when this turn closed the life */
+  endingId: string | null;
+  /** set when a 破境 was rolled — the modal listens for this */
+  breakthrough?: { success: boolean; d100: number; chance: number; backlash: boolean };
 }
 
-export function executeCommand(prev: GameState, cmd: Command): GameState {
-  const state = structuredClone(prev);
+function clone(state: GameState): GameState {
+  const g = globalThis as { structuredClone?: <T>(v: T) => T };
+  return g.structuredClone ? g.structuredClone(state) : (JSON.parse(JSON.stringify(state)) as GameState);
+}
 
-  // ---- phase guards ----
-  if (state.phase === 'ended') {
-    note(state, LIFE_OVER, 'muted');
-    return state;
+const info = (text: string): Notice => ({ tone: 'info', text });
+const good = (text: string): Notice => ({ tone: 'good', text });
+const bad = (text: string): Notice => ({ tone: 'bad', text });
+
+function refuse(state: GameState, text: string): TurnResult {
+  return { state, accepted: false, notices: [bad(text)], advanced: false, endingId: null };
+}
+
+// ============================================================================
+// Entry point
+// ============================================================================
+
+export function executeCommand(prev: GameState, raw: string): TurnResult {
+  if (isForbiddenWish(raw)) return refuse(prev, WISH_REJECTION);
+  const cmd = parseCommand(raw);
+  if (cmd.kind === 'unknown') return refuse(prev, UNKNOWN_COMMAND);
+  return runCommand(prev, cmd);
+}
+
+export function runCommand(prev: GameState, cmd: Command): TurnResult {
+  // ---- phase guards (checked against the untouched state) --------------
+  if (prev.phase === 'ended') return refuse(prev, LIFE_OVER);
+  if (prev.phase === 'creation') return refuse(prev, NOT_PLAYING);
+  if (prev.pendingEvent && cmd.kind !== 'eventChoice' && !isFreeCommand(cmd)) {
+    return refuse(prev, EVENT_PENDING);
   }
-  if (state.phase === 'creation' || !state.character) {
-    note(state, NOT_PLAYING, 'muted');
-    return state;
+  if (prev.phase === 'match' && cmd.kind !== 'play' && cmd.kind !== 'resign' && !isFreeCommand(cmd)) {
+    return refuse(prev, MATCH_PENDING);
   }
-  if (state.pendingEvent && !ALLOWED_WHEN_PENDING.has(cmd.kind)) {
-    note(state, '眼下之事未了,须先抉择。', 'dusk');
-    return state;
+  if (prev.phase !== 'match' && (cmd.kind === 'play' || cmd.kind === 'resign')) {
+    return refuse(prev, '此刻并无棋局。');
   }
-  if (state.phase === 'match' && !ALLOWED_IN_MATCH.has(cmd.kind)) {
-    note(state, MATCH_PENDING, 'dusk');
-    return state;
-  }
-  if (state.phase !== 'match' && (cmd.kind === 'play' || cmd.kind === 'resign')) {
-    note(state, '枰上无局,汝要与谁手谈?', 'dusk');
-    return state;
+  if (cmd.kind === 'eventChoice' && !prev.pendingEvent) {
+    return refuse(prev, '眼下并无待决之事。');
   }
 
-  const prevRollSeq = prev.rollSeq;
+  const state = clone(prev);
+  const rollsBefore = state.rolls.length;
+  const notices: Notice[] = [];
+  let endingId: string | null = null;
+  let breakthrough: TurnResult['breakthrough'];
+  let accepted = true;
 
-  // ---- dispatch ----
+  // ---- dispatch --------------------------------------------------------
   switch (cmd.kind) {
-    case 'cultivate':
-      cultivate(state);
+    case 'cultivate': {
+      const out = cultivate(state);
+      notices.push(good(`修为 +${out.gained}`));
+      for (const up of out.stageUps) notices.push(good(`${up.from} → ${up.to}`));
       break;
-    case 'travel':
-      travel(state, cmd.placeId);
+    }
+    case 'spectate': {
+      const out = spectate(state);
+      if (out.epiphany) notices.push(good(`顿悟!棋道 +${out.chessDaoGained}`));
+      else if (out.success) notices.push(good(`棋道 +${out.chessDaoGained}`));
+      else notices.push(info('未有所得'));
       break;
-    case 'spectate':
-      spectate(state);
+    }
+    case 'sitForget': {
+      const c = state.character;
+      if (c) c.flags['坐忘次数'] = Number(c.flags['坐忘次数'] ?? 0) + 1;
+      const out = sitForget(state);
+      notices.push(good(`心神 +${out.spiritRestored} · 心尘 −${out.dustShed}`));
       break;
-    case 'sitForget':
-      sitForget(state);
+    }
+    case 'travel': {
+      const out = travel(state, cmd.placeId);
+      if (!out.ok) return refuse(prev, out.message);
+      notices.push(info(out.message));
+      if (out.event?.ending) endingId = out.event.ending;
+      if (out.event?.match) {
+        const opened = openMatch(state, out.event.match);
+        if (!opened.ok) note(state, opened.message, 'muted');
+      }
       break;
-    case 'match':
-      startMatch(state, cmd.opponentId);
+    }
+    case 'breakthrough': {
+      const out = attemptBreakthrough(state);
+      if (!out.attempted) return refuse(prev, out.message);
+      breakthrough = {
+        success: out.success === true,
+        d100: out.d100 ?? 0,
+        chance: out.chance ?? 0,
+        backlash: out.backlash === true,
+      };
+      notices.push(out.success ? good(out.message) : bad(out.message));
+      if (out.ending) endingId = out.ending;
       break;
-    case 'play':
-      playHand(state, cmd.style);
+    }
+    case 'match': {
+      const opponentId = cmd.opponentId;
+      if (!opponentId) return refuse(prev, '与谁对弈?请指名。');
+      const out = openMatch(state, opponentId);
+      if (!out.ok) return refuse(prev, out.message);
+      notices.push(info(out.message));
       break;
-    case 'resign':
-      resignMatch(state);
+    }
+    case 'play': {
+      const out = playHand(state, cmd.style);
+      if (!out.ok) return refuse(prev, out.message);
+      if (out.outcome) {
+        const r = out.outcome.result;
+        notices.push(r === 'win' ? good(`胜 ${out.outcome.margin} 目`) : r === 'draw' ? info('和局') : bad(r === 'resigned' ? '投子认负' : `负 ${Math.abs(out.outcome.margin)} 目`));
+        if (out.outcome.ending) endingId = out.outcome.ending;
+      }
       break;
+    }
+    case 'resign': {
+      const out = resign(state);
+      if (!out.ok) return refuse(prev, out.message);
+      notices.push(bad('投子认负'));
+      break;
+    }
+    case 'eventChoice': {
+      const out = resolveChoice(state, cmd.choiceIndex);
+      if (!out.ok) return refuse(prev, out.message);
+      notices.push(out.passed === false ? bad(out.message) : good(out.message));
+      if (out.ending) endingId = out.ending;
+      if (out.match) {
+        const opened = openMatch(state, out.match);
+        if (!opened.ok) note(state, opened.message, 'muted');
+      }
+      break;
+    }
+    case 'buy': {
+      const out = buy(state, cmd.itemId, cmd.count ?? 1);
+      if (!out.ok) return refuse(prev, out.message);
+      notices.push(good(out.message));
+      break;
+    }
+    case 'sell': {
+      const out = sell(state, cmd.itemId, cmd.count ?? 1);
+      if (!out.ok) return refuse(prev, out.message);
+      notices.push(good(out.message));
+      break;
+    }
+    case 'use': {
+      const out = useItem(state, cmd.itemId);
+      if (!out.ok) return refuse(prev, out.message);
+      notices.push(good(out.message));
+      break;
+    }
+    case 'gift': {
+      const out = giftItem(state, cmd.spiritId, cmd.itemId);
+      if (!out.ok) return refuse(prev, out.message);
+      notices.push(good(out.message));
+      break;
+    }
+    case 'study': {
+      const out = studyManual(state, cmd.manualId);
+      if (!out.ok) return refuse(prev, out.message);
+      notices.push(good(out.message));
+      break;
+    }
+    case 'learn': {
+      const out = learnManual(state, cmd.manualId);
+      if (!out.ok) return refuse(prev, out.message);
+      notices.push(good(out.message));
+      break;
+    }
     case 'market':
-      visitMarket(state);
-      break;
-    case 'buy':
-      buyItem(state, cmd.itemId, cmd.count);
-      break;
-    case 'sell':
-      sellItem(state, cmd.itemId, cmd.count);
-      break;
-    case 'use':
-      useItem(state, cmd.itemId);
-      break;
-    case 'gift':
-      giftItem(state, cmd.spiritId, cmd.itemId);
-      break;
-    case 'study':
-      studyManual(state, cmd.manualId);
-      break;
-    case 'learn':
-      learnManual(state, cmd.manualId);
-      break;
-    case 'breakthrough':
-      attemptBreakthrough(state);
-      break;
-    case 'eventChoice':
-      resolveEventChoice(state, cmd.choiceIndex);
-      break;
     case 'panel':
-      viewPanel(state);
-      break;
     case 'satchel':
-      viewSatchel(state);
-      break;
     case 'register':
-      viewRegister(state);
+    case 'audit': {
+      // Free looks are rendered by the UI from state; nothing to write.
+      accepted = true;
       break;
-    case 'audit':
-      viewAudit(state);
+    }
+    default: {
+      accepted = false;
       break;
-    case 'unknown':
-      note(state, UNKNOWN_COMMAND, 'dusk');
-      break;
+    }
   }
 
-  // ---- the season turns ----
-  // A match opened this turn holds time still until the last stone is played.
-  if (TIME_COMMANDS.has(cmd.kind) && !isEnded(state) && state.phase !== 'match') {
+  if (!accepted) return refuse(prev, UNKNOWN_COMMAND);
+
+  // ---- season upkeep ---------------------------------------------------
+  const advanced = isTimeCommand(cmd) && state.phase !== 'ended';
+  if (advanced) {
     advanceSeason(state);
   }
 
-  // ---- does the life close here? ----
-  if (!isEnded(state)) {
-    const pending = state.pendingEnding;
-    state.pendingEnding = undefined;
-    const endingId = pending ?? checkLifeEnd(state);
-    if (endingId) endLife(state, endingId);
+  // ---- ending scan -----------------------------------------------------
+  if (!endingId && state.phase !== 'ended') {
+    endingId = checkLivingEndings(state);
   }
-
-  // ---- audit hash chain ----
-  const rollValues: number[] = [];
-  for (const r of state.rolls) {
-    if (r.id > prevRollSeq) rollValues.push(r.value);
+  if (!endingId && isPastLifespan(state)) {
+    say(state, '汝算了算年岁,发现该走了。', 'dusk');
+    endingId = chooseDeathEnding(state);
   }
-  state.auditHash = chainAuditHash(prev.auditHash, state.turn, commandKey(cmd), rollValues);
+  if (endingId) finishGame(state, endingId);
 
-  // ---- invariants: a violation rolls the turn back ----
+  // ---- audit chain -----------------------------------------------------
+  const newRolls = state.rolls.slice(rollsBefore).map((r) => r.value);
+  state.auditHash = chainAuditHash(prev.auditHash, state.turn, commandKey(cmd), newRolls);
+
+  // ---- invariants ------------------------------------------------------
   const violation = checkInvariants(state);
   if (violation) {
-    const rollback = structuredClone(prev);
-    note(rollback, `天道回溯——此番因果不谐,尽数作废。(${violation})`, 'dusk');
-    return rollback;
+    return {
+      state: prev,
+      accepted: false,
+      notices: [bad(`天道不容:${violation}。此手作废。`)],
+      advanced: false,
+      endingId: null,
+    };
   }
 
-  return state;
+  return {
+    state,
+    accepted: true,
+    notices,
+    advanced,
+    endingId: endingId ?? null,
+    ...(breakthrough ? { breakthrough } : {}),
+  };
 }
 
 // ============================================================================
-// Free looks
+// Season upkeep
 // ============================================================================
 
-/** 面板 — 缘法 must NEVER appear here. */
-function viewPanel(state: GameState): void {
-  const c = state.character!;
-  const origin = getOrigin(c.originId);
-  const place = getPlace(state.placeId);
-  const manual = c.studyingId ? getManual(c.studyingId) : null;
-  const a = c.attributes;
-  const moods = c.moods.length > 0
-    ? c.moods.map((m) => `${m.name}(余${m.turnsLeft < 0 ? '∞' : m.turnsLeft}季)`).join('、')
-    : '无';
+function advanceSeason(state: GameState): void {
+  const c = state.character;
+  state.turn += 1;
+  if (!c) return;
 
-  note(
-    state,
-    [
-      '——【命枰】——',
-      `${c.name} · 道号${c.courtesy} · ${origin?.name ?? ''}`,
-      `境界:${formatRealm(c.realm)}(${c.realm.exp}/${c.realm.expNeeded})`,
-      `年岁:${c.age}/${c.lifespan} · 现在:${place?.name ?? '—'}`,
-      `心神:${c.spirit}/${c.maxSpirit} · 心尘:${c.dust}/100 · 银钱:${c.coin}`,
-      `棋道:${c.chessDao}/100 · 悟:${c.insight}`,
-      `${ATTRIBUTE_LABELS.xinJing}${a.xinJing} · ${ATTRIBUTE_LABELS.wuXing}${a.wuXing} · ${ATTRIBUTE_LABELS.caiXue}${a.caiXue} · ${ATTRIBUTE_LABELS.qiYun}${a.qiYun}`,
-      `棋缘:${c.chessAffinity.grade}【${c.chessAffinity.affinities.join('·')}】×${c.chessAffinity.speedMultiplier}`,
-      `所参:${manual ? manual.name : '无'} · 已悟 ${c.manuals.length} 部`,
-      `心境:${moods}`,
-    ].join('\n'),
-  );
-}
+  tickMoods(state);
 
-/** 精怪录 — only beings you have actually met. */
-function viewRegister(state: GameState): void {
-  const met = Object.values(state.spirits).filter((s) => s.met);
-  if (met.length === 0) {
-    note(state, '精怪录尚是白纸。汝还没遇见过谁。');
-    return;
+  // One year per four seasons.
+  if ((state.turn - 1) % TURNS_PER_YEAR === 0) {
+    c.age += 1;
+    if (c.age % 10 === 0) note(state, `${c.age} 岁了。`, 'muted');
   }
-  const lines = met
-    .map((s) => `  【${s.name}·${s.title}】好感 ${s.favor} — ${s.desc}`)
-    .join('\n');
-  note(state, `——【精怪录】——(共 ${met.length} 位)\n${lines}`);
+
+  // Idleness gathers dust; a very dusty mind gathers it faster.
+  addDust(c, c.dust >= 60 ? 2 : 1, c.flags['静者'] === true);
+
+  // 心神 recovers a little on its own, unless the mind is already empty.
+  if (c.spirit <= 0) {
+    c.flags['枯坐'] = Number(c.flags['枯坐'] ?? 0) + 1;
+    if (Number(c.flags['枯坐']) === 3) {
+      say(state, '汝已经很久没有真正睡着过了。手抖得握不住子。', 'dusk');
+    }
+  } else {
+    c.flags['枯坐'] = 0;
+  }
+
+  c.maxSpirit = deriveMaxSpirit(c.realm.realm, c.attributes);
+  if (c.spirit > c.maxSpirit) c.spirit = c.maxSpirit;
+  settleStageUps(state);
+
+  if ((state.turn - 1) % TURNS_PER_YEAR === 0) {
+    note(state, `——${formatSeason(state.turn)}`, 'muted');
+  }
 }
 
-/** 审计 — every roll, with the sealed ones redacted. */
-function viewAudit(state: GameState): void {
-  const recent = buildAuditTable(state.rolls.slice(-30));
-  const lines = recent
-    .map((r) => `  ${r.recordId} 第${r.turn}季 ${r.die}=${r.display} · ${r.reason}`)
-    .join('\n');
-  note(
-    state,
-    `——【天道棋录】——(共掷 ${state.stats.totalRolls} 次,校验链 ${state.auditHash.slice(0, 8)}…)\n` +
-      `${lines}\n(封=缘法暗掷,只证其有,不示其值)`,
-  );
-}
+// ============================================================================
+// Free-look view builders (pure reads, used by the UI and the tests)
+// ============================================================================
 
-/** Convenience for the store: narrate the opening season. */
-export function greet(state: GameState): void {
-  const place = getPlace(state.placeId);
-  say(state, place?.desc ?? '');
+export function seasonLabel(state: GameState): string {
+  return formatSeason(state.turn);
 }

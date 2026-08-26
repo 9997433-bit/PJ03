@@ -13,7 +13,11 @@
 
 import { sha256Hex } from './audit';
 
-export const SAVE_KEY = 'lkqy_save_v1';
+/**
+ * Unique per game: all four simulators may be served from the same origin,
+ * and localStorage is scoped by origin rather than by path.
+ */
+export const SAVE_KEY = 'lanke_save_v1';
 export const CURRENT_SAVE_VERSION = 1;
 export const SAVE_CORRUPT_MESSAGE = '此局棋谱残损,不可续弈。';
 

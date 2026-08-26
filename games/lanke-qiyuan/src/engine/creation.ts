@@ -1,158 +1,89 @@
 /**
- * creation.ts — 入世四步 (the mandatory 4-step creation gate)
+ * creation.ts — 立命 (the four-step character creation state machine).
  *
- *   step 0 → ① 名号 (name + 道号)
- *   step 1 → ② 出身 (one of six)
- *   step 2 → ③ 心性分配 (four attributes, 4–10 each, exactly 28)
- *   step 3 → ④ 棋缘抽取 (one D100 + one sealed D100 for the hidden 缘法)
- *   step 4 → playing
+ * The gate is in the engine, not in the wizard: every step checks
+ * `state.creationStep` and refuses out-of-order calls. A UI bug therefore
+ * cannot produce an unlawful character, and a half-finished creation survives
+ * a page refresh because the draft lives in the saved state.
  *
- * Steps gate each other: no skipping, no re-rolling. Every public step takes
- * a GameState and returns a NEW GameState; invalid input produces a 棋录 line
- * and leaves the rest untouched. All randomness flows through the audited
- * PRNG, and the 缘法 roll is sealed so 审计 shows it happened but never what
- * it was.
+ * Step 3 spends two dice: a public D100 for 棋缘 (落子无悔) and a sealed D100
+ * for the hidden 缘法. The sealed value never leaves the engine.
  */
 
-import type {
-  Affinity,
-  Attributes,
-  ChessAffinity,
-  Character,
-  GameState,
-  ItemStack,
-  QiYuanGrade,
-  QiYuanRow,
-} from './types';
-import { ALL_AFFINITIES, SAVE_VERSION, START_AGE } from './types';
-import { createRngState, roll } from './rng';
+import { getOrigin } from '@/data/origins';
+import { qiYuanRowFor } from '@/data/qiyuan';
+import { getRealm } from '@/data/realms';
+import { initialSpirits } from '@/data/spirits';
+import { STARTING_PLACE } from '@/data/places';
+import { getItem } from '@/data/items';
+import { getManual } from '@/data/manuals';
 import { GENESIS_HASH } from './audit';
+import { initRngState, roll, rollPick } from './rng';
+import { note, say } from './prose';
 import {
+  ATTR_MAX,
+  ATTR_MIN,
+  ATTR_TOTAL,
   buildAttributes,
+  defaultAllocation,
   deriveMaxSpirit,
   mapHiddenRollToYuanFa,
   validateAllocation,
   type AllocationInput,
 } from './attributes';
-import { log, note, say } from './prose';
-import { getRealm } from '@/data/realms';
-import { ORIGINS, getOrigin } from '@/data/origins';
-import { initialSpirits } from '@/data/spirits';
-import { STARTING_PLACE } from '@/data/places';
+import type {
+  Affinity,
+  Character,
+  ChessAffinity,
+  CreationDraft,
+  GameState,
+  ItemStack,
+  LifeStats,
+} from './types';
+import { ALL_AFFINITIES, START_AGE, SAVE_VERSION } from './types';
 
-export const DEFAULT_NAME = '无名';
-export const DEFAULT_COURTESY = '闲子';
+export { ATTR_MAX, ATTR_MIN, ATTR_TOTAL, defaultAllocation, validateAllocation };
+export type { AllocationInput };
 
-// ============================================================================
-// 棋缘 lottery — one D100, drawn once, never again
-// ============================================================================
+export const NAME_MAX = 12;
 
-export const QIYUAN_LOTTERY: readonly QiYuanRow[] = [
-  {
-    min: 1, max: 35, grade: '顽石之缘', affinityCount: 1, speedMultiplier: 0.6, boardBonus: 0,
-    blurb: '汝按上枰面,枰无声息。顽石之缘——石亦有寿,只是极慢。这条路,汝要用一生走别人十年的距离。',
-  },
-  {
-    min: 36, max: 60, grade: '蒲柳之缘', affinityCount: 2, speedMultiplier: 0.85, boardBonus: 1,
-    blurb: '枰面微温。蒲柳之缘——先秋而落,却也年年再生。资质寻常,胜在不折。',
-  },
-  {
-    min: 61, max: 80, grade: '疏竹之缘', affinityCount: 2, speedMultiplier: 1.05, boardBonus: 2,
-    blurb: '指下有节。疏竹之缘——中空而直,能受风,亦能出声。中上之姿。',
-  },
-  {
-    min: 81, max: 92, grade: '苍松之缘', affinityCount: 3, speedMultiplier: 1.3, boardBonus: 3,
-    blurb: '一股沉气自枰底涌上。苍松之缘——立于崖上,雪压不弯。世间百人,得此者不过十一。',
-  },
-  {
-    min: 93, max: 97, grade: '流云之缘', affinityCount: 3, speedMultiplier: 1.7, boardBonus: 5,
-    blurb: '枰面浮起一层白气,聚而不散。流云之缘——无形无迹,来去自如。此等缘法,一郡难寻。',
-  },
-  {
-    min: 98, max: 99, grade: '明月之缘', affinityCount: 4, speedMultiplier: 2.2, boardBonus: 7,
-    blurb: '满室忽明。明月之缘——照见幽微,亦照见己身。百年一遇,诸山皆有耳闻。',
-  },
-  {
-    min: 100, max: 100, grade: '太虚棋缘', affinityCount: 5, speedMultiplier: 3.0, boardBonus: 10,
-    blurb: '枰上纵横十九道尽数亮起,自成星图。太虚棋缘——天地以汝为子,汝亦可以天地为枰。此界千年,唯汝一人。',
-  },
-];
-
-export function lookupQiYuanRow(d100: number): QiYuanRow {
-  const row = QIYUAN_LOTTERY.find((r) => d100 >= r.min && d100 <= r.max);
-  if (!row) throw new Error(`棋缘天数溢出: ${d100}`);
-  return row;
+export interface CreationResult {
+  ok: boolean;
+  message: string;
 }
 
-/**
- * Pure resolver: maps a D100 to a 棋缘. `draw(n)` must return an index in
- * 0…n−1 and is called once per affinity sub-pick. Exported for tests.
- */
-export function resolveChessAffinity(
-  d100: number,
-  draw: (options: number) => number,
-): ChessAffinity {
-  const row = lookupQiYuanRow(d100);
-  const pool: Affinity[] = [...ALL_AFFINITIES];
-  const affinities: Affinity[] = [];
-  const wanted = Math.min(row.affinityCount, pool.length);
-  for (let i = 0; i < wanted; i++) {
-    const at = ((draw(pool.length) % pool.length) + pool.length) % pool.length;
-    const picked = pool[at];
-    if (picked === undefined) break;
-    affinities.push(picked);
-    pool.splice(at, 1);
-  }
+const OK = (message: string): CreationResult => ({ ok: true, message });
+const NO = (message: string): CreationResult => ({ ok: false, message });
+
+function emptyStats(): LifeStats {
   return {
-    grade: row.grade,
-    affinities,
-    speedMultiplier: row.speedMultiplier,
-    boardBonus: row.boardBonus,
-    rollValue: d100,
+    totalRolls: 0,
+    matchesPlayed: 0,
+    matchesWon: 0,
+    gamesWatched: 0,
+    placesSeen: 1,
+    spiritsBefriended: 0,
+    manualsLearned: 0,
+    breakthroughsFailed: 0,
+    coinEarned: 0,
+    peakRealmLabel: '凡尘·初境',
+    peakChessDao: 0,
   };
 }
 
-export function gradeTone(grade: QiYuanGrade): 'moon' | 'jade' | 'dusk' | 'normal' {
-  if (grade === '太虚棋缘' || grade === '明月之缘') return 'moon';
-  if (grade === '流云之缘' || grade === '苍松之缘') return 'jade';
-  if (grade === '顽石之缘') return 'dusk';
-  return 'normal';
+export function emptyDraft(): CreationDraft {
+  return { name: '', courtesy: '', originId: null, attributes: null, chessAffinity: null };
 }
 
-// ============================================================================
-// internal helpers
-// ============================================================================
-
-function clone(state: GameState): GameState {
-  return typeof structuredClone === 'function'
-    ? structuredClone(state)
-    : (JSON.parse(JSON.stringify(state)) as GameState);
-}
-
-function deny(state: GameState, text: string): GameState {
-  const s = clone(state);
-  note(s, text);
-  return s;
-}
-
-// ============================================================================
-// entry — a brand-new state in the creation phase
-// ============================================================================
-
+/** A brand-new life, parked at creation step 0. */
 export function newGame(seed: string): GameState {
   const state: GameState = {
     version: SAVE_VERSION,
     seed,
-    rngState: createRngState(seed),
+    rngState: initRngState(seed),
     phase: 'creation',
     creationStep: 0,
-    creationDraft: {
-      name: DEFAULT_NAME,
-      courtesy: DEFAULT_COURTESY,
-      originId: null,
-      attributes: null,
-      chessAffinity: null,
-    },
+    creationDraft: emptyDraft(),
     turn: 0,
     placeId: STARTING_PLACE,
     character: null,
@@ -166,168 +97,217 @@ export function newGame(seed: string): GameState {
     nextLogId: 1,
     rollSeq: 0,
     seenEvents: [],
-    stats: {
-      totalRolls: 0,
-      matchesPlayed: 0,
-      matchesWon: 0,
-      gamesWatched: 0,
-      placesSeen: 1,
-      spiritsBefriended: 0,
-      manualsLearned: 0,
-      breakthroughsFailed: 0,
-      coinEarned: 0,
-      peakRealmLabel: '凡尘·初境',
-      peakChessDao: 0,
-    },
+    stats: emptyStats(),
     ending: null,
   };
-  say(state, '烂柯山上,两位老人对弈。樵夫在旁看了一局,回头时斧柄已朽。');
-  say(state, '世人只记住了斧柄。没人问过,那一局究竟下的是什么。');
-  say(state, '今有一人立于宁安县的青石街上,行囊空空。天道执笔,记汝一世。先报名号。');
+  say(
+    state,
+    '天地为枰,生人为子。汝这一子,尚未落下。',
+    'jade',
+  );
+  say(state, '先报个名号罢。', 'muted');
   return state;
 }
 
 // ============================================================================
-// step ① 名号
+// Step 0 — 名号
 // ============================================================================
 
-export function setIdentity(state: GameState, name: string, courtesy: string): GameState {
-  if (state.phase !== 'creation' || state.creationStep !== 0 || !state.creationDraft) {
-    return deny(state, state.creationStep > 0 ? '此步已定,不可回溯。' : '此时不当报名。');
-  }
-  const s = clone(state);
-  const draft = s.creationDraft!;
-  const trimmedName = name.trim().slice(0, 8);
-  const trimmedCourtesy = courtesy.trim().slice(0, 8);
-  draft.name = trimmedName.length > 0 ? trimmedName : DEFAULT_NAME;
-  draft.courtesy = trimmedCourtesy.length > 0 ? trimmedCourtesy : DEFAULT_COURTESY;
-  s.creationStep = 1;
-  say(s, `${draft.name},道号${draft.courtesy}。名既已报,便不可改。`);
-  say(s, '次问出身。汝从何处来?');
-  return s;
+export function setName(state: GameState, name: string, courtesy: string): CreationResult {
+  if (state.phase !== 'creation') return NO('命格已定,不容重立。');
+  if (state.creationStep !== 0) return NO('名号已定,不可回头。');
+  const n = name.trim();
+  const c = courtesy.trim();
+  if (n.length === 0) return NO('无名者不可入局。');
+  if (n.length > NAME_MAX) return NO(`名号至多 ${NAME_MAX} 字。`);
+  if (c.length > NAME_MAX) return NO(`道号至多 ${NAME_MAX} 字。`);
+
+  const draft = state.creationDraft ?? emptyDraft();
+  draft.name = n;
+  draft.courtesy = c.length > 0 ? c : '无名';
+  state.creationDraft = draft;
+  state.creationStep = 1;
+  say(state, `「${n}」。记下了。`, 'jade');
+  if (c.length > 0) note(state, `道号:${c}。山精鬼怪只认这个。`);
+  return OK(`名号已立:${n}`);
 }
 
 // ============================================================================
-// step ② 出身
+// Step 1 — 出身
 // ============================================================================
 
-export function chooseOrigin(state: GameState, originId: string): GameState {
-  if (state.phase !== 'creation' || state.creationStep !== 1 || !state.creationDraft) {
-    return deny(state, state.creationStep > 1 ? '此步已定,不可回溯。' : '顺序不可乱,先报名号。');
-  }
+export function setOrigin(state: GameState, originId: string): CreationResult {
+  if (state.phase !== 'creation') return NO('命格已定,不容重立。');
+  if (state.creationStep < 1) return NO('尚未立名,何谈来处。');
+  if (state.creationStep !== 1) return NO('来处已定,不可更改。');
   const origin = getOrigin(originId);
-  if (!origin) {
-    return deny(state, `无此出身。可选:${ORIGINS.map((o) => o.name).join('／')}`);
-  }
-  const s = clone(state);
-  s.creationDraft!.originId = origin.id;
-  s.creationStep = 2;
-  say(s, origin.flavor);
-  note(s, `出身【${origin.name}】· 禀赋【${origin.perkName}】${origin.perkDesc}`, 'bamboo');
-  say(s, '再定心性。四项共二十八分,每项四至十。');
-  return s;
+  if (!origin) return NO(`无此出身:${originId}`);
+
+  const draft = state.creationDraft ?? emptyDraft();
+  draft.originId = originId;
+  state.creationDraft = draft;
+  state.creationStep = 2;
+  say(state, origin.flavor, 'bamboo');
+  note(state, `〔${origin.perkName}〕${origin.perkDesc}`);
+  return OK(`出身已定:${origin.name}`);
 }
 
 // ============================================================================
-// step ③ 心性分配
+// Step 2 — 心性分配
 // ============================================================================
 
-export function allocateAttributes(state: GameState, alloc: AllocationInput): GameState {
-  if (state.phase !== 'creation' || state.creationStep !== 2 || !state.creationDraft?.originId) {
-    return deny(state, state.creationStep > 2 ? '此步已定,不可回溯。' : '顺序不可乱,先择出身。');
-  }
+export function setAttributes(state: GameState, alloc: AllocationInput): CreationResult {
+  if (state.phase !== 'creation') return NO('命格已定,不容重立。');
+  if (state.creationStep < 2) return NO('先定来处,再分心性。');
+  if (state.creationStep !== 2) return NO('心性已分,不可再拨。');
   const err = validateAllocation(alloc);
-  if (err) return deny(state, err);
+  if (err) return NO(err);
 
-  const origin = getOrigin(state.creationDraft.originId);
-  const attrs = buildAttributes(alloc, origin?.attributeMods ?? {});
-
-  const s = clone(state);
-  s.creationDraft!.attributes = attrs;
-  s.creationStep = 3;
-  say(
-    s,
-    `心性既定:心境${attrs.xinJing},悟性${attrs.wuXing},才学${attrs.caiXue},气韵${attrs.qiYun}。`,
-  );
-  say(s, '最后一步。汝面前有一副空枰——按上去。');
-  return s;
+  const draft = state.creationDraft ?? emptyDraft();
+  draft.attributes = { ...alloc };
+  state.creationDraft = draft;
+  state.creationStep = 3;
+  say(state, '心性既分,便是汝看世界的那副眼。', 'jade');
+  note(state, '尚余一事:棋缘。此掷落子无悔。');
+  return OK('心性已分。');
 }
 
 // ============================================================================
-// step ④ 棋缘抽取 (+ the sealed 缘法 roll that finalizes the character)
+// Step 3 — 棋缘抽取 (public D100) + 缘法暗掷 (sealed D100)
 // ============================================================================
 
-export function rollChessAffinity(state: GameState): GameState {
-  if (state.phase !== 'creation' || state.creationStep !== 3 || !state.creationDraft?.attributes) {
-    return deny(state, state.creationStep > 3 ? '棋缘已定,天不改命。' : '顺序不可乱,先定心性。');
+/**
+ * Draws the affinities for a grade. Each draw is an audited roll, so the pull
+ * replays byte-for-byte from the seed.
+ */
+function drawAffinities(state: GameState, count: number): Affinity[] {
+  const pool: Affinity[] = [...ALL_AFFINITIES];
+  const out: Affinity[] = [];
+  for (let i = 0; i < count && pool.length > 0; i++) {
+    const picked = rollPick(state, pool, `棋缘·灵机第${i + 1}`);
+    out.push(picked);
+    pool.splice(pool.indexOf(picked), 1);
   }
-  const s = clone(state);
-  const draft = s.creationDraft!;
+  return out;
+}
 
-  say(s, '汝伸手按上枰面。指腹下的木纹忽然烫了一下——');
-  const main = roll(s, 'D100', '棋缘抽取');
-  const affinity = resolveChessAffinity(main, (options) => roll(s, 'D100', '灵机所钟') % options);
+export interface DrawResult extends CreationResult {
+  affinity?: ChessAffinity;
+}
+
+export function drawChessAffinity(state: GameState): DrawResult {
+  if (state.phase !== 'creation') return NO('命格已定,不容重掷。');
+  if (state.creationStep < 3) return NO('心性未分,棋缘不显。');
+  if (state.creationStep !== 3) return NO('棋缘已定。落子无悔。');
+
+  const d100 = roll(state, 'D100', '棋缘抽取');
+  const row = qiYuanRowFor(d100);
+  const affinity: ChessAffinity = {
+    grade: row.grade,
+    affinities: drawAffinities(state, row.affinityCount),
+    speedMultiplier: row.speedMultiplier,
+    boardBonus: row.boardBonus,
+    rollValue: d100,
+  };
+
+  const draft = state.creationDraft ?? emptyDraft();
   draft.chessAffinity = affinity;
-  say(s, `掷骰:D100 = ${main}。${lookupQiYuanRow(main).blurb}`, gradeTone(affinity.grade));
-  note(
-    s,
-    `棋缘:${affinity.grade} · 灵机【${affinity.affinities.join('·')}】 · 参悟 ×${affinity.speedMultiplier} · 枰上 +${affinity.boardBonus}`,
-    'bamboo',
-  );
+  state.creationDraft = draft;
 
-  // The hidden roll: recorded, sealed, never displayed.
-  const hidden = roll(s, 'D100', '缘法暗掷', true);
+  say(state, row.blurb, 'moon');
+  note(state, `棋缘:${row.grade}〔${affinity.affinities.join('·')}〕`);
+
+  const finished = finalize(state);
+  return { ok: finished.ok, message: finished.message, affinity };
+}
+
+// ============================================================================
+// Finalize
+// ============================================================================
+
+function startingInventory(ids: readonly string[]): ItemStack[] {
+  const out: ItemStack[] = [];
+  for (const id of ids) {
+    if (!getItem(id)) continue;
+    const found = out.find((s) => s.itemId === id);
+    if (found) found.count += 1;
+    else out.push({ itemId: id, count: 1 });
+  }
+  return out;
+}
+
+/** Turns a complete draft into a live character and opens the first season. */
+function finalize(state: GameState): CreationResult {
+  const draft = state.creationDraft;
+  if (!draft) return NO('无稿可成。');
+  if (draft.name.length === 0) return NO('名号未立。');
+  if (!draft.originId) return NO('来处未定。');
+  if (!draft.attributes) return NO('心性未分。');
+  if (!draft.chessAffinity) return NO('棋缘未抽。');
+  const origin = getOrigin(draft.originId);
+  if (!origin) return NO('来处不明。');
+
+  // The one sealed roll of the whole creation: 缘法 never surfaces in any UI.
+  const hidden = roll(state, 'D100', '缘法·暗掷');
   const yuanFa = mapHiddenRollToYuanFa(hidden);
 
-  const origin = getOrigin(draft.originId!);
-  const attributes: Attributes = { ...draft.attributes!, yuanFa };
-
-  const inventory: ItemStack[] = [];
-  for (const itemId of origin?.startItems ?? []) {
-    const stack = inventory.find((st) => st.itemId === itemId);
-    if (stack) stack.count += 1;
-    else inventory.push({ itemId, count: 1 });
-  }
-
+  const visible = buildAttributes(draft.attributes, origin.attributeMods);
+  const attributes = { ...visible, yuanFa };
   const realmDef = getRealm('chen');
-  const maxSpirit = deriveMaxSpirit('chen', attributes);
+
+  const manuals = origin.startManualId && getManual(origin.startManualId)
+    ? [origin.startManualId]
+    : [];
+
   const character: Character = {
     name: draft.name,
-    courtesy: draft.courtesy,
-    originId: origin?.id ?? draft.originId!,
+    courtesy: draft.courtesy || '无名',
+    originId: origin.id,
     attributes,
-    chessAffinity: affinity,
+    chessAffinity: draft.chessAffinity,
     realm: { realm: 'chen', stage: '初境', exp: 0, expNeeded: realmDef.expPerStage[0] },
     age: START_AGE,
     lifespan: realmDef.lifespan,
-    spirit: maxSpirit,
-    maxSpirit,
+    spirit: 0,
+    maxSpirit: 1,
     dust: 0,
-    chessDao: origin?.startChessDao ?? 0,
+    chessDao: origin.startChessDao,
     insight: 0,
-    coin: origin?.startCoin ?? 0,
+    coin: origin.startCoin,
     moods: [],
-    inventory,
-    manuals: origin?.startManualId ? [origin.startManualId] : [],
-    studyingId: origin?.startManualId ?? null,
+    inventory: startingInventory(origin.startItems),
+    manuals,
+    studyingId: manuals[0] ?? null,
     visited: [STARTING_PLACE],
-    flags: { ...(origin?.startFlags ?? {}) },
+    flags: { ...(origin.startFlags ?? {}) },
   };
+  character.maxSpirit = deriveMaxSpirit('chen', attributes);
+  character.spirit = character.maxSpirit;
 
-  s.creationDraft = null;
-  s.creationStep = 4;
-  s.phase = 'playing';
-  s.turn = 1;
-  s.character = character;
-  s.stats.peakChessDao = character.chessDao;
+  state.character = character;
+  state.creationStep = 4;
+  state.creationDraft = null;
+  state.phase = 'playing';
+  state.turn = 1;
+  state.stats.peakChessDao = character.chessDao;
 
-  say(s, '而后天道于幕后掷了一枚骰子。汝听见了骰声,看不见点数。');
-  say(s, '缘法已定。此后汝遇见谁、错过谁,皆在此一掷之中。');
-  log(
-    s,
-    '天道',
-    `${character.name},道号${character.courtesy}。汝的路,自宁安县的这条街上开始。`,
-    'moon',
+  say(state, '——命格既定。', 'jade');
+  say(
+    state,
+    '汝背起行囊,走出宁安县的城门。身后是一条自己走过的路,身前是一条谁也没走过的。',
+    'bamboo',
   );
-  return s;
+  note(state, '〔修炼〕〔观棋〕〔游历〕〔弈道〕皆可。不知从何起,便先「观棋」。');
+  return OK('命格已定。');
+}
+
+/** True when every draft field is filled — the wizard's "next" gate. */
+export function draftComplete(draft: CreationDraft | null): boolean {
+  return (
+    draft !== null &&
+    draft.name.length > 0 &&
+    draft.originId !== null &&
+    draft.attributes !== null &&
+    draft.chessAffinity !== null
+  );
 }

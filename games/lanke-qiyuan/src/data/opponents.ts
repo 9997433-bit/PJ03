@@ -113,7 +113,7 @@ export const OPPONENTS: readonly OpponentDef[] = [
     intro: '他斧柄已朽,自己却不知。「你也来看棋?看棋不如下棋——快些,我还得回家。」',
     onLoss: '「哎,天要黑了。」他起身,斧柄断在手里。',
     onWin: '「后生,别在山上待太久。」',
-    reward: { chessDao: 4, insight: 3, exp: 46, itemId: 'scroll_lanke' },
+    reward: { chessDao: 4, insight: 3, exp: 46, itemId: 'manual_gupu_lanke' },
   },
   {
     id: 'yeshi_guketou',
@@ -191,7 +191,7 @@ export const OPPONENTS: readonly OpponentDef[] = [
     intro: '古松下的空枰终于有了主人。「看得见这门的人不多。请。」',
     onLoss: '山长起身长揖:「书院当为先生留一席。」',
     onWin: '「先生的棋里,还有一个想赢的自己。」',
-    reward: { chessDao: 8, insight: 5, exp: 150, itemId: 'scroll_songfeng' },
+    reward: { chessDao: 8, insight: 5, exp: 150, itemId: 'manual_mingpu_songfeng' },
   },
   {
     id: 'yinsi_duren',

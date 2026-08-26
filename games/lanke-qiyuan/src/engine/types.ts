@@ -334,9 +334,6 @@ export interface EventEffect {
   chessDao?: number;
   insight?: number;
   coin?: number;
-  /** one-shot bonus applied to the next 破境 */
-  breakthroughBonus?: number;
-  lifespan?: number;
   items?: ItemStack[];
   /** [spiritId, delta] */
   favor?: [string, number];
