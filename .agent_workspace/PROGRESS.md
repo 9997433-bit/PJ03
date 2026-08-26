@@ -68,7 +68,7 @@
 | R2-O1 烂柯 | ✅ | 211 测试 · build 通过 · out/index.html · 青竹枯枰 UI |
 | R2-O2 灭运 | 🔄 | **仍缺 app/** · build/test 失败 |
 
-当前可打包游玩：凡人 + 道君（`dist/zips/`）
+当前可打包游玩：凡人 + 烂柯 + 道君（`dist/zips/`）
 
 ## 日志
 - 2026-08-26: 初始化分支与 PROGRESS.md，启动 Round 1（6 并发子代理）
