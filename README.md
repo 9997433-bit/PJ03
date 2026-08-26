@@ -125,6 +125,21 @@ src/
 8. 仅 `turn.ts` 可产生新状态（单一写入者）
 9. `审计` 指令公开全部掷骰记录，玩家可自行验证
 
+## Monorepo：更多小说人生模拟器
+
+本仓库同时是多款小说人生模拟器的 monorepo（npm workspaces，`games/*` + `packages/*`）：
+
+| 游戏 | 目录 | 说明 |
+|---|---|---|
+| 凡人修仙传（本作） | `/`（仓库根） | ✅ 可玩 |
+| 烂柯棋缘 | `games/lanke-qiyuan/` | 命星棋盘 · 因果账本 · 仙/文/妖三道（见其 `PLAN.md`） |
+| 灭运图录 | `games/mieyun-tulu/` | 命轨改命 · 纪元劫数 · 推演功法（见其 `PLAN.md`） |
+| 道君 | `games/dao-jun/` | 道纹合成 · 神魂双轨 · 道途抉择（见其 `PLAN.md`） |
+
+根目录 `npm run build:all` / `test:all` / `package:all` 一键构建、测试、打包全部游戏
+（产物汇集于 `dist/`）。架构与共享引擎契约见 `.agent_workspace/ARCHITECTURE.md`
+与 `packages/engine-core/`。
+
 ## License
 
 MIT
