@@ -229,7 +229,7 @@ describe('daoPattern module', () => {
   });
 
   it('cycles stable pattern names after the fourth engraving', () => {
-    let pattern = { ...createDaoPattern(), insight: 200 };
+    let pattern = { ...createDaoPattern(), insight: 200, harmony: 100 };
     for (let index = 0; index < 5; index += 1) pattern = engravePattern(pattern, '剑');
     expect(pattern.namedPatterns[4]).toBe(pattern.namedPatterns[0]);
   });
