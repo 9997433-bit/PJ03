@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   ANTI_CHEAT_LAYERS,
   CHAIN_LIMIT,
+  COMMAND_VERBS,
   GENESIS_HASH,
   ROLL_TRAIL_LIMIT,
+  UNKNOWN_COMMAND_MESSAGE,
   beginCommand,
   buildAuditTable,
   chainAuditHash,
@@ -11,6 +13,7 @@ import {
   commitCommand,
   formatAuditId,
   formatAuditRecord,
+  isLegalCommand,
   recordDie,
   recordSpan,
   sha256Hex,
@@ -225,12 +228,52 @@ describe('state invariants', () => {
   });
 });
 
+describe('命令白名单', () => {
+  it('accepts every verb the engine actually issues', () => {
+    for (const verb of COMMAND_VERBS) {
+      expect(isLegalCommand(`${verb}:任意`)).toBe(true);
+    }
+  });
+
+  it('accepts a bare verb with no argument', () => {
+    expect(isLegalCommand('行动')).toBe(true);
+  });
+
+  it('refuses a verb nobody registered', () => {
+    expect(isLegalCommand('许愿:立刻成道君')).toBe(false);
+    expect(isLegalCommand('')).toBe(false);
+    expect(isLegalCommand('行动 悟道')).toBe(false);
+  });
+
+  it('has a refusal message the caller can surface', () => {
+    expect(UNKNOWN_COMMAND_MESSAGE).toBe('道枢不识此令。');
+  });
+
+  it('seals nothing outside the whitelist across a real run', () => {
+    let state = newGame({}, 42);
+    for (let turn = 0; turn < 30; turn += 1) {
+      state = state.pendingEvent
+        ? chooseEvent(state, (turn % 2) as 0 | 1).state
+        : performAction(state, turn % 3 === 0 ? '悟道' : '调息').state;
+      if (state.ending) break;
+    }
+    expect(state.auditChain.length).toBeGreaterThan(5);
+    for (const entry of state.auditChain) {
+      expect(isLegalCommand(entry.command)).toBe(true);
+    }
+  });
+});
+
 describe('anti-cheat documentation surface', () => {
   it('documents every layer once, numbered in order', () => {
-    expect(ANTI_CHEAT_LAYERS.length).toBeGreaterThanOrEqual(6);
+    expect(ANTI_CHEAT_LAYERS.length).toBeGreaterThanOrEqual(7);
     expect(ANTI_CHEAT_LAYERS.map((layer) => layer.layer)).toEqual(
       ANTI_CHEAT_LAYERS.map((_, index) => index + 1),
     );
     expect(ANTI_CHEAT_LAYERS.every((layer) => layer.name && layer.desc)).toBe(true);
+  });
+
+  it('covers the command whitelist among the layers', () => {
+    expect(ANTI_CHEAT_LAYERS.some((layer) => layer.name === '命令白名单')).toBe(true);
   });
 });

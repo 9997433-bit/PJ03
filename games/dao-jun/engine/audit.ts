@@ -245,6 +245,35 @@ export function buildAuditTable(rolls: readonly DiceRoll[]): AuditRecord[] {
 }
 
 // ============================================================================
+// 命令白名单
+// ============================================================================
+
+/**
+ * The only verbs the engine will execute and seal into the chain. 道君 has no
+ * free-text 许愿 parser, so this is where an unrecognised command dies: a
+ * caller reaching past the UI still cannot invent a verb the chain would
+ * accept. Command strings are `verb:argument` (e.g. `行动:悟道`).
+ */
+export const COMMAND_VERBS = [
+  '行动',
+  '战术',
+  '抉择',
+  '用物',
+  '购入',
+  '售出',
+  '收官',
+  '续道',
+] as const;
+export type CommandVerb = (typeof COMMAND_VERBS)[number];
+
+export const UNKNOWN_COMMAND_MESSAGE = '道枢不识此令。';
+
+export function isLegalCommand(command: string): boolean {
+  const verb = command.split(':')[0] ?? '';
+  return (COMMAND_VERBS as readonly string[]).includes(verb);
+}
+
+// ============================================================================
 // Post-command invariants (a violation rolls the whole command back)
 // ============================================================================
 
@@ -317,5 +346,6 @@ export const ANTI_CHEAT_LAYERS: readonly AntiCheatLayer[] = [
   { layer: 3, name: '哈希链', desc: '每道命令 auditHash = sha256(前链|回合|命令|骰值)，环环相扣。' },
   { layer: 4, name: '存档完整性', desc: '存档携魔数、校验和与链首；不符者，道基紊乱，不可续。' },
   { layer: 5, name: '状态不变量', desc: '命令终了必验：玄玉非负、神魂有度、境界有序；违者回溯整令。' },
-  { layer: 6, name: '单一写者', desc: '唯 engine 可易天机；界面只递命令，无改数之权。' },
+  { layer: 6, name: '命令白名单', desc: '八令之外，道枢不识；越界之请，未动一分状态即被驳回。' },
+  { layer: 7, name: '单一写者', desc: '唯 engine 可易天机；界面只递命令，无改数之权。' },
 ];

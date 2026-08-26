@@ -1,9 +1,11 @@
 import {
   GENESIS_HASH,
   INVARIANT_ROLLBACK_MESSAGE,
+  UNKNOWN_COMMAND_MESSAGE,
   beginCommand,
   checkInvariants,
   commitCommand,
+  isLegalCommand,
   recordDie,
   recordSpan,
 } from './audit';
@@ -119,6 +121,9 @@ function runCommand(
   command: string,
   body: (state: GameState) => string,
 ): ActionResult {
+  if (!isLegalCommand(command)) {
+    return { ok: false, message: UNKNOWN_COMMAND_MESSAGE, state: current };
+  }
   const state = copy(current);
   const since = beginCommand(state);
   const message = body(state);
