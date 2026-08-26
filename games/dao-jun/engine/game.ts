@@ -205,12 +205,13 @@ export function evaluateEnding(state: GameState): EndingKey | null {
   if (state.character.karma >= 100 && state.character.reputation >= 80) return 'benevolent';
   if (state.character.vow === 'freedom' && state.character.age >= 90 && state.territory.nodes <= 2) return 'wanderer';
   if (state.character.realm >= REALMS.length - 1) {
-    return {
+    const pathEndings: Record<GameState['character']['path'], EndingKey> = {
       剑: 'swordSupreme',
       法: 'spellSupreme',
       体: 'bodySupreme',
       神: 'soulSupreme',
-    }[state.character.path];
+    };
+    return pathEndings[state.character.path];
   }
   return null;
 }
