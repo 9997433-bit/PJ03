@@ -62,10 +62,10 @@
 | 代理 | 状态 | 要点 |
 |------|------|------|
 | R2-S1 道君 | ✅ | 98 测试 · 40 事件 · e2e/smoke 5/5 · `daojun_save_v1` |
-| R2-S2 流水线 | 🔄 | export 脚本加固 · mortal+daojun zip 已产出 |
+| R2-S2 流水线 | 🔄 | mortal+lanke+daojun zip 已产出 · mieyun 待 build |
 | R2-F1/F2 文档 | ✅ | PLAN ×3（lanke/mieyun/daojun 全交付，R2-F1 已按落盘代码重接地：五心/棋缘、气运劫运、纹魂疆域，各 16 结局全接线表）· ARCHITECTURE.md（R1-F1 基底 + R2-F1 增补 §10 命名冲突登记 / §11 文档冲突裁定）· engine-core 契约包（types-only）· briefs 三份 |
 | R2-F2 道君审计 | ✅ | [AUDIT_daojun_R2.md](./AUDIT_daojun_R2.md) · **7.5/12**（修复前 5.5）· 320 局 bot 通关模拟 · 4 项快修（lint+Math.random 禁令 / noUncheckedIndexedAccess / 软锁 / 结局优先级）· 101 测试全绿 |
-| R2-O1 烂柯 | 🔄 | engine 26 文件已扩 · **仍缺 app/UI** |
+| R2-O1 烂柯 | ✅ | 211 测试 · build 通过 · out/index.html · 青竹枯枰 UI |
 | R2-O2 灭运 | 🔄 | **仍缺 app/** · build/test 失败 |
 
 当前可打包游玩：凡人 + 道君（`dist/zips/`）
