@@ -51,7 +51,14 @@
 - 聚合测试当前为 Mortal 163 项、Daojun 73 项通过；Lanke 与 Mieyun 尚无测试文件
 - 三个并发子项目仍未形成有效首页导出（Lanke 仅 404、Mieyun 缺 app/pages、Daojun 有 `EndingKey` 类型错误），合入后须复测完整基线
 
+## R1-F2 审计要点
+- 交付：`SOTA_CRITERIA.md`（G0–G11 验收单）、`REUSE_MAP.md`（逐文件复用地图 + 拷贝-适配策略）、`briefs/{lanke,mieyun,daojun}.md`（各 3 项签名机制、领域模型、工程常量、测试焦点）
+- 基线复核：根游戏 build ✅ / 157 测试 ✅ / 静态导出 ✅
+- ⚠️ 根游戏缺口（R2/R3 备选补课）：结局 16 定义仅 5 接线（data/endings.ts 未入引擎）；lifecycle.advanceTime/rest 死代码双轨；缺 prefers-reduced-motion
+- ⚠️ 硬约束：同源部署下 localStorage 共享 —— 各游戏 SAVE_KEY/SAVE_MAGIC 必须唯一（lanke_save_v1 / mieyun_save_v1 / daojun_save_v1）；结局须「引擎接线可达」而非仅存数据
+
 ## 日志
 - 2026-08-26: 初始化分支与 PROGRESS.md，启动 Round 1（6 并发子代理）
 - 2026-08-26: R1-S2 添加 monorepo 构建、测试、打包、基准脚本及根级 smoke test
 - 2026-08-26: R1-S2 完成 Mortal 基线；工具链能隔离 workspace 类型检查并聚合报告子游戏失败
+- 2026-08-26: R1-F2 完成代码审计与 SOTA 验收标准；补交三份 per-game briefs
