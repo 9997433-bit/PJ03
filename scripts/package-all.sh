@@ -20,12 +20,15 @@ create_zip() {
 
   rm -f "${temporary}"
   if command -v zip >/dev/null 2>&1; then
-    (
+    if ! (
       cd "${source_dir}"
       zip -q -r "${temporary}" .
-    )
+    ); then
+      rm -f "${temporary}"
+      return 1
+    fi
   elif command -v python3 >/dev/null 2>&1; then
-    python3 - "${source_dir}" "${temporary}" <<'PY'
+    if ! python3 - "${source_dir}" "${temporary}" <<'PY'
 from pathlib import Path
 import sys
 import zipfile
@@ -37,12 +40,43 @@ with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as output:
         if path.is_file():
             output.write(path, path.relative_to(source))
 PY
+    then
+      rm -f "${temporary}"
+      return 1
+    fi
   else
     printf '[error] packaging requires zip or python3\n' >&2
     return 1
   fi
 
   mv "${temporary}" "${archive}"
+}
+
+archive_has_index() {
+  local archive="$1"
+
+  if command -v unzip >/dev/null 2>&1; then
+    unzip -Z1 "${archive}" | awk '
+      { sub(/^\.\//, "", $0) }
+      $0 == "index.html" { found = 1 }
+      END { exit(found ? 0 : 1) }
+    '
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 - "${archive}" <<'PY'
+import sys
+import zipfile
+
+with zipfile.ZipFile(sys.argv[1]) as archive:
+    names = {name.removeprefix("./") for name in archive.namelist()}
+sys.exit(0 if "index.html" in names else 1)
+PY
+  else
+    zip -sf "${archive}" | awk '
+      { gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0); sub(/^\.\//, "", $0) }
+      $0 == "index.html" { found = 1 }
+      END { exit(found ? 0 : 1) }
+    '
+  fi
 }
 
 mkdir -p "${ZIP_DIR}"
@@ -57,8 +91,10 @@ for index in "${!GAME_NAMES[@]}"; do
   package_json="${game_dir}/package.json"
   archive="${ZIP_DIR}/${name}.zip"
 
+  # Remove stale output first so every archive present after this run is valid.
+  rm -f "${archive}" "${archive}.tmp.zip"
+
   if [[ ! -f "${package_json}" ]]; then
-    rm -f "${archive}"
     printf '[skip] %-7s package not found: %s\n' "${name}" "${package_json}"
     ((skipped += 1))
     continue
@@ -71,9 +107,14 @@ for index in "${!GAME_NAMES[@]}"; do
     continue
   fi
 
-  rm -f "${archive}"
   if ! create_zip "${out_dir}" "${archive}"; then
     printf '[error] failed to package %s\n' "${name}" >&2
+    ((failed += 1))
+    continue
+  fi
+  if ! archive_has_index "${archive}"; then
+    rm -f "${archive}"
+    printf '[error] %s archive does not contain index.html at its root\n' "${name}" >&2
     ((failed += 1))
     continue
   fi

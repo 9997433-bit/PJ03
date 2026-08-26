@@ -69,6 +69,9 @@ export const EVENTS: GameEvent[] = [
   event('engrave-resonance', '诸纹共鸣', '旧纹与新纹相互激荡，洞府石屑簌簌而落。', '凝纹',
     choice('压下共鸣', '你稳住了每一道纹路。', { stability: 8, control: 4 }),
     choice('任其齐鸣', '轰鸣之后，所有道纹更见通透。', { harmony: 12, soul: -6 })),
+  event('engrave-thunder-vine', '雷藤走壁', '一道电光沿洞壁藤蔓般游走，恰好补全道纹缺失的转折。', '凝纹',
+    choice('引雷入纹', '雷藤化作墨蓝纹路，深深烙入道基。', { harmony: 9, qi: -5, insight: 5 }),
+    choice('截雷养魂', '你没有贪多，只取一缕雷意温养识海。', { soul: 10, stability: 5 })),
 
   event('duel-river-swordsman', '江上剑客', '青衣剑客踏浪邀战，剑尖始终停在你眉心三寸。', '斗法',
     choice('正面应战', '数十合后，江面尽是纵横气浪。', { reputation: 7, qi: -6, item: 'river-iron' }),
@@ -141,6 +144,9 @@ export const EVENTS: GameEvent[] = [
   event('break-dao-rain', '道雨洗山', '冲关气息引来七色道雨，领内草木一夜抽芽。', '突破',
     choice('独沐道雨', '七色灵机尽归一身。', { insight: 10, qi: 15, karma: -2 }),
     choice('泽被领民', '道雨落遍田野，众生同庆。', { food: 30, reputation: 10, karma: 6 })),
+  event('break-ink-sea', '墨海生雷', '劫云沉成无边墨海，银雷如龙，在浪峰间等待你的道心回应。', '突破',
+    choice('踏浪执雷', '你以道纹为舟，携一线天光冲出墨海。', { harmony: 10, health: -7, influence: 7 }),
+    choice('沉心观潮', '雷潮来去皆有定数，你守住了最清明的一念。', { stability: 11, soul: 6 })),
 ];
 
 export const ITEMS: GameItem[] = [

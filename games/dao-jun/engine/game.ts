@@ -113,7 +113,8 @@ export function totalPower(state: GameState): number {
 export function actionAvailability(state: GameState, action: CoreAction): { available: boolean; reason: string } {
   if (state.ending) return { available: false, reason: '此生已成定局' };
   if (state.pendingEvent) return { available: false, reason: '先作出当前抉择' };
-  if (action === '悟道' && state.soul.power < 6) return { available: false, reason: '神魂至少需要 6 点' };
+  // 悟道 is always available: with a drained soul it degrades to a pure rest
+  // turn, guaranteeing the resource-regeneration path can never soft-lock.
   if (action === '凝纹') {
     if (!canEngrave(state.daoPattern)) {
       const need = 12 + state.daoPattern.engraved * 4;
@@ -198,12 +199,7 @@ function advanceTurn(state: GameState): void {
 export function evaluateEnding(state: GameState): EndingKey | null {
   if (state.character.health <= 0 || state.soul.stability <= 0) return 'death';
   if (state.character.age >= state.character.lifespan) return 'oldAge';
-  if (state.territory.nodes >= 8 && state.character.realm >= 3) return 'conqueror';
-  if (state.daoPattern.engraved >= 12) return 'patternSage';
-  if (state.soul.maxPower >= 180 && state.character.realm >= 3) return 'soulAscendant';
-  if (state.territory.spiritStones >= 1200) return 'magnate';
-  if (state.character.karma >= 100 && state.character.reputation >= 80) return 'benevolent';
-  if (state.character.vow === 'freedom' && state.character.age >= 90 && state.territory.nodes <= 2) return 'wanderer';
+  // Rank-天 victory endings outrank every milestone ending on the same turn.
   if (state.character.realm >= REALMS.length - 1) {
     const pathEndings: Record<GameState['character']['path'], EndingKey> = {
       剑: 'swordSupreme',
@@ -213,6 +209,12 @@ export function evaluateEnding(state: GameState): EndingKey | null {
     };
     return pathEndings[state.character.path];
   }
+  if (state.territory.nodes >= 8 && state.character.realm >= 3) return 'conqueror';
+  if (state.daoPattern.engraved >= 12) return 'patternSage';
+  if (state.soul.maxPower >= 180 && state.character.realm >= 3) return 'soulAscendant';
+  if (state.territory.spiritStones >= 1200) return 'magnate';
+  if (state.character.karma >= 100 && state.character.reputation >= 80) return 'benevolent';
+  if (state.character.vow === 'freedom' && state.character.age >= 90 && state.territory.nodes <= 2) return 'wanderer';
   return null;
 }
 
@@ -233,13 +235,18 @@ export function performAction(current: GameState, action: CoreAction): ActionRes
   let message = '';
 
   if (action === '悟道') {
-    const roll = rollInt(state.seed, 6, 13);
-    state.seed = roll.seed;
-    const pathBonus = c.path === '法' || c.path === '神' ? 2 : 0;
-    state.soul = spendSoul(state.soul, 6);
-    state.daoPattern = comprehend(state.daoPattern, roll.value + pathBonus);
-    message = `静观天地，得 ${roll.value + pathBonus} 点道纹感悟。`;
-    log(state, message, 'good');
+    if (state.soul.power < 6) {
+      message = '神魂枯竭，此番静坐只得喘息，未见天地之纹。';
+      log(state, message, 'normal');
+    } else {
+      const roll = rollInt(state.seed, 6, 13);
+      state.seed = roll.seed;
+      const pathBonus = c.path === '法' || c.path === '神' ? 2 : 0;
+      state.soul = spendSoul(state.soul, 6);
+      state.daoPattern = comprehend(state.daoPattern, roll.value + pathBonus);
+      message = `静观天地，得 ${roll.value + pathBonus} 点道纹感悟。`;
+      log(state, message, 'good');
+    }
   } else if (action === '凝纹') {
     const before = state.daoPattern.engraved;
     state.soul = spendSoul(state.soul, 8);

@@ -18,6 +18,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "package:all": "bash scripts/package-all.sh",
+    "validate:exports": "node scripts/validate-exports.mjs",
     "benchmark": "node scripts/benchmark.mjs"
   },
   "dependencies": {

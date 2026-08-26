@@ -1,6 +1,8 @@
 :root {
   --ink: #050b14;
   --ink-soft: #081426;
+  --ink-blue: #071a31;
+  --ink-blue-bright: #0b2949;
   --panel: rgba(9, 24, 43, 0.9);
   --panel-deep: rgba(5, 16, 31, 0.96);
   --line: rgba(118, 182, 226, 0.19);
@@ -47,6 +49,20 @@ body::before {
   mask-image: radial-gradient(circle, #000 10%, transparent 76%);
 }
 
+.thunder-pattern {
+  position: fixed;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  opacity: .13;
+  background-image:
+    url("data:image/svg+xml,%3Csvg width='176' height='176' viewBox='0 0 176 176' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' stroke='%235edbff' stroke-width='1'%3E%3Cpath d='M20 16h46L48 39h32L34 91l17-37H18l25-31H20z'/%3E%3Cpath opacity='.35' d='M111 82h35l-14 18h24l-36 42 13-30h-27l18-23h-13z'/%3E%3C/g%3E%3C/svg%3E"),
+    linear-gradient(118deg, transparent 47%, rgba(94, 219, 255, .12) 48%, transparent 49%);
+  background-size: 176px 176px, 410px 410px;
+  mask-image: radial-gradient(ellipse at 50% 35%, #000 3%, rgba(0, 0, 0, .65) 47%, transparent 88%);
+  filter: drop-shadow(0 0 3px rgba(72, 199, 255, .45));
+}
+
 button:focus-visible, input:focus-visible {
   outline: 2px solid var(--cyan);
   outline-offset: 3px;
@@ -70,6 +86,7 @@ button:focus-visible, input:focus-visible {
   place-items: center;
   padding: 40px 20px;
   background:
+    radial-gradient(ellipse at 50% 25%, rgba(17, 77, 125, .32), transparent 47%),
     linear-gradient(rgba(3, 10, 20, .55), rgba(3, 10, 20, .92)),
     repeating-linear-gradient(110deg, transparent 0 120px, rgba(80, 177, 243, .025) 121px 122px);
 }
@@ -287,6 +304,16 @@ button:focus-visible, input:focus-visible {
 .name-field input:focus { border-color: var(--cyan); box-shadow: 0 0 20px rgba(48, 181, 244, .12); outline: 0; }
 .name-field input::placeholder { color: #405568; }
 .creation-step blockquote { margin: 18px 0 0; color: #61778b; font-size: 13px; font-style: italic; }
+.creation-summary {
+  display: inline-block;
+  margin: -13px 0 17px;
+  padding: 5px 11px;
+  border: 1px solid rgba(94, 219, 255, .2);
+  color: #739bb2;
+  background: rgba(6, 24, 42, .65);
+  font-size: 10px;
+  letter-spacing: .12em;
+}
 
 .option-grid {
   display: grid;
@@ -352,7 +379,16 @@ button:focus-visible, input:focus-visible {
 @keyframes pulseBorder { 50% { box-shadow: 0 0 27px rgba(74, 206, 255, .38); } }
 
 /* game */
-.game-shell { position: relative; min-height: 100vh; overflow: hidden; padding-bottom: 28px; }
+.game-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  padding-bottom: 28px;
+  background:
+    radial-gradient(ellipse at 52% -15%, rgba(20, 86, 139, .25), transparent 48rem),
+    linear-gradient(135deg, rgba(3, 12, 24, .62), rgba(7, 24, 43, .36));
+}
+.thunder-pattern-game { opacity: .065; background-size: 220px 220px, 510px 510px; }
 .lightning {
   position: fixed;
   z-index: 0;
@@ -414,7 +450,9 @@ button:focus-visible, input:focus-visible {
 .panel {
   position: relative;
   border: 1px solid var(--line);
-  background: var(--panel);
+  background:
+    linear-gradient(145deg, rgba(17, 56, 91, .1), transparent 42%),
+    var(--panel);
   box-shadow: 0 13px 42px rgba(0, 0, 0, .22), inset 0 1px rgba(255, 255, 255, .015);
 }
 .panel::before { left: -1px; top: -1px; width: 20px; height: 20px; border-left: 1px solid var(--cyan); border-top: 1px solid var(--cyan); }

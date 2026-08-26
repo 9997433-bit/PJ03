@@ -12,7 +12,7 @@ export function createDaoPattern(): DaoPatternState {
 }
 
 export function insightNeeded(engraved: number): number {
-  return 12 + engraved * 4;
+  return 12 + Math.max(0, Math.trunc(engraved)) * 4;
 }
 
 export function canEngrave(pattern: DaoPatternState): boolean {
@@ -20,10 +20,11 @@ export function canEngrave(pattern: DaoPatternState): boolean {
 }
 
 export function comprehend(pattern: DaoPatternState, amount: number): DaoPatternState {
+  const gain = Math.max(0, Math.trunc(amount));
   return {
     ...pattern,
-    insight: Math.max(0, pattern.insight + Math.trunc(amount)),
-    harmony: Math.min(100, pattern.harmony + Math.max(1, Math.floor(amount / 5))),
+    insight: pattern.insight + gain,
+    harmony: Math.min(100, pattern.harmony + (gain > 0 ? Math.max(1, Math.floor(gain / 5)) : 0)),
   };
 }
 

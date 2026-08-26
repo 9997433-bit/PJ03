@@ -24,10 +24,11 @@ export function claimTerritory(territory: TerritoryState, margin: number): Terri
 }
 
 export function loseTerritory(territory: TerritoryState, severity: number): TerritoryState {
+  const loss = Math.max(0, severity);
   return {
     ...territory,
-    control: Math.max(0, territory.control - Math.max(1, severity)),
-    food: Math.max(0, territory.food - 5),
+    control: Math.max(0, territory.control - loss),
+    food: Math.max(0, territory.food - (loss > 0 ? 5 : 0)),
   };
 }
 

@@ -46,6 +46,11 @@ for index in "${!GAME_NAMES[@]}"; do
     continue
   fi
 
+  out_dir="${game_dir}/out"
+  target_dir="${DIST_DIR}/${name}"
+  # Never allow a previous successful export to mask a failed rebuild.
+  rm -rf "${out_dir}" "${target_dir}"
+
   printf '\n[build] %s (%s)\n' "${name}" "${game_dir}"
   if ! npm --prefix "${game_dir}" run build; then
     printf '[error] %s build command failed\n' "${name}" >&2
@@ -53,8 +58,6 @@ for index in "${!GAME_NAMES[@]}"; do
     continue
   fi
 
-  out_dir="${game_dir}/out"
-  target_dir="${DIST_DIR}/${name}"
   if [[ ! -f "${out_dir}/index.html" ]]; then
     printf '[error] %s built without producing %s/index.html\n' "${name}" "${out_dir}" >&2
     ((failed += 1))

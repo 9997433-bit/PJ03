@@ -1,28 +1,51 @@
 #!/usr/bin/env node
 
 import { spawnSync } from 'node:child_process';
-import { access, mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { access, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { performance } from 'node:perf_hooks';
 import { fileURLToPath } from 'node:url';
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const reportPath = path.join(rootDir, 'dist', 'benchmark.json');
-const shouldBuild = !process.argv.includes('--no-build');
-const validArguments = new Set(['--no-build', '--help']);
-const unknownArguments = process.argv.slice(2).filter((argument) => !validArguments.has(argument));
+let reportPath = path.join(rootDir, 'dist', 'benchmark.json');
+let shouldBuild = true;
+const args = process.argv.slice(2);
 
-if (process.argv.includes('--help')) {
-  console.log(`Usage: node scripts/benchmark.mjs [--no-build]
+for (let index = 0; index < args.length; index += 1) {
+  const argument = args[index];
+  if (argument === '--help') {
+    console.log(`Usage: node scripts/benchmark.mjs [--no-build] [--output <path>]
 
 Build every available game and measure build duration plus static export size.
-Use --no-build to measure existing out/ directories without rebuilding.`);
-  process.exit(0);
-}
-
-if (unknownArguments.length > 0) {
-  console.error(`Unknown argument(s): ${unknownArguments.join(', ')}`);
+Use --no-build to measure existing out/ directories without rebuilding.
+Use --output to select the JSON report path (default: dist/benchmark.json).`);
+    process.exit(0);
+  }
+  if (argument === '--no-build') {
+    shouldBuild = false;
+    continue;
+  }
+  if (argument === '--output') {
+    const output = args[index + 1];
+    if (!output || output.startsWith('--')) {
+      console.error('--output requires a file path');
+      process.exit(2);
+    }
+    reportPath = path.resolve(rootDir, output);
+    index += 1;
+    continue;
+  }
+  if (argument.startsWith('--output=')) {
+    const output = argument.slice('--output='.length);
+    if (!output) {
+      console.error('--output requires a file path');
+      process.exit(2);
+    }
+    reportPath = path.resolve(rootDir, output);
+    continue;
+  }
+  console.error(`Unknown argument: ${argument}`);
   process.exit(2);
 }
 
@@ -94,6 +117,7 @@ async function benchmarkGame(game) {
       }
 
       console.log(`\n[benchmark] building ${game.id}`);
+      await rm(path.join(game.directory, 'out'), { recursive: true, force: true });
       const startedAt = performance.now();
       const npmExecutable = process.platform === 'win32' ? 'npm.cmd' : 'npm';
       const result = spawnSync(npmExecutable, ['run', 'build'], {
