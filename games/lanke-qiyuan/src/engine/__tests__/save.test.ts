@@ -1,168 +1,192 @@
 import { describe, expect, it } from 'vitest';
 import {
-  CURRENT_SAVE_VERSION,
-  SAVE_CORRUPT_MESSAGE,
-  SAVE_KEY,
   clearSave,
   createMemoryStorage,
+  CURRENT_SAVE_VERSION,
   deserializeSave,
   exportSave,
+  getBrowserStorage,
   hasSave,
   importSave,
   loadGame,
+  SAVE_CORRUPT_MESSAGE,
+  SAVE_KEY,
   saveGame,
   serializeSave,
-} from '@/engine/save';
-import type { GameState } from '@/engine/types';
-import { playingState } from './helpers';
+  type Migration,
+} from '../save';
+import { executeCommand } from '../turn';
+import { playableState, withCharacter } from './helpers';
+import type { GameState } from '../types';
 
-describe('save — serialize and verify', () => {
-  it('round-trips a real game state', () => {
-    const original = playingState();
-    const result = deserializeSave<GameState>(serializeSave(original));
+const played = (): GameState => {
+  const s = withCharacter(playableState('存档-1'), { coin: 400, spirit: 90 });
+  const out = executeCommand(s, '修炼');
+  return out.state;
+};
+
+describe('存档 — key and envelope', () => {
+  it('uses the game-specific save key so four simulators can share an origin', () => {
+    expect(SAVE_KEY).toBe('lanke_save_v1');
+  });
+
+  it('wraps the state in a magic-tagged, versioned, checksummed envelope', () => {
+    const envelope = JSON.parse(serializeSave(played(), 1_700_000_000_000));
+    expect(envelope.magic).toBe('LKQY');
+    expect(envelope.version).toBe(CURRENT_SAVE_VERSION);
+    expect(envelope.checksum).toMatch(/^[0-9a-f]{64}$/);
+    expect(envelope.savedAt).toBe(1_700_000_000_000);
+    expect(envelope.payload).toBeTypeOf('object');
+  });
+
+  it('copies the audit hash onto the envelope for a cross-check', () => {
+    const s = played();
+    const envelope = JSON.parse(serializeSave(s));
+    expect(envelope.auditHash).toBe(s.auditHash);
+  });
+
+  it('is byte-stable for the same state and timestamp', () => {
+    const s = played();
+    expect(serializeSave(s, 42)).toBe(serializeSave(s, 42));
+  });
+});
+
+describe('存档 — round trip', () => {
+  it('restores a played state exactly', () => {
+    const s = played();
+    const result = deserializeSave<GameState>(serializeSave(s));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
-    expect(result.state.seed).toBe(original.seed);
-    expect(result.state.character?.name).toBe('计缘');
-    expect(result.state.auditHash).toBe(original.auditHash);
+    expect(result.state.turn).toBe(s.turn);
+    expect(result.state.auditHash).toBe(s.auditHash);
+    expect(result.state.character?.name).toBe(s.character?.name);
+    expect(result.state.rolls).toHaveLength(s.rolls.length);
     expect(result.migrated).toBe(false);
   });
 
-  it('writes an envelope carrying magic, version and checksum', () => {
-    const blob = JSON.parse(serializeSave(playingState(), 1000)) as Record<string, unknown>;
-    expect(blob.magic).toBe('LKQY');
-    expect(blob.version).toBe(CURRENT_SAVE_VERSION);
-    expect(blob.savedAt).toBe(1000);
-    expect(typeof blob.checksum).toBe('string');
+  it('keeps the RNG on the same track after a reload', () => {
+    const s = played();
+    const reloaded = deserializeSave<GameState>(serializeSave(s));
+    expect(reloaded.ok).toBe(true);
+    if (!reloaded.ok) return;
+    const a = executeCommand(s, '观棋').state;
+    const b = executeCommand(reloaded.state, '观棋').state;
+    expect(b.rolls.map((r) => r.value)).toEqual(a.rolls.map((r) => r.value));
+    expect(b.auditHash).toBe(a.auditHash);
   });
 
-  it('reports an empty slot distinctly from corruption', () => {
+  it('survives the Base64 export/import path', () => {
+    const s = played();
+    const text = exportSave(s, 99);
+    expect(text).toMatch(/^[A-Za-z0-9+/]+=*$/);
+    const back = importSave<GameState>(text);
+    expect(back.ok).toBe(true);
+    if (back.ok) expect(back.state.auditHash).toBe(s.auditHash);
+  });
+
+  it('tolerates whitespace around a pasted save string', () => {
+    const s = played();
+    expect(importSave<GameState>(`\n  ${exportSave(s)}  \n`).ok).toBe(true);
+  });
+});
+
+describe('存档 — refusing a doctored scroll', () => {
+  it('reports an empty slot as empty rather than corrupt', () => {
     const result = deserializeSave<GameState>(null);
     expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe('empty');
+    if (!result.ok) expect(result.code).toBe('empty');
   });
 
-  it('rejects unparseable text', () => {
-    const result = deserializeSave<GameState>('{not json');
+  it('rejects unparsable text', () => {
+    const result = deserializeSave<GameState>('{ not json');
     expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe('corrupt');
-    expect(result.message).toBe(SAVE_CORRUPT_MESSAGE);
+    if (!result.ok) {
+      expect(result.code).toBe('corrupt');
+      expect(result.message).toBe(SAVE_CORRUPT_MESSAGE);
+    }
   });
 
-  it('rejects a blob from another game', () => {
-    const foreign = JSON.stringify({
-      magic: 'MCLS',
-      version: 1,
-      savedAt: 1,
-      auditHash: 'x',
-      checksum: 'y',
-      payload: {},
-    });
-    const result = deserializeSave<GameState>(foreign);
+  it('rejects a blob that is not one of ours', () => {
+    const result = deserializeSave<GameState>(JSON.stringify({ hello: 'world' }));
     expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe('corrupt');
+    if (!result.ok) expect(result.code).toBe('corrupt');
   });
 
-  it('detects a tampered payload via the checksum', () => {
-    const blob = JSON.parse(serializeSave(playingState())) as {
-      payload: { character: { coin: number } };
+  it('catches a payload edited behind the checksum', () => {
+    const envelope = JSON.parse(serializeSave(played()));
+    envelope.payload.character.coin = 999_999;
+    const result = deserializeSave<GameState>(JSON.stringify(envelope));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('checksum');
+  });
+
+  it('catches an audit hash swapped on the envelope alone', () => {
+    const envelope = JSON.parse(serializeSave(played()));
+    envelope.payload.auditHash = 'f'.repeat(64);
+    const result = deserializeSave<GameState>(JSON.stringify(envelope));
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(['checksum', 'audit']).toContain(result.code);
+  });
+
+  it('refuses a save from a future schema instead of guessing', () => {
+    const s = played();
+    const future = serializeSave({ ...s, version: CURRENT_SAVE_VERSION + 5 });
+    const result = deserializeSave<GameState>(future);
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('version');
+  });
+
+  it('rejects a Base64 string that decodes to nothing meaningful', () => {
+    const result = importSave<GameState>('!!!! not base64 !!!!');
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.code).toBe('corrupt');
+  });
+});
+
+describe('存档 — migrations', () => {
+  it('runs a registered migration and flags the load as migrated', () => {
+    const s = played();
+    const old = serializeSave({ ...s, version: CURRENT_SAVE_VERSION - 1 });
+    const migrations: Record<number, Migration> = {
+      [CURRENT_SAVE_VERSION - 1]: (p) => ({ ...p, 迁移过: true }),
     };
-    blob.payload.character.coin = 999999;
-    const result = deserializeSave<GameState>(JSON.stringify(blob));
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe('checksum');
-  });
-
-  it('detects an auditHash swapped inside a re-checksummed blob', () => {
-    const state = playingState();
-    const blob = JSON.parse(serializeSave(state)) as Record<string, unknown>;
-    const payload = blob.payload as Record<string, unknown>;
-    payload.auditHash = 'tampered';
-    // recompute so only the cross-check can catch it
-    const rebuilt = serializeSave({ ...state, auditHash: blob.auditHash as string }, blob.savedAt as number);
-    const reparsed = JSON.parse(rebuilt) as Record<string, unknown>;
-    reparsed.auditHash = 'different';
-    const result = deserializeSave<GameState>(JSON.stringify(reparsed));
-    expect(result.ok).toBe(false);
-  });
-
-  it('refuses a save from a future schema', () => {
-    const state = playingState();
-    const future = { ...state, version: CURRENT_SAVE_VERSION + 5 };
-    const result = deserializeSave<GameState>(serializeSave(future));
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe('version');
-  });
-
-  it('runs registered migrations in sequence', () => {
-    const state = { version: 0, auditHash: 'h', mark: 'old' };
-    const blob = serializeSave(state);
-    const result = deserializeSave<GameState & { mark: string }>(blob, {
-      0: (payload) => ({ ...payload, mark: 'migrated' }),
-    });
+    const result = deserializeSave<GameState>(old, migrations);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.migrated).toBe(true);
-    expect(result.state.mark).toBe('migrated');
     expect(result.state.version).toBe(CURRENT_SAVE_VERSION);
   });
 
-  it('refuses when no migration path exists', () => {
-    const result = deserializeSave<GameState>(serializeSave({ version: 0, auditHash: 'h' }), {});
+  it('refuses an old save with no path forward rather than loading it broken', () => {
+    const s = played();
+    const old = serializeSave({ ...s, version: CURRENT_SAVE_VERSION - 1 });
+    const result = deserializeSave<GameState>(old, {});
     expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe('version');
+    if (!result.ok) expect(result.code).toBe('version');
   });
 });
 
-describe('save — storage adapter', () => {
-  it('saves, detects, loads and clears', () => {
+describe('存档 — the storage adapter', () => {
+  it('writes, reads and clears through an injected adapter', () => {
     const storage = createMemoryStorage();
-    const state = playingState();
+    const s = played();
     expect(hasSave(storage)).toBe(false);
-    saveGame(storage, state);
+    saveGame(storage, s);
     expect(hasSave(storage)).toBe(true);
     const loaded = loadGame<GameState>(storage);
     expect(loaded.ok).toBe(true);
-    if (loaded.ok) expect(loaded.state.seed).toBe(state.seed);
     clearSave(storage);
     expect(hasSave(storage)).toBe(false);
-    expect(storage.getItem(SAVE_KEY)).toBeNull();
   });
 
-  it('keeps separate slots apart', () => {
+  it('honours a caller-supplied key', () => {
     const storage = createMemoryStorage();
-    saveGame(storage, playingState('棋-a'), 'slot_a');
-    saveGame(storage, playingState('棋-b'), 'slot_b');
-    const a = loadGame<GameState>(storage, 'slot_a');
-    const b = loadGame<GameState>(storage, 'slot_b');
-    expect(a.ok && b.ok).toBe(true);
-    if (a.ok && b.ok) expect(a.state.seed).not.toBe(b.state.seed);
-  });
-});
-
-describe('save — portable base64', () => {
-  it('round-trips through export and import', () => {
-    const state = playingState();
-    const result = importSave<GameState>(exportSave(state));
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.state.seed).toBe(state.seed);
+    saveGame(storage, played(), '别局');
+    expect(hasSave(storage, '别局')).toBe(true);
+    expect(hasSave(storage, SAVE_KEY)).toBe(false);
   });
 
-  it('tolerates surrounding whitespace', () => {
-    const encoded = exportSave(playingState());
-    expect(importSave<GameState>(`\n  ${encoded}  \n`).ok).toBe(true);
-  });
-
-  it('rejects a mangled base64 string', () => {
-    const result = importSave<GameState>('!!!not base64!!!');
-    expect(result.ok).toBe(false);
-    if (result.ok) return;
-    expect(result.code).toBe('corrupt');
+  it('returns null browser storage under Node rather than throwing', () => {
+    expect(getBrowserStorage()).toBeNull();
   });
 });

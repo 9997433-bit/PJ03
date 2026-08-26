@@ -1,451 +1,271 @@
-/**
- * world.test.ts — the wandering half of the loop.
- *
- * 游历 (travel + the event table), 坊市 (buying, selling, using, gifting) and
- * 棋谱 (studying and comprehending). These are the systems the player touches
- * most, so they are exercised through `executeCommand` wherever possible —
- * the same door the UI uses.
- */
-
 import { describe, expect, it } from 'vitest';
+import { fareFor, isRoadWise, reachablePlaces, travel, WANDER_SPIRIT_COST } from '../travel';
+import { buy, buyPrice, marketStock, sell, sellPrice, SELL_RATE } from '../economy';
 import {
-  applyEffect,
-  addFavor,
-  addItem,
-  countItem,
-  eligibleEvents,
-  executeCommand,
-  learnableManuals,
-  manualCost,
-  marketStock,
-  reachablePlaces,
-  removeItem,
-  rollBucket,
-  rollEvent,
-  sellPrice,
-  travelFare,
-} from '@/engine';
-import { getItem, getManual, getPlace, PLACES, STARTING_PLACE } from '@/data';
-import { EVEN_ALLOC, playingState } from './helpers';
+  addToInventory,
+  countOf,
+  giftItem,
+  removeFromInventory,
+  satchelView,
+  useItem,
+} from '../inventory';
+import { adjustFavor, BEFRIENDED_AT, countBefriended, FAVOR_MAX, FAVOR_MIN, maxFavor, spiritsHere, visibleSpirits } from '../spirits';
+import { getItem, ITEMS } from '@/data/items';
+import { getPlace, PLACES } from '@/data/places';
+import { playableState, withCharacter } from './helpers';
 
 describe('游历 — the road', () => {
-  it('lists only places the realm allows, and never the one you stand on', () => {
-    const s = playingState();
-    const reach = reachablePlaces(s);
-    expect(reach.length).toBeGreaterThan(0);
-    expect(reach.some((p) => p.id === s.placeId)).toBe(false);
-    for (const p of reach) {
-      expect(getPlace(p.id)!.minRealm).toBe('chen');
-    }
-    expect(reach.length).toBeLessThan(PLACES.length);
+  it('only lists places the current 境界 can find', () => {
+    const s = playableState();
+    const reachable = reachablePlaces(s);
+    expect(reachable.length).toBeGreaterThan(0);
+    expect(reachable.length).toBeLessThan(PLACES.length);
+    expect(reachable.every((r) => r.place.minRealm === 'chen')).toBe(true);
   });
 
-  it('halves the fare for a 行脚 wanderer', () => {
-    expect(travelFare(20, false)).toBe(20);
-    expect(travelFare(20, true)).toBe(10);
-    expect(travelFare(5, true)).toBe(3);
+  it('refuses a place the 境界 cannot yet reach, leaving you where you stood', () => {
+    const s = withCharacter(playableState(), { coin: 9999 });
+    const out = travel(s, 'taixu');
+    expect(out.ok).toBe(false);
+    expect(s.placeId).toBe('ningan');
   });
 
-  it('charges the fare and records a first visit', () => {
-    let s = playingState();
-    s.character!.coin = 500;
-    const target = reachablePlaces(s).find((p) => p.fare > 0)!;
+  it('refuses a place that is not on the map', () => {
+    const s = withCharacter(playableState(), { coin: 9999 });
+    expect(travel(s, '桃花源').ok).toBe(false);
+  });
+
+  it('refuses the fare when the purse is short', () => {
+    const s = withCharacter(playableState(), { coin: 0 });
+    const out = travel(s, 'zhulin');
+    expect(out.ok).toBe(false);
+    expect(out.message).toContain('盘缠');
+    expect(s.placeId).toBe('ningan');
+  });
+
+  it('moves, charges the fare and records a first visit', () => {
+    const s = withCharacter(playableState(), { coin: 400 });
+    const fare = getPlace('zhulin')!.fare;
     const before = s.character!.coin;
-
-    s = executeCommand(s, { kind: 'travel', placeId: target.id });
-
-    expect(s.placeId).toBe(target.id);
-    expect(s.character!.coin).toBe(before - target.fare);
-    expect(s.character!.visited).toContain(target.id);
+    const out = travel(s, 'zhulin');
+    expect(out.ok).toBe(true);
+    expect(out.moved).toBe(true);
+    expect(s.placeId).toBe('zhulin');
+    expect(s.character!.coin).toBe(before - fare);
+    expect(s.character!.visited).toContain('zhulin');
     expect(s.stats.placesSeen).toBe(s.character!.visited.length);
   });
 
-  it('refuses a road it cannot pay for, and keeps you where you were', () => {
-    let s = playingState();
-    s.character!.coin = 0;
-    const target = reachablePlaces(s).find((p) => p.fare > 0)!;
-
-    s = executeCommand(s, { kind: 'travel', placeId: target.id });
-
-    expect(s.placeId).toBe(STARTING_PLACE);
-    expect(s.character!.coin).toBe(0);
+  it('does not count the same place twice', () => {
+    const s = withCharacter(playableState(), { coin: 400 });
+    travel(s, 'zhulin');
+    travel(s, 'ningan');
+    travel(s, 'zhulin');
+    expect(s.character!.visited.filter((p) => p === 'zhulin')).toHaveLength(1);
   });
 
-  it('turns a stranger place away rather than crashing', () => {
-    let s = playingState();
-    s.character!.coin = 999;
-    s = executeCommand(s, { kind: 'travel', placeId: 'no_such_place' });
-    expect(s.placeId).toBe(STARTING_PLACE);
+  it('wanders for free when no destination is named, but still rolls the table', () => {
+    const s = withCharacter(playableState(), { coin: 40 });
+    const before = s.character!.coin;
+    const rolls = s.rolls.length;
+    const out = travel(s);
+    expect(out.ok).toBe(true);
+    expect(out.moved).toBe(false);
+    expect(s.character!.coin).toBe(before);
+    expect(s.rolls.length).toBeGreaterThan(rolls);
   });
 
-  it('costs a season and some 心神 even when you stay put', () => {
-    const s0 = playingState();
-    const s = executeCommand(s0, { kind: 'travel' });
-    expect(s.turn).toBe(s0.turn + 1);
-    expect(s.character!.spirit).toBeLessThan(s0.character!.spirit);
+  it('spends 心神 and gathers 心尘 on any journey', () => {
+    const s = withCharacter(playableState(), { coin: 400, spirit: 80, dust: 10 });
+    travel(s);
+    expect(s.character!.spirit).toBeLessThanOrEqual(80 - WANDER_SPIRIT_COST);
+    expect(s.character!.dust).toBeGreaterThan(10);
   });
 
-  it('never offers an event the character is not eligible for', () => {
-    const s = playingState();
-    for (const bucket of ['波折', '寻常', '际遇', '奇遇'] as const) {
-      for (const ev of eligibleEvents(s, bucket)) {
-        expect(ev.bucket).toBe(bucket);
-        expect(ev.realms).toContain(s.character!.realm.realm);
-        if (ev.places.length > 0) expect(ev.places).toContain(s.placeId);
-        if (ev.minChessDao !== undefined) {
-          expect(s.character!.chessDao).toBeGreaterThanOrEqual(ev.minChessDao);
-        }
-      }
-    }
-  });
-
-  it('withholds 奇遇 gated behind a flag until the flag is set', () => {
-    const s = playingState();
-    const gated = eligibleEvents(s, '奇遇').filter((e) => e.requiresFlag);
-    expect(gated).toHaveLength(0);
-  });
-
-  it('does not repeat a 一期一会 event once it has been seen', () => {
-    const s = playingState();
-    const once = eligibleEvents(s, '寻常').find((e) => e.once);
-    if (!once) return;
-    s.seenEvents.push(once.id);
-    expect(eligibleEvents(s, '寻常').some((e) => e.id === once.id)).toBe(false);
-  });
-
-  it('leans toward better buckets for a bright 缘法 and away for a clouded mind', () => {
-    const lucky = playingState();
-    lucky.character!.attributes.yuanFa = 20;
-    lucky.character!.attributes.qiYun = 10;
-    lucky.character!.dust = 0;
-
-    const grim = playingState();
-    grim.character!.attributes.yuanFa = 0;
-    grim.character!.attributes.qiYun = 4;
-    grim.character!.dust = 100;
-
-    const rank = { 波折: 0, 寻常: 1, 际遇: 2, 奇遇: 3 } as const;
-    let luckySum = 0;
-    let grimSum = 0;
-    for (let i = 0; i < 60; i++) {
-      luckySum += rank[rollBucket(lucky)];
-      grimSum += rank[rollBucket(grim)];
-    }
-    expect(luckySum).toBeGreaterThan(grimSum);
-  });
-
-  it('always resolves a rolled event into either prose or a pending choice', () => {
-    const s = playingState();
-    const logBefore = s.narrativeLog.length;
-    rollEvent(s);
-    expect(s.narrativeLog.length).toBeGreaterThan(logBefore);
-    if (s.pendingEvent) {
-      expect(s.pendingEvent.choices.length).toBeGreaterThan(0);
-    }
-  });
-
-  it('clears the pending event when a choice is made', () => {
-    let s = playingState();
-    for (let i = 0; i < 30 && !s.pendingEvent; i++) {
-      s = executeCommand(s, { kind: 'travel' });
-    }
-    if (!s.pendingEvent) return;
-    const n = s.pendingEvent.choices.length;
-    s = executeCommand(s, { kind: 'eventChoice', choiceIndex: 0 });
-    expect(s.pendingEvent).toBeNull();
-    expect(n).toBeGreaterThan(0);
-  });
-
-  it('rejects a choice index that is not on the table', () => {
-    let s = playingState();
-    for (let i = 0; i < 30 && !s.pendingEvent; i++) {
-      s = executeCommand(s, { kind: 'travel' });
-    }
-    if (!s.pendingEvent) return;
-    const after = executeCommand(s, { kind: 'eventChoice', choiceIndex: 99 });
-    expect(after.pendingEvent).not.toBeNull();
+  it('行脚 halves every fare', () => {
+    const plain = withCharacter(playableState(), { coin: 400 });
+    const walker = withCharacter(plain, { flags: { ...plain.character!.flags, 识药: true } });
+    expect(isRoadWise(walker)).toBe(true);
+    const place = getPlace('zhulin')!;
+    expect(fareFor(walker, place)).toBe(Math.ceil(place.fare / 2));
+    expect(fareFor(plain, place)).toBe(place.fare);
   });
 });
 
-describe('坊市 — coin and things', () => {
-  it('stocks nothing hidden and nothing above the current realm', () => {
-    const s = playingState();
-    for (const item of marketStock(s)) {
-      expect(item.hidden).toBeFalsy();
-      expect(item.price).toBeGreaterThan(0);
-      expect(item.minRealm ?? 'chen').toBe('chen');
+describe('坊市 — the market', () => {
+  it('sorts the shelf cheapest-first and never shows hidden goods', () => {
+    const stock = marketStock(playableState());
+    expect(stock.length).toBeGreaterThan(0);
+    for (const item of stock) expect(item.hidden).not.toBe(true);
+    for (let i = 1; i < stock.length; i += 1) {
+      expect(stock[i]!.price).toBeGreaterThanOrEqual(stock[i - 1]!.price);
     }
   });
 
-  it('buys back below the asking price', () => {
-    const dear = marketStock(playingState()).sort((a, b) => b.price - a.price)[0]!;
-    expect(sellPrice(dear, false)).toBeLessThan(dear.price);
-    expect(sellPrice(dear, true)).toBeGreaterThan(sellPrice(dear, false));
-    for (const item of marketStock(playingState())) {
-      expect(sellPrice(item, false)).toBeGreaterThanOrEqual(1);
+  it('gates high-realm goods off a beginner shelf', () => {
+    const s = playableState();
+    const gated = ITEMS.find((i) => i.minRealm !== undefined && i.minRealm !== 'chen');
+    expect(gated).toBeDefined();
+    expect(marketStock(s).some((i) => i.id === gated!.id)).toBe(false);
+  });
+
+  it('always sells back for less than it costs — the shop is not an exploit', () => {
+    const s = playableState();
+    for (const item of marketStock(s).slice(0, 12)) {
+      expect(sellPrice(item)).toBeLessThan(buyPrice(s, item));
+      expect(sellPrice(item)).toBe(Math.max(1, Math.floor(item.price * SELL_RATE)));
     }
   });
 
-  it('moves coin and goods in the right directions on a purchase', () => {
-    let s = playingState();
-    s.character!.coin = 400;
+  it('buying moves coin into the satchel', () => {
+    const s = withCharacter(playableState(), { coin: 1000 });
     const item = marketStock(s)[0]!;
-    const before = s.character!.coin;
-    const held = countItem(s.character!, item.id);
-
-    s = executeCommand(s, { kind: 'buy', itemId: item.id, count: 2 });
-
-    expect(countItem(s.character!, item.id)).toBe(held + 2);
-    expect(s.character!.coin).toBe(before - item.price * 2);
+    const cost = buyPrice(s, item);
+    const out = buy(s, item.id, 2);
+    expect(out.ok).toBe(true);
+    expect(s.character!.coin).toBe(1000 - cost * 2);
+    expect(countOf(s.character!, item.id)).toBe(2);
   });
 
   it('refuses a purchase the purse cannot cover', () => {
-    let s = playingState();
-    s.character!.coin = 0;
-    const item = marketStock(s).sort((a, b) => b.price - a.price)[0]!;
-    const held = countItem(s.character!, item.id);
-    s = executeCommand(s, { kind: 'buy', itemId: item.id });
-    expect(countItem(s.character!, item.id)).toBe(held);
-    expect(s.character!.coin).toBe(0);
-  });
-
-  it('will not sell what is not in the satchel', () => {
-    let s = playingState();
-    const before = s.character!.coin;
-    s = executeCommand(s, { kind: 'sell', itemId: 'curio_wuziqi' });
-    expect(s.character!.coin).toBe(before);
-  });
-
-  it('round-trips a purchase and a sale at a loss', () => {
-    let s = playingState();
-    s.character!.coin = 400;
+    const s = withCharacter(playableState(), { coin: 0 });
     const item = marketStock(s)[0]!;
-    const held = countItem(s.character!, item.id);
-    s = executeCommand(s, { kind: 'buy', itemId: item.id });
-    const mid = s.character!.coin;
-    s = executeCommand(s, { kind: 'sell', itemId: item.id });
-    expect(s.character!.coin).toBeGreaterThan(mid);
-    expect(s.character!.coin).toBeLessThan(400);
-    expect(countItem(s.character!, item.id)).toBe(held);
+    expect(buy(s, item.id).ok).toBe(false);
+    expect(countOf(s.character!, item.id)).toBe(0);
+  });
+
+  it('refuses nonsensical quantities', () => {
+    const s = withCharacter(playableState(), { coin: 1000 });
+    const item = marketStock(s)[0]!;
+    expect(buy(s, item.id, 0).ok).toBe(false);
+    expect(buy(s, item.id, -3).ok).toBe(false);
+    expect(buy(s, item.id, 1.5).ok).toBe(false);
+  });
+
+  it('refuses to sell what is not in the satchel', () => {
+    const s = withCharacter(playableState(), { coin: 100, inventory: [] });
+    expect(sell(s, 'tea_cuya').ok).toBe(false);
+  });
+
+  it('sells no more than you actually hold', () => {
+    const s = withCharacter(playableState(), { coin: 0, inventory: [] });
+    addToInventory(s.character!, 'tea_cuya', 2);
+    const out = sell(s, 'tea_cuya', 10);
+    expect(out.ok).toBe(true);
+    expect(countOf(s.character!, 'tea_cuya')).toBe(0);
+    expect(s.character!.coin).toBe(sellPrice(getItem('tea_cuya')!) * 2);
+  });
+});
+
+describe('行囊 — the satchel', () => {
+  it('stacks rather than duplicating', () => {
+    const s = playableState();
+    const c = s.character!;
+    c.inventory = [];
+    addToInventory(c, 'tea_cuya', 1);
+    addToInventory(c, 'tea_cuya', 3);
+    expect(c.inventory).toHaveLength(1);
+    expect(countOf(c, 'tea_cuya')).toBe(4);
+  });
+
+  it('splices an emptied stack out rather than leaving a zero', () => {
+    const s = playableState();
+    const c = s.character!;
+    c.inventory = [];
+    addToInventory(c, 'tea_cuya', 2);
+    expect(removeFromInventory(c, 'tea_cuya', 5)).toBe(2);
+    expect(c.inventory.every((st) => st.count > 0)).toBe(true);
+    expect(countOf(c, 'tea_cuya')).toBe(0);
+  });
+
+  it('sorts the view by grade, best first', () => {
+    const s = playableState();
+    const c = s.character!;
+    c.inventory = [];
+    for (const item of ITEMS.slice(0, 8)) addToInventory(c, item.id, 1);
+    const view = satchelView(c);
+    for (let i = 1; i < view.length; i += 1) {
+      expect(view[i]!.item.grade).toBeLessThanOrEqual(view[i - 1]!.item.grade);
+    }
   });
 
   it('consumes a consumable and keeps a curio', () => {
-    let s = playingState();
-    const consumable = marketStock(s).find((i) => i.consumable)!;
-    addItem(s.character!, consumable.id, 1);
-    addItem(s.character!, 'curio_songzhi', 1);
-    const heldConsumable = countItem(s.character!, consumable.id);
-    const heldCurio = countItem(s.character!, 'curio_songzhi');
-
-    s = executeCommand(s, { kind: 'use', itemId: consumable.id });
-    expect(countItem(s.character!, consumable.id)).toBe(heldConsumable - 1);
-
-    s = executeCommand(s, { kind: 'use', itemId: 'curio_songzhi' });
-    expect(countItem(s.character!, 'curio_songzhi')).toBe(heldCurio);
-  });
-
-  it('keeps the satchel free of empty stacks', () => {
-    const s = playingState();
-    addItem(s.character!, 'curio_songzhi', 2);
-    expect(removeItem(s.character!, 'curio_songzhi', 2)).toBe(2);
-    expect(s.character!.inventory.some((x) => x.itemId === 'curio_songzhi')).toBe(false);
-    expect(removeItem(s.character!, 'curio_songzhi', 1)).toBe(0);
-  });
-
-  it('a market season costs a season', () => {
-    const s0 = playingState();
-    const s = executeCommand(s0, { kind: 'market' });
-    expect(s.turn).toBe(s0.turn + 1);
-  });
-});
-
-describe('赠礼与好感 — how spirits warm', () => {
-  it('will not gift to someone who is not here', () => {
-    let s = playingState();
-    const elsewhere = Object.values(s.spirits).find((x) => x.home !== s.placeId)!;
-    addItem(s.character!, 'gift_jiuhu', 1);
-    s = executeCommand(s, { kind: 'gift', spiritId: elsewhere.id, itemId: 'gift_jiuhu' });
-    expect(s.spirits[elsewhere.id]!.favor).toBe(elsewhere.favor);
-    expect(countItem(s.character!, 'gift_jiuhu')).toBe(1);
-  });
-
-  it('spends the gift and raises favour for a being who is present', () => {
-    let s = playingState();
-    const here = Object.values(s.spirits).find((x) => x.home === s.placeId && x.minRealm === 'chen');
-    if (!here) return;
-    const before = here.favor;
-    addItem(s.character!, 'gift_jiuhu', 1);
-
-    s = executeCommand(s, { kind: 'gift', spiritId: here.id, itemId: 'gift_jiuhu' });
-
-    expect(s.spirits[here.id]!.favor).toBeGreaterThan(before);
-    expect(countItem(s.character!, 'gift_jiuhu')).toBe(0);
-  });
-
-  it('clamps favour to the -50…100 band', () => {
-    const s = playingState();
-    const id = Object.keys(s.spirits)[0]!;
-    addFavor(s, id, 10_000);
-    expect(s.spirits[id]!.favor).toBe(100);
-    addFavor(s, id, -10_000);
-    expect(s.spirits[id]!.favor).toBe(-50);
-  });
-
-  it('marks a being as met the first time favour moves', () => {
-    const s = playingState();
-    const id = Object.keys(s.spirits)[0]!;
-    expect(s.spirits[id]!.met).toBe(false);
-    addFavor(s, id, 1);
-    expect(s.spirits[id]!.met).toBe(true);
-  });
-
-  it('ignores favour aimed at nobody', () => {
-    const s = playingState();
-    expect(addFavor(s, 'no_such_spirit', 30)).toBe(0);
-  });
-});
-
-describe('棋谱 — 参谱 and 悟谱', () => {
-  it('discounts manuals for the 博览 origin', () => {
-    const plain = playingState(undefined, 'shusheng', EVEN_ALLOC);
-    const reader = playingState(undefined, 'guyi', EVEN_ALLOC);
-    const id = 'manual_mingpu_songfeng';
-    expect(reader.character!.originId).toBe('guyi');
-    expect(manualCost(reader, id)).toBeLessThan(manualCost(plain, id));
-  });
-
-  it('refuses a manual the board is not ready for', () => {
-    let s = playingState();
-    s.character!.insight = 999;
-    s.character!.chessDao = 0;
-    const hard = getManual('manual_tianpu_taixu')!;
-    s = executeCommand(s, { kind: 'learn', manualId: hard.id });
-    expect(s.character!.manuals).not.toContain(hard.id);
-    expect(s.character!.insight).toBe(999);
-  });
-
-  it('refuses a manual there is not enough 悟 for', () => {
-    let s = playingState();
-    s.character!.insight = 0;
-    s.character!.chessDao = 100;
-    const m = 'manual_mingpu_shuiyue';
-    expect(s.character!.manuals).not.toContain(m);
-    s = executeCommand(s, { kind: 'learn', manualId: m });
-    expect(s.character!.manuals).not.toContain(m);
-  });
-
-  it('spends 悟, records the manual and starts studying it', () => {
-    let s = playingState();
-    s.character!.insight = 200;
-    s.character!.chessDao = 60;
-    const m = getManual('manual_gupu_lanke')!;
-    const cost = manualCost(s, m.id);
-
-    s = executeCommand(s, { kind: 'learn', manualId: m.id });
-
-    expect(s.character!.manuals).toContain(m.id);
-    expect(s.character!.studyingId).toBe(m.id);
-    expect(s.character!.insight).toBe(200 - cost);
-    expect(s.stats.manualsLearned).toBe(s.character!.manuals.length);
-  });
-
-  it('will not learn the same manual twice', () => {
-    let s = playingState();
-    s.character!.insight = 200;
-    s.character!.chessDao = 60;
-    s = executeCommand(s, { kind: 'learn', manualId: 'manual_gupu_lanke' });
-    const after = s.character!.insight;
-    s = executeCommand(s, { kind: 'learn', manualId: 'manual_gupu_lanke' });
-    expect(s.character!.insight).toBe(after);
-    expect(s.character!.manuals.filter((x) => x === 'manual_gupu_lanke')).toHaveLength(1);
-  });
-
-  it('only lets you 参 a manual you have actually comprehended', () => {
-    let s = playingState();
-    const before = s.character!.studyingId;
-    s = executeCommand(s, { kind: 'study', manualId: 'manual_tianpu_taixu' });
-    expect(s.character!.studyingId).toBe(before);
-  });
-
-  it('explains why each unlearned manual is out of reach', () => {
-    const s = playingState();
-    s.character!.chessDao = 0;
-    s.character!.insight = 0;
-    const list = learnableManuals(s);
-    expect(list.length).toBeGreaterThan(0);
-    for (const entry of list) {
-      expect(s.character!.manuals).not.toContain(entry.id);
-      expect(entry.reason).not.toBeNull();
-      expect(entry.cost).toBeGreaterThan(0);
-    }
-  });
-
-  it('drops the reason once the requirements are met', () => {
-    const s = playingState();
-    s.character!.chessDao = 100;
-    s.character!.insight = 9999;
-    expect(learnableManuals(s).every((e) => e.reason === null)).toBe(true);
-  });
-});
-
-describe('applyEffect — one door for every consequence', () => {
-  it('reports what it changed and clamps the meters it touches', () => {
-    const s = playingState();
+    const consumable = ITEMS.find((i) => i.consumable === true && i.effect);
+    const curio = ITEMS.find((i) => i.consumable !== true && i.effect);
+    expect(consumable && curio).toBeTruthy();
+    const s = playableState();
     const c = s.character!;
-    c.dust = 5;
-
-    const report = applyEffect(s, {
-      narrative: '—',
-      exp: 20,
-      insight: 3,
-      coin: 40,
-      chessDao: 5,
-      dust: -100,
-    });
-
-    expect(report.lines.length).toBeGreaterThan(0);
-    expect(c.dust).toBe(0);
-    expect(c.insight).toBe(3 + 0);
-    expect(c.coin).toBeGreaterThanOrEqual(40);
+    c.inventory = [];
+    addToInventory(c, consumable!.id, 1);
+    addToInventory(c, curio!.id, 1);
+    expect(useItem(s, consumable!.id).ok).toBe(true);
+    expect(countOf(c, consumable!.id)).toBe(0);
+    expect(useItem(s, curio!.id).ok).toBe(true);
+    expect(countOf(c, curio!.id)).toBe(1);
   });
 
-  it('hands over items and teaches manuals', () => {
-    const s = playingState();
-    applyEffect(s, {
-      narrative: '—',
-      items: [{ itemId: 'curio_songzhi', count: 2 }],
-      teachManual: 'manual_canpu_wuwei',
-    });
-    expect(countItem(s.character!, 'curio_songzhi')).toBe(2);
-    expect(s.character!.manuals).toContain('manual_canpu_wuwei');
+  it('refuses to use what is not held, or what does nothing', () => {
+    const s = playableState();
+    s.character!.inventory = [];
+    expect(useItem(s, 'tea_cuya').ok).toBe(false);
+    expect(useItem(s, 'no_such_item').ok).toBe(false);
+  });
+});
+
+describe('精怪录 — favour', () => {
+  it('clamps favour to its published band', () => {
+    const s = playableState();
+    adjustFavor(s, 'jinggui', 9999);
+    expect(s.spirits.jinggui!.favor).toBe(FAVOR_MAX);
+    adjustFavor(s, 'jinggui', -9999);
+    expect(s.spirits.jinggui!.favor).toBe(FAVOR_MIN);
   });
 
-  it('passes a match and an ending back to the caller instead of acting alone', () => {
-    const s = playingState();
-    const report = applyEffect(s, {
-      narrative: '—',
-      match: 'chaguan_laozhang',
-      ending: 'end_wuming',
-    });
-    expect(report.match).toBe('chaguan_laozhang');
-    expect(report.ending).toBe('end_wuming');
-    expect(s.phase).toBe('playing');
+  it('ignores an unknown being instead of throwing', () => {
+    const s = playableState();
+    expect(adjustFavor(s, '灶王爷', 10)).toBeNull();
   });
 
-  it('adds a mood that later expires', () => {
-    const s = playingState();
-    applyEffect(s, {
-      narrative: '—',
-      mood: { id: 'test_mood', name: '试心', kind: 'boon', turnsLeft: 2, desc: '—' },
-    });
-    expect(s.character!.moods.some((m) => m.id === 'test_mood')).toBe(true);
+  it('marks a being as met the first time favour turns positive', () => {
+    const s = playableState();
+    expect(s.spirits.jinggui!.met).not.toBe(true);
+    adjustFavor(s, 'jinggui', 5);
+    expect(s.spirits.jinggui!.met).toBe(true);
   });
 
-  it('never lets an item id it does not know into the satchel', () => {
-    const s = playingState();
-    applyEffect(s, { narrative: '—', items: [{ itemId: 'ghost_item', count: 1 }] });
-    for (const stack of s.character!.inventory) {
-      expect(getItem(stack.itemId), stack.itemId).toBeDefined();
-    }
+  it('fires each threshold exactly once, however often favour is nudged', () => {
+    const s = playableState();
+    adjustFavor(s, 'jinggui', 100);
+    const crossedOnce = [...(s.spirits.jinggui!.crossed ?? [])];
+    adjustFavor(s, 'jinggui', 5);
+    expect(s.spirits.jinggui!.crossed).toEqual(crossedOnce);
+  });
+
+  it('counts a being as 相识 only at the published threshold', () => {
+    const s = playableState();
+    adjustFavor(s, 'jinggui', BEFRIENDED_AT - 1);
+    expect(countBefriended(s)).toBe(0);
+    adjustFavor(s, 'jinggui', 1);
+    expect(countBefriended(s)).toBe(1);
+    expect(s.stats.spiritsBefriended).toBe(1);
+    expect(maxFavor(s)).toBe(BEFRIENDED_AT);
+  });
+
+  it('shows only beings whose home is here and whose realm gate is open', () => {
+    const s = playableState();
+    for (const being of spiritsHere(s)) expect(being.home).toBe(s.placeId);
+    expect(visibleSpirits(s).length).toBeGreaterThanOrEqual(spiritsHere(s).length);
+  });
+
+  it('gifts an item to a being who is present, and refuses one who is not', () => {
+    const s = playableState();
+    const c = s.character!;
+    c.inventory = [];
+    addToInventory(c, 'tea_cuya', 2);
+    const before = s.spirits.jinggui!.favor;
+    expect(giftItem(s, 'jinggui', 'tea_cuya').ok).toBe(true);
+    expect(s.spirits.jinggui!.favor).toBeGreaterThan(before);
+    expect(countOf(c, 'tea_cuya')).toBe(1);
+    expect(giftItem(s, 'zhuxian', 'tea_cuya').ok).toBe(false);
   });
 });

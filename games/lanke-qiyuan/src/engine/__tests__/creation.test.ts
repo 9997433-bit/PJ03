@@ -1,194 +1,247 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_COURTESY,
-  DEFAULT_NAME,
-  QIYUAN_LOTTERY,
-  allocateAttributes,
-  chooseOrigin,
-  lookupQiYuanRow,
+  ATTR_MAX,
+  ATTR_MIN,
+  ATTR_TOTAL,
+  drawChessAffinity,
   newGame,
-  resolveChessAffinity,
-  rollChessAffinity,
-  setIdentity,
-} from '@/engine/creation';
-import { ATTR_MAX, ATTR_MIN, ATTR_TOTAL, validateAllocation } from '@/engine/attributes';
-import { ALL_AFFINITIES } from '@/engine/types';
-import { EVEN_ALLOC, playingState } from './helpers';
+  setAttributes,
+  setName,
+  setOrigin,
+  validateAllocation,
+} from '../creation';
+import { QIYUAN_TABLE, qiYuanRowFor } from '@/data/qiyuan';
+import { ORIGINS } from '@/data/origins';
+import { mapHiddenRollToYuanFa } from '../attributes';
+import { SEALED_REASON_MARKER } from '../rng';
 
-describe('creation — the 棋缘 lottery table', () => {
-  it('covers 1..100 with no gap or overlap', () => {
-    for (let d = 1; d <= 100; d++) {
-      const matches = QIYUAN_LOTTERY.filter((r) => d >= r.min && d <= r.max);
-      expect(matches, `D100=${d}`).toHaveLength(1);
-    }
-  });
+const EVEN = { xinJing: 7, wuXing: 7, caiXue: 7, qiYun: 7 };
 
-  it('rises monotonically in speed and board bonus', () => {
-    for (let i = 1; i < QIYUAN_LOTTERY.length; i++) {
-      expect(QIYUAN_LOTTERY[i]!.speedMultiplier).toBeGreaterThan(
-        QIYUAN_LOTTERY[i - 1]!.speedMultiplier,
-      );
-      expect(QIYUAN_LOTTERY[i]!.boardBonus).toBeGreaterThanOrEqual(
-        QIYUAN_LOTTERY[i - 1]!.boardBonus,
-      );
-    }
-  });
-
-  it('maps the extremes to the expected grades', () => {
-    expect(lookupQiYuanRow(1).grade).toBe('顽石之缘');
-    expect(lookupQiYuanRow(100).grade).toBe('太虚棋缘');
-  });
-
-  it('throws on an impossible roll', () => {
-    expect(() => lookupQiYuanRow(0)).toThrow(/棋缘天数溢出/);
-    expect(() => lookupQiYuanRow(101)).toThrow();
-  });
-
-  it('draws the right number of distinct affinities', () => {
-    for (const row of QIYUAN_LOTTERY) {
-      const affinity = resolveChessAffinity(row.min, () => 0);
-      expect(affinity.affinities).toHaveLength(row.affinityCount);
-      expect(new Set(affinity.affinities).size).toBe(row.affinityCount);
-      for (const a of affinity.affinities) expect(ALL_AFFINITIES).toContain(a);
-    }
-  });
-
-  it('records the roll that produced it', () => {
-    expect(resolveChessAffinity(77, () => 1).rollValue).toBe(77);
-  });
-});
-
-describe('creation — attribute allocation rules', () => {
-  it('accepts a lawful spread', () => {
-    expect(validateAllocation(EVEN_ALLOC)).toBeNull();
-  });
-
-  it('rejects a wrong total', () => {
-    expect(validateAllocation({ ...EVEN_ALLOC, xinJing: 8 })).toContain(String(ATTR_TOTAL));
-  });
-
-  it('rejects values outside the per-item band', () => {
-    expect(
-      validateAllocation({ xinJing: ATTR_MAX + 1, wuXing: 4, caiXue: 4, qiYun: 9 }),
-    ).toContain(`${ATTR_MIN}–${ATTR_MAX}`);
-  });
-
-  it('rejects non-integers', () => {
-    expect(validateAllocation({ ...EVEN_ALLOC, wuXing: 7.5, caiXue: 6.5 })).not.toBeNull();
-  });
-});
-
-describe('creation — the four-step gate', () => {
-  it('starts in the creation phase at step 0 with an opening narration', () => {
-    const s = newGame('棋-gate');
+describe('creation — the step gate lives in the engine', () => {
+  it('starts a new life parked at step 0 in the creation phase', () => {
+    const s = newGame('种子');
     expect(s.phase).toBe('creation');
     expect(s.creationStep).toBe(0);
     expect(s.character).toBeNull();
-    expect(s.narrativeLog.length).toBeGreaterThan(0);
   });
 
-  it('refuses to skip straight to the origin', () => {
-    const s = chooseOrigin(newGame('棋-skip'), 'shusheng');
+  it('refuses 出身 before a name exists', () => {
+    const s = newGame('种子');
+    expect(setOrigin(s, 'qiguan').ok).toBe(false);
     expect(s.creationStep).toBe(0);
-    expect(s.creationDraft?.originId).toBeNull();
   });
 
-  it('refuses to skip straight to attributes or the draw', () => {
-    const base = newGame('棋-skip2');
-    expect(allocateAttributes(base, EVEN_ALLOC).creationStep).toBe(0);
-    expect(rollChessAffinity(base).creationStep).toBe(0);
-  });
-
-  it('falls back to default names when given blanks', () => {
-    const s = setIdentity(newGame('棋-blank'), '   ', '');
-    expect(s.creationDraft?.name).toBe(DEFAULT_NAME);
-    expect(s.creationDraft?.courtesy).toBe(DEFAULT_COURTESY);
-  });
-
-  it('trims over-long names', () => {
-    const s = setIdentity(newGame('棋-long'), '一二三四五六七八九十', '甲乙丙丁戊己庚辛壬');
-    expect(s.creationDraft!.name.length).toBeLessThanOrEqual(8);
-    expect(s.creationDraft!.courtesy.length).toBeLessThanOrEqual(8);
-  });
-
-  it('will not revisit a completed step', () => {
-    let s = setIdentity(newGame('棋-once'), '甲', '乙');
-    s = setIdentity(s, '丙', '丁');
-    expect(s.creationDraft?.name).toBe('甲');
+  it('refuses 心性 before an origin exists', () => {
+    const s = newGame('种子');
+    setName(s, '王质', '');
+    expect(setAttributes(s, EVEN).ok).toBe(false);
     expect(s.creationStep).toBe(1);
   });
 
-  it('rejects an unknown origin', () => {
-    const s = chooseOrigin(setIdentity(newGame('棋-bad'), '甲', '乙'), 'no_such_origin');
-    expect(s.creationStep).toBe(1);
+  it('refuses the 棋缘 draw before attributes are allocated', () => {
+    const s = newGame('种子');
+    setName(s, '王质', '');
+    setOrigin(s, 'qiguan');
+    expect(drawChessAffinity(s).ok).toBe(false);
+    expect(s.creationStep).toBe(2);
   });
 
-  it('applies origin modifiers on top of the allocation', () => {
-    let s = setIdentity(newGame('棋-mods'), '甲', '乙');
-    s = chooseOrigin(s, 'shusheng'); // 才学 +3, 悟性 +1, 气韵 −1
-    s = allocateAttributes(s, EVEN_ALLOC);
-    expect(s.creationDraft!.attributes).toEqual({
-      xinJing: 7,
-      wuXing: 8,
-      caiXue: 10,
-      qiYun: 6,
-    });
+  it('refuses a second name once the step has advanced', () => {
+    const s = newGame('种子');
+    setName(s, '王质', '');
+    expect(setName(s, '别人', '').ok).toBe(false);
+    expect(s.creationDraft?.name).toBe('王质');
   });
 
-  it('reaches the playing phase with a fully-formed character', () => {
-    const s = playingState();
+  it('refuses an empty name', () => {
+    const s = newGame('种子');
+    expect(setName(s, '   ', '').ok).toBe(false);
+  });
+
+  it('refuses an over-long name', () => {
+    const s = newGame('种子');
+    expect(setName(s, '一'.repeat(13), '').ok).toBe(false);
+  });
+
+  it('defaults the 道号 to 无名 when left blank', () => {
+    const s = newGame('种子');
+    setName(s, '王质', '');
+    expect(s.creationDraft?.courtesy).toBe('无名');
+  });
+
+  it('refuses an unknown origin id', () => {
+    const s = newGame('种子');
+    setName(s, '王质', '');
+    expect(setOrigin(s, 'no-such-origin').ok).toBe(false);
+  });
+
+  it('refuses a second 棋缘 draw — 落子无悔', () => {
+    const s = newGame('种子');
+    setName(s, '王质', '');
+    setOrigin(s, 'qiguan');
+    setAttributes(s, EVEN);
+    expect(drawChessAffinity(s).ok).toBe(true);
+    expect(drawChessAffinity(s).ok).toBe(false);
+  });
+});
+
+describe('creation — attribute budget', () => {
+  it('accepts an even split of the exact budget', () => {
+    expect(validateAllocation(EVEN)).toBeNull();
+  });
+
+  it('rejects a total below the budget', () => {
+    expect(validateAllocation({ ...EVEN, qiYun: 6 })).not.toBeNull();
+  });
+
+  it('rejects a total above the budget', () => {
+    expect(validateAllocation({ ...EVEN, qiYun: 8 })).not.toBeNull();
+  });
+
+  it('rejects a value under the floor', () => {
+    expect(validateAllocation({ xinJing: ATTR_MIN - 1, wuXing: 10, caiXue: 10, qiYun: 5 })).not.toBeNull();
+  });
+
+  it('rejects a value over the ceiling', () => {
+    expect(validateAllocation({ xinJing: ATTR_MAX + 1, wuXing: 6, caiXue: 6, qiYun: 5 })).not.toBeNull();
+  });
+
+  it('rejects non-integers', () => {
+    expect(validateAllocation({ ...EVEN, wuXing: 7.5, caiXue: 6.5 })).not.toBeNull();
+  });
+
+  it('conserves the budget across every legal split it accepts', () => {
+    for (let a = ATTR_MIN; a <= ATTR_MAX; a++) {
+      for (let b = ATTR_MIN; b <= ATTR_MAX; b++) {
+        for (let c = ATTR_MIN; c <= ATTR_MAX; c++) {
+          const d = ATTR_TOTAL - a - b - c;
+          const alloc = { xinJing: a, wuXing: b, caiXue: c, qiYun: d };
+          if (validateAllocation(alloc) === null) {
+            expect(a + b + c + d).toBe(ATTR_TOTAL);
+            expect(d).toBeGreaterThanOrEqual(ATTR_MIN);
+            expect(d).toBeLessThanOrEqual(ATTR_MAX);
+          }
+        }
+      }
+    }
+  });
+});
+
+describe('creation — the 棋缘 draw table', () => {
+  it('covers 1..100 with no gap and no overlap', () => {
+    for (let d = 1; d <= 100; d++) {
+      const hits = QIYUAN_TABLE.filter((r) => d >= r.min && d <= r.max);
+      expect(hits, `D100=${d}`).toHaveLength(1);
+    }
+  });
+
+  it('rises monotonically in speed as the roll rises', () => {
+    for (let i = 1; i < QIYUAN_TABLE.length; i++) {
+      expect(QIYUAN_TABLE[i]!.speedMultiplier).toBeGreaterThan(QIYUAN_TABLE[i - 1]!.speedMultiplier);
+    }
+  });
+
+  it('throws for an out-of-range roll', () => {
+    expect(() => qiYuanRowFor(101)).toThrow();
+  });
+
+  it('draws as many distinct 灵机 as the grade promises', () => {
+    for (const origin of ORIGINS) {
+      const s = newGame(`灵机-${origin.id}`);
+      setName(s, '王质', '');
+      setOrigin(s, origin.id);
+      setAttributes(s, EVEN);
+      const drawn = drawChessAffinity(s);
+      const affinity = drawn.affinity!;
+      const row = qiYuanRowFor(affinity.rollValue);
+      expect(affinity.affinities).toHaveLength(row.affinityCount);
+      expect(new Set(affinity.affinities).size).toBe(row.affinityCount);
+    }
+  });
+});
+
+describe('creation — the sealed 缘法 roll', () => {
+  it('maps the hidden D100 into 1..10', () => {
+    for (let d = 1; d <= 100; d++) {
+      const v = mapHiddenRollToYuanFa(d);
+      expect(v).toBeGreaterThanOrEqual(1);
+      expect(v).toBeLessThanOrEqual(10);
+    }
+  });
+
+  it('is monotonic in the hidden roll', () => {
+    for (let d = 2; d <= 100; d++) {
+      expect(mapHiddenRollToYuanFa(d)).toBeGreaterThanOrEqual(mapHiddenRollToYuanFa(d - 1));
+    }
+  });
+
+  it('records exactly one sealed roll and never reveals it', () => {
+    const s = newGame('暗掷');
+    setName(s, '王质', '');
+    setOrigin(s, 'guyi');
+    setAttributes(s, EVEN);
+    drawChessAffinity(s);
+    const sealed = s.rolls.filter((r) => r.sealed === true);
+    expect(sealed).toHaveLength(1);
+    expect(sealed[0]!.reason).toContain(SEALED_REASON_MARKER);
+    // 缘法's value must not surface anywhere in the narrative log.
+    const text = s.narrativeLog.map((e) => e.text).join('');
+    expect(text).not.toContain('缘法');
+  });
+});
+
+describe('creation — finalize', () => {
+  it('produces a playable character on the first season', () => {
+    const s = newGame('落定');
+    setName(s, '王质', '观棋子');
+    setOrigin(s, 'shusheng');
+    setAttributes(s, EVEN);
+    drawChessAffinity(s);
     expect(s.phase).toBe('playing');
     expect(s.creationStep).toBe(4);
     expect(s.creationDraft).toBeNull();
     expect(s.turn).toBe(1);
+    expect(s.character?.name).toBe('王质');
+  });
+
+  it('applies origin modifiers, starting coin and the perk flag', () => {
+    const s = newGame('出身');
+    setName(s, '王质', '');
+    setOrigin(s, 'shusheng');
+    setAttributes(s, EVEN);
+    drawChessAffinity(s);
     const c = s.character!;
-    expect(c.name).toBe('计缘');
-    expect(c.courtesy).toBe('青竹');
-    expect(c.spirit).toBe(c.maxSpirit);
-    expect(c.realm.realm).toBe('chen');
-    expect(c.realm.stage).toBe('初境');
-    expect(c.dust).toBe(0);
-  });
-
-  it('grants the origin its starting kit', () => {
-    const c = playingState().character!;
+    // 落第书生: 才学 +3, 悟性 +1, 气韵 −1
+    expect(c.attributes.caiXue).toBe(10);
+    expect(c.attributes.wuXing).toBe(8);
+    expect(c.attributes.qiYun).toBe(6);
     expect(c.coin).toBe(30);
-    expect(c.inventory.map((i) => i.itemId)).toContain('brush_qingyu');
-    expect(c.manuals).toContain('manual_canpu_shuangyan');
-    expect(c.studyingId).toBe('manual_canpu_shuangyan');
+    expect(c.flags['识文断字']).toBe(true);
   });
 
-  it('seals the hidden 缘法 roll and keeps it off every narrated line', () => {
-    const s = playingState();
-    const sealed = s.rolls.filter((r) => r.sealed);
-    expect(sealed).toHaveLength(1);
-    expect(sealed[0]!.reason).toContain('缘法暗掷');
-    const yuanFa = s.character!.attributes.yuanFa;
-    expect(yuanFa).toBeGreaterThanOrEqual(1);
-    expect(yuanFa).toBeLessThanOrEqual(10);
-    for (const line of s.narrativeLog) {
-      expect(line.text).not.toContain('缘法:');
-      expect(line.text).not.toContain(`缘法${yuanFa}`);
+  it('starts every origin with full 心神 and no 心尘', () => {
+    for (const origin of ORIGINS) {
+      const s = newGame(`起手-${origin.id}`);
+      setName(s, '王质', '');
+      setOrigin(s, origin.id);
+      setAttributes(s, EVEN);
+      drawChessAffinity(s);
+      const c = s.character!;
+      expect(c.spirit).toBe(c.maxSpirit);
+      expect(c.dust).toBe(0);
+      expect(c.chessDao).toBe(origin.startChessDao);
     }
   });
 
-  it('is fully deterministic for a given seed', () => {
-    const a = playingState('棋-determinism');
-    const b = playingState('棋-determinism');
-    expect(a.character!.chessAffinity).toEqual(b.character!.chessAffinity);
-    expect(a.character!.attributes.yuanFa).toBe(b.character!.attributes.yuanFa);
-    expect(a.rngState).toBe(b.rngState);
-  });
-
-  it('gives different lives to different seeds', () => {
-    const seeds = ['棋-1', '棋-2', '棋-3', '棋-4', '棋-5', '棋-6'];
-    const grades = seeds.map((s) => playingState(s).character!.chessAffinity.rollValue);
-    expect(new Set(grades).size).toBeGreaterThan(1);
-  });
-
-  it('refuses a second draw of the 棋缘', () => {
-    const s = playingState();
-    const again = rollChessAffinity(s);
-    expect(again.character!.chessAffinity).toEqual(s.character!.chessAffinity);
+  it('replays byte-for-byte from the same seed', () => {
+    const build = () => {
+      const s = newGame('确定性');
+      setName(s, '王质', '观棋子');
+      setOrigin(s, 'daotong');
+      setAttributes(s, { xinJing: 10, wuXing: 8, caiXue: 6, qiYun: 4 });
+      drawChessAffinity(s);
+      return s;
+    };
+    expect(JSON.stringify(build())).toBe(JSON.stringify(build()));
   });
 });

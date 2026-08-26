@@ -12,187 +12,171 @@ import {
   rollPick,
   rollRange,
   rollWeighted,
-} from '@/engine/rng';
-import { playingState } from './helpers';
+  SEALED_REASON_MARKER,
+} from '../rng';
+import { playableState } from './helpers';
+import type { Die } from '../types';
 
 describe('rng — pure primitives', () => {
-  it('derives a stable 8-char hex state from a seed', () => {
-    const state = initRngState('烂柯');
-    expect(state).toMatch(/^[0-9a-f]{8}$/);
-    expect(initRngState('烂柯')).toBe(state);
+  it('derives the same initial state from the same seed', () => {
+    expect(initRngState('烂柯')).toBe(initRngState('烂柯'));
   });
 
-  it('gives different states for different seeds', () => {
-    expect(initRngState('甲')).not.toBe(initRngState('乙'));
+  it('derives different states from different seeds', () => {
+    expect(initRngState('烂柯')).not.toBe(initRngState('烂柯 '));
+  });
+
+  it('encodes state as 8 hex characters', () => {
+    expect(initRngState('x')).toMatch(/^[0-9a-f]{8}$/);
   });
 
   it('rejects a corrupt state string', () => {
-    expect(() => nextFloat('not-hex')).toThrow(/corrupt state/);
+    expect(() => nextFloat('zzzz')).toThrow(/corrupt/);
   });
 
   it('produces floats inside [0,1)', () => {
-    let s = initRngState('float');
-    for (let i = 0; i < 200; i++) {
-      const { value, state } = nextFloat(s);
-      expect(value).toBeGreaterThanOrEqual(0);
-      expect(value).toBeLessThan(1);
-      s = state;
+    let s = initRngState('浮点');
+    for (let i = 0; i < 500; i++) {
+      const step = nextFloat(s);
+      expect(step.value).toBeGreaterThanOrEqual(0);
+      expect(step.value).toBeLessThan(1);
+      s = step.state;
     }
   });
 
-  it('advances the state on every draw', () => {
-    const s0 = initRngState('advance');
-    const { state: s1 } = nextFloat(s0);
-    const { state: s2 } = nextFloat(s1);
-    expect(s1).not.toBe(s0);
-    expect(s2).not.toBe(s1);
-  });
-
-  it('keeps every die inside its face range', () => {
-    let s = initRngState('dice');
-    for (const die of ['D100', 'D20', 'D6'] as const) {
-      for (let i = 0; i < 300; i++) {
-        const { value, state } = rollDie(s, die);
-        expect(Number.isInteger(value)).toBe(true);
-        expect(value).toBeGreaterThanOrEqual(1);
-        expect(value).toBeLessThanOrEqual(DIE_SIDES[die]);
-        s = state;
-      }
-    }
-  });
-
-  it('exposes matching helpers for each die', () => {
-    const s = initRngState('helpers');
-    expect(rollD100(s).value).toBe(rollDie(s, 'D100').value);
-    expect(rollD20(s).value).toBe(rollDie(s, 'D20').value);
-    expect(rollD6(s).value).toBe(rollDie(s, 'D6').value);
-  });
-
-  it('replays identically from the same seed', () => {
-    const draw = (seed: string) => {
-      let s = initRngState(seed);
+  it('replays an identical sequence from the same seed', () => {
+    const run = (): number[] => {
+      let s = initRngState('复盘');
       const out: number[] = [];
-      for (let i = 0; i < 40; i++) {
-        const r = rollDie(s, 'D100');
-        out.push(r.value);
-        s = r.state;
+      for (let i = 0; i < 60; i++) {
+        const step = rollDie(s, 'D100');
+        out.push(step.value);
+        s = step.state;
       }
       return out;
     };
-    expect(draw('replay')).toEqual(draw('replay'));
-    expect(draw('replay')).not.toEqual(draw('other'));
+    expect(run()).toEqual(run());
   });
 
-  it('covers the whole D6 face range over many draws', () => {
-    let s = initRngState('coverage');
+  it('keeps every die inside its face range', () => {
+    const dice: Die[] = ['D100', 'D20', 'D6'];
+    for (const die of dice) {
+      let s = initRngState(`范围-${die}`);
+      for (let i = 0; i < 400; i++) {
+        const step = rollDie(s, die);
+        expect(step.value).toBeGreaterThanOrEqual(1);
+        expect(step.value).toBeLessThanOrEqual(DIE_SIDES[die]);
+        s = step.state;
+      }
+    }
+  });
+
+  it('covers the whole D6 face set over many rolls', () => {
+    let s = initRngState('六面');
     const seen = new Set<number>();
-    for (let i = 0; i < 500; i++) {
-      const r = rollDie(s, 'D6');
-      seen.add(r.value);
-      s = r.state;
+    for (let i = 0; i < 300; i++) {
+      const step = rollD6(s);
+      seen.add(step.value);
+      s = step.state;
     }
     expect([...seen].sort()).toEqual([1, 2, 3, 4, 5, 6]);
   });
+
+  it('advances the state on every roll', () => {
+    const a = initRngState('推进');
+    const b = rollD20(a).state;
+    const c = rollD100(b).state;
+    expect(new Set([a, b, c]).size).toBe(3);
+  });
 });
 
-describe('rng — the audited gateway', () => {
-  it('records every roll with its reason and pre-roll state', () => {
-    const s = playingState();
-    const before = s.rngState;
-    const value = roll(s, 'D20', '测试掷');
-    const record = s.rolls[s.rolls.length - 1]!;
-    expect(record.value).toBe(value);
-    expect(record.reason).toBe('测试掷');
+describe('rng — audited gateway', () => {
+  it('appends a numbered record with the pre-roll state', () => {
+    const state = playableState();
+    const before = state.rngState;
+    const count = state.rolls.length;
+    roll(state, 'D20', '试掷');
+    expect(state.rolls).toHaveLength(count + 1);
+    const record = state.rolls[state.rolls.length - 1]!;
     expect(record.seedState).toBe(before);
-    expect(s.rngState).not.toBe(before);
+    expect(record.reason).toBe('试掷');
+    expect(record.die).toBe('D20');
   });
 
-  it('numbers rolls monotonically and counts them', () => {
-    const s = playingState();
-    const startCount = s.stats.totalRolls;
-    roll(s, 'D6', 'a');
-    roll(s, 'D6', 'b');
-    roll(s, 'D6', 'c');
-    const ids = s.rolls.map((r) => r.id);
-    expect([...ids].sort((x, y) => x - y)).toEqual(ids);
-    expect(s.stats.totalRolls).toBe(startCount + 3);
+  it('gives every roll a strictly increasing id', () => {
+    const state = playableState();
+    for (let i = 0; i < 20; i++) roll(state, 'D6', `序-${i}`);
+    for (let i = 1; i < state.rolls.length; i++) {
+      expect(state.rolls[i]!.id).toBeGreaterThan(state.rolls[i - 1]!.id);
+    }
   });
 
-  it('seals rolls whose reason carries 暗掷', () => {
-    const s = playingState();
-    roll(s, 'D100', '缘法暗掷');
-    expect(s.rolls[s.rolls.length - 1]!.sealed).toBe(true);
+  it('seals any roll whose reason carries 暗掷', () => {
+    const state = playableState();
+    roll(state, 'D100', `缘法·${SEALED_REASON_MARKER}`);
+    expect(state.rolls[state.rolls.length - 1]!.sealed).toBe(true);
   });
 
   it('leaves ordinary rolls unsealed', () => {
-    const s = playingState();
-    roll(s, 'D100', '寻常一掷');
-    expect(s.rolls[s.rolls.length - 1]!.sealed).toBeUndefined();
+    const state = playableState();
+    roll(state, 'D100', '明掷');
+    expect(state.rolls[state.rolls.length - 1]!.sealed).toBeUndefined();
   });
 
-  it('keeps rollRange inside its bounds and annotates the reason', () => {
-    const s = playingState();
-    for (let i = 0; i < 60; i++) {
-      const v = rollRange(s, 3, 9, '范围');
+  it('counts every roll in the life statistics', () => {
+    const state = playableState();
+    const before = state.stats.totalRolls;
+    roll(state, 'D6', 'a');
+    roll(state, 'D6', 'b');
+    expect(state.stats.totalRolls).toBe(before + 2);
+  });
+
+  it('keeps rollRange inside the requested bounds', () => {
+    const state = playableState();
+    for (let i = 0; i < 200; i++) {
+      const v = rollRange(state, 3, 9, '区间');
       expect(v).toBeGreaterThanOrEqual(3);
       expect(v).toBeLessThanOrEqual(9);
     }
-    expect(s.rolls[s.rolls.length - 1]!.reason).toContain('〔3–9〕');
-  });
-
-  it('handles an inverted rollRange by swapping the bounds', () => {
-    const s = playingState();
-    const v = rollRange(s, 9, 3, '倒置');
-    expect(v).toBeGreaterThanOrEqual(3);
-    expect(v).toBeLessThanOrEqual(9);
   });
 
   it('picks only from the supplied options', () => {
-    const s = playingState();
-    const options = ['松', '竹', '云'];
-    for (let i = 0; i < 40; i++) {
-      expect(options).toContain(rollPick(s, options, '取一'));
+    const state = playableState();
+    const options = ['松', '竹', '云'] as const;
+    for (let i = 0; i < 100; i++) {
+      expect(options).toContain(rollPick(state, options, '抽'));
     }
   });
 
-  it('throws when asked to pick from nothing', () => {
-    const s = playingState();
-    expect(() => rollPick(s, [], '空')).toThrow();
-    expect(() => rollWeighted(s, [], '空')).toThrow();
+  it('refuses an empty pick', () => {
+    const state = playableState();
+    expect(() => rollPick(state, [], '空')).toThrow();
   });
 
-  it('honours weights, never returning a zero-weight entry', () => {
-    const s = playingState();
-    const entries = [
-      { item: 'never', weight: 0 },
-      { item: 'always', weight: 5 },
-    ];
-    for (let i = 0; i < 50; i++) {
-      expect(rollWeighted(s, entries, '加权')).toBe('always');
-    }
-  });
-
-  it('spreads a weighted draw roughly in proportion', () => {
-    const s = playingState();
-    const counts = { a: 0, b: 0 };
-    for (let i = 0; i < 600; i++) {
-      const pick = rollWeighted(
-        s,
-        [
-          { item: 'a' as const, weight: 9 },
-          { item: 'b' as const, weight: 1 },
-        ],
-        '比例',
+  it('honours weights, favouring the heavy entry', () => {
+    const state = playableState();
+    let heavy = 0;
+    for (let i = 0; i < 400; i++) {
+      const picked = rollWeighted(
+        state,
+        [{ item: 'heavy', weight: 9 }, { item: 'light', weight: 1 }],
+        '权重',
       );
-      counts[pick] += 1;
+      if (picked === 'heavy') heavy += 1;
     }
-    expect(counts.a).toBeGreaterThan(counts.b * 3);
+    expect(heavy).toBeGreaterThan(300);
   });
 
-  it('generates distinct, prefixed seeds', () => {
-    const a = generateSeed();
-    const b = generateSeed();
-    expect(a.startsWith('棋-')).toBe(true);
-    expect(a).not.toBe(b);
+  it('refuses a weighted pick with no positive weights', () => {
+    const state = playableState();
+    expect(() => rollWeighted(state, [{ item: 'x', weight: 0 }], '零')).toThrow();
+  });
+
+  it('generates a seed carrying the 棋 prefix', () => {
+    expect(generateSeed().startsWith('棋-')).toBe(true);
+  });
+
+  it('generates distinct seeds on consecutive calls', () => {
+    expect(generateSeed()).not.toBe(generateSeed());
   });
 });

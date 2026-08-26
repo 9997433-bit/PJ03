@@ -4,7 +4,7 @@
  * 修为 accrues from four multiplied factors, all of them visible on the
  * 命盘 so the player can reason about the number:
  *
- *   base(境界) × 棋缘 × 参谱 × 心境状态 × (1 + 悟性/25) × (1 − 心尘/200)
+ *   base(境界) × 棋缘 × 参谱 × 心境状态 × (1 + 悟性/25) × 心尘系数
  *
  * plus a D6 of scatter. Stage-ups inside a realm are automatic; only the jump
  * BETWEEN realms is a gamble (see breakthrough.ts).
@@ -17,10 +17,13 @@ import { addDust, addExp, addSpirit, formatRealm, note, pickBy, say } from './pr
 import { CULTIVATE_LINES } from './prose';
 import { roll } from './rng';
 import type { Character, GameState, Mood } from './types';
-import { STAGES } from './types';
+import { MAX_DUST, STAGES } from './types';
 
 /** 修炼 costs this much 心神 before any modifier. */
 export const CULTIVATE_SPIRIT_COST = 12;
+
+/** 心尘 slows cultivation but never stops it — a filthy mind still crawls forward. */
+export const MIN_DUST_PENALTY = 0.4;
 
 export interface SpeedBreakdown {
   base: number;
@@ -40,7 +43,10 @@ export function speedBreakdown(c: Character): SpeedBreakdown {
   let mood = 1;
   for (const m of c.moods) mood *= m.speedMult ?? 1;
   const comprehension = 1 + c.attributes.wuXing / 25;
-  const dustPenalty = Math.max(0.4, 1 - c.dust / 200);
+  const dustPenalty = Math.max(
+    MIN_DUST_PENALTY,
+    1 - ((1 - MIN_DUST_PENALTY) * c.dust) / MAX_DUST,
+  );
   const total = base * affinity * manual * mood * comprehension * dustPenalty;
   return { base, affinity, manual, mood, comprehension, dustPenalty, total };
 }

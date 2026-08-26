@@ -287,6 +287,26 @@ export const ITEMS: readonly ItemDef[] = [
     effect: { teachManual: 'manual_tianpu_wuzi', insight: 4 },
     hidden: true,
   },
+  {
+    id: 'curio_lankepu',
+    name: '烂柯残卷',
+    kind: 'manual',
+    grade: 3,
+    price: 0,
+    desc: '樵夫从山上带下来的半册。纸边烧过,棋形却还看得清。',
+    effect: { teachManual: 'manual_gupu_lanke', insight: 2 },
+    hidden: true,
+  },
+  {
+    id: 'curio_songfengpu',
+    name: '松风谱',
+    kind: 'manual',
+    grade: 4,
+    price: 0,
+    desc: '抄谱的人手很稳。翻页时有松针落下来的声气。',
+    effect: { teachManual: 'manual_mingpu_songfeng', insight: 3 },
+    hidden: true,
+  },
 
   // -------------------------------------------------------- 茶 tea (续)
   {
