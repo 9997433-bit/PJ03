@@ -20,6 +20,7 @@ import { enemyById } from '@/data/enemies';
 import { itemById } from '@/data/items';
 import { realmDef } from '@/data/realms';
 import { derive } from './derived';
+import { creditDeed } from './progression';
 import { roll, rollRange } from './rng';
 import type {
   CombatAction,
@@ -105,8 +106,12 @@ function finishWin(state: GameState, enemy: EnemyDef): LogEntry[] {
     out.push(
       entry(state.turn, '劫', `劫相溃散。劫运 −${vent},历劫所得修为 +${expGain}。`, 'violet'),
     );
+    out.push(...creditDeed(state, 'calamity'));
     state.phase = 'playing';
     state.combat = null;
+  } else {
+    // A duel won on the sect's behalf. Beating your betters counts for more.
+    out.push(...creditDeed(state, 'duel', 1 + enemy.realmOrder * 0.5));
   }
   return out;
 }
@@ -289,6 +294,7 @@ export function resolveSpoils(state: GameState, choice: SpoilsChoice): LogEntry[
         'violet',
       ),
     );
+    out.push(...creditDeed(state, 'extinguish'));
   } else if (choice === '饶恕') {
     c.merit += enemy.merit;
     adjustCalamity(state, -2);
@@ -296,6 +302,7 @@ export function resolveSpoils(state: GameState, choice: SpoilsChoice): LogEntry[
     out.push(
       entry(state.turn, '系统', `你收了手。功德 +${enemy.merit},劫运 −2,分文未取。`, 'calm'),
     );
+    out.push(...creditDeed(state, 'spare'));
   } else {
     const stones = rollRange(state, enemy.stones[0], enemy.stones[1], '战利·灵石');
     c.spiritStones += stones;

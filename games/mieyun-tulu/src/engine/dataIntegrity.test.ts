@@ -151,6 +151,22 @@ describe('content · 交叉引用无悬空', () => {
     }
   });
 
+  it('every sect pays 声望 for something a member can actually go and do', () => {
+    // Ranks are the only gate on 道统之主, so a sect whose 门规 credits nothing
+    // is a career ladder with the rungs sawn off.
+    for (const sect of SECTS) {
+      const deeds = Object.values(sect.creed);
+      expect(deeds.some((v) => v > 0), `${sect.name} rewards no deed`).toBe(true);
+      // The top rank has to be payable inside a lifetime by repeating the deed
+      // the sect likes best, or the ladder is decorative.
+      const best = Math.max(...deeds);
+      const top = sect.ranks[sect.ranks.length - 1]!.reputation;
+      expect(top / best, `${sect.name}: ${top} 声望 at ${best}/deed is out of reach`).toBeLessThan(
+        120,
+      );
+    }
+  });
+
   it('every mitigation cost item exists', () => {
     for (const m of MITIGATIONS) {
       if (m.cost.itemId) expect(ITEM_IDS).toContain(m.cost.itemId);

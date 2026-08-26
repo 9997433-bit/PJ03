@@ -29,6 +29,7 @@ import {
 import { enemyById } from '@/data/enemies';
 import { realmDef } from '@/data/realms';
 import { derive } from './derived';
+import { creditDeed } from './progression';
 import { roll, weightedPick } from './rng';
 import type {
   CalamityStrike,
@@ -328,6 +329,7 @@ export function dissolveCalamity(state: GameState, id: MitigationId): LogEntry[]
     c.calamity.dissolved += 1;
     state.stats.calamitiesDissolved += 1;
     out.push(entry(state.turn, '劫', `化解成:劫运 −${def.relief}。`, 'violet'));
+    out.push(...creditDeed(state, 'calamity'));
   } else {
     adjustCalamity(state, 2);
     out.push(entry(state.turn, '劫', '化解不成。做过的事,不是散点财就能抹掉的。劫运 +2。', 'danger'));

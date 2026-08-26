@@ -17,7 +17,7 @@ import { SECTS, sectById } from '@/data/sects';
 import { ROUTE_BY_ID, techniqueById, TECHNIQUES } from '@/data/techniques';
 import { derive } from './derived';
 import { roll } from './rng';
-import type { GameState, LogEntry, TechniqueNode } from './types';
+import type { GameState, LogEntry, SectCreed, TechniqueNode } from './types';
 import { addItem, clamp, entry } from './util';
 
 // ============================================================================
@@ -187,6 +187,34 @@ export function leaveSect(state: GameState): LogEntry[] {
   c.reputation = Math.round(c.reputation * 0.4);
   c.merit -= 10;
   return [entry(state.turn, '图录', `自 ${name} 除名。声望折半,功德 −10。`, 'danger')];
+}
+
+/**
+ * Credit (or debit) the 声望 ledger for a deed the character's sect cares about.
+ * A non-member does nothing worth reporting to anybody, so this is a no-op.
+ * Returns the entries to fold into whatever log the deed already produces.
+ */
+export function creditDeed(
+  state: GameState,
+  deed: keyof SectCreed,
+  multiplier = 1,
+): LogEntry[] {
+  const c = state.character!;
+  const sect = sectById(c.sectId);
+  if (!sect) return [];
+  const delta = Math.round(sect.creed[deed] * multiplier * derive(c).reputationMult);
+  if (delta === 0) return [];
+  const before = c.reputation;
+  c.reputation = Math.max(0, c.reputation + delta);
+  if (c.reputation === before) return [];
+  return [
+    entry(
+      state.turn,
+      '系统',
+      `${sect.name}记了这一笔:声望 ${delta > 0 ? '+' : ''}${c.reputation - before}(共 ${c.reputation})。`,
+      delta > 0 ? 'normal' : 'danger',
+    ),
+  ];
 }
 
 /** Upkeep hook: pay the stipend and promote when the 声望 ledger allows. */

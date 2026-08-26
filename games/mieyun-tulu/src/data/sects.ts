@@ -21,6 +21,8 @@ export const SECTS: readonly SectDef[] = [
     discount: 0.12,
     maxCalamity: 58,
     minMerit: -20,
+    // 不惹事,也不怕事 — pays for standing your ground, indifferent to the aftermath.
+    creed: { duel: 4, spare: 1, extinguish: -1, calamity: 5 },
     ranks: [
       { reputation: 25, title: '记名弟子', reward: { stones: 120 } },
       { reputation: 70, title: '内门弟子', reward: { stones: 400, itemId: 'huiyuandan' } },
@@ -39,6 +41,8 @@ export const SECTS: readonly SectDef[] = [
     discount: 0.08,
     maxCalamity: 46,
     minMerit: 20,
+    // 只问来意 — the hand you stayed counts for more than the one you raised.
+    creed: { duel: 1, spare: 7, extinguish: -12, calamity: 4 },
     ranks: [
       { reputation: 25, title: '沙弥', reward: { merit: 20 } },
       { reputation: 70, title: '比丘', reward: { stones: 300, merit: 30 } },
@@ -57,6 +61,8 @@ export const SECTS: readonly SectDef[] = [
     discount: 0.06,
     maxCalamity: 100,
     minMerit: -400,
+    // 取得回来的算本事 — only the taking is counted, and mercy is a debit.
+    creed: { duel: 3, spare: -4, extinguish: 9, calamity: 3 },
     ranks: [
       { reputation: 25, title: '血奴', reward: { stones: 200 } },
       { reputation: 70, title: '执刀', reward: { stones: 600, itemId: 'wuleifu' } },
@@ -75,6 +81,8 @@ export const SECTS: readonly SectDef[] = [
     discount: 0.16,
     maxCalamity: 52,
     minMerit: 0,
+    // 修的是「谁该长生」 — the学宫 grades the judgement, not the swordsmanship.
+    creed: { duel: 2, spare: 5, extinguish: -6, calamity: 5 },
     ranks: [
       { reputation: 25, title: '游学士', reward: { stones: 260 } },
       { reputation: 70, title: '登堂士', reward: { stones: 700, itemId: 'ningqidan' } },
@@ -93,6 +101,8 @@ export const SECTS: readonly SectDef[] = [
     discount: 0.1,
     maxCalamity: 75,
     minMerit: -60,
+    // 九百年只研究气运 — a 劫 walked through and written up is the whole discipline.
+    creed: { duel: 1, spare: 2, extinguish: 2, calamity: 9 },
     ranks: [
       { reputation: 25, title: '录事', reward: { stones: 200, itemId: 'xingguipan' } },
       { reputation: 70, title: '推步', reward: { stones: 640, itemId: 'ningshendan' } },

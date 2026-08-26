@@ -351,6 +351,31 @@ export interface SectDef {
   maxCalamity: number;
   /** Sects that refuse a character below this 功德. */
   minMerit: number;
+  /** What this sect actually pays 声望 for. See `SectCreed`. */
+  creed: SectCreed;
+}
+
+/**
+ * 门规 — the deeds a sect counts, in 声望 per occurrence.
+ *
+ * Ranks are the only thing gating 道统之主, and before this existed the ledger
+ * had no repeatable income at all: 声望 arrived solely from a handful of random
+ * events worth ~10 each, against a 320 requirement for the top rank. Members
+ * now earn it by doing the sect's kind of work, which is also the only reading
+ * of 「声望」 the descriptions ever supported.
+ *
+ * A negative entry is a sect that holds the deed against you — 大梵寺 does not
+ * want its 沙弥 out extinguishing people's 气运.
+ */
+export interface SectCreed {
+  /** Winning a duel, scaled by the opponent's realm order. */
+  duel: number;
+  /** Sparing a beaten opponent. */
+  spare: number;
+  /** Extinguishing one. */
+  extinguish: number;
+  /** Coming through a 劫 alive, by either surviving or dissolving it. */
+  calamity: number;
 }
 
 export interface SectRank {
