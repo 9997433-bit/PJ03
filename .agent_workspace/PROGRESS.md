@@ -24,8 +24,8 @@
 | Round | 状态 | 6 子代理 | 结论简报 |
 |-------|------|----------|----------|
 | R1 | ✅ 完成 | 2×fable + 2×opus-fast + 2×gpt-sol | [ROUND1_BRIEF.md](./ROUND1_BRIEF.md) |
-| R2 | ✅ 完成 | 2×fable + 2×opus-fast + 2×gpt-sol | 四款全部可打包 |
-| R3 | ⏳ 待启动 | — | — |
+| R2 | ✅ 完成 | 2×fable + 2×opus-fast + 2×gpt-sol | [ROUND2_BRIEF.md](./ROUND2_BRIEF.md) |
+| R3 | 🔄 进行中 | 2×fable + 2×opus-fast + 2×gpt-sol | — |
 
 ## Round 1 子代理分工
 
