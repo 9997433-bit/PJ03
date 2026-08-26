@@ -57,8 +57,21 @@
 - ⚠️ 根游戏缺口（R2/R3 备选补课）：结局 16 定义仅 5 接线（data/endings.ts 未入引擎）；lifecycle.advanceTime/rest 死代码双轨；缺 prefers-reduced-motion
 - ⚠️ 硬约束：同源部署下 localStorage 共享 —— 各游戏 SAVE_KEY/SAVE_MAGIC 必须唯一（lanke_save_v1 / mieyun_save_v1 / daojun_save_v1）；结局须「引擎接线可达」而非仅存数据
 
+## Round 2 进展（进行中）
+
+| 代理 | 状态 | 要点 |
+|------|------|------|
+| R2-S1 道君 | ✅ | 98 测试 · 40 事件 · e2e/smoke 5/5 · `daojun_save_v1` |
+| R2-S2 流水线 | 🔄 | export 脚本加固 · mortal+daojun zip 已产出 |
+| R2-F1/F2 文档 | 🔄 | lanke PLAN · briefs 三份 · packages/engine-core 脚手架 |
+| R2-O1 烂柯 | 🔄 | engine 26 文件已扩 · **仍缺 app/UI** |
+| R2-O2 灭运 | 🔄 | **仍缺 app/** · build/test 失败 |
+
+当前可打包游玩：凡人 + 道君（`dist/zips/`）
+
 ## 日志
 - 2026-08-26: 初始化分支与 PROGRESS.md，启动 Round 1（6 并发子代理）
 - 2026-08-26: R1-S2 添加 monorepo 构建、测试、打包、基准脚本及根级 smoke test
 - 2026-08-26: R1-S2 完成 Mortal 基线；工具链能隔离 workspace 类型检查并聚合报告子游戏失败
 - 2026-08-26: R1-F2 完成代码审计与 SOTA 验收标准；补交三份 per-game briefs
+- 2026-08-26: R2-S1 道君 SOTA 打磨完成（98 测试，探针全绿）
