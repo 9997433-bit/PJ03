@@ -4,7 +4,7 @@ export type DaoPath = (typeof DAO_PATHS)[number];
 export const ACTIONS = ['悟道', '凝纹', '斗法', '占地', '突破'] as const;
 export type CoreAction = (typeof ACTIONS)[number];
 
-export const REALMS = ['炼气', '筑基', '金丹', '元婴', '化神', '合道', '道君'] as const;
+export const REALMS = ['观纹', '铭纹', '织络', '凝魂', '御土', '合道', '道君'] as const;
 
 export type OriginId = 'mountain' | 'clan' | 'wanderer' | 'fallen';
 export type VowId = 'guard' | 'freedom' | 'supreme' | 'mercy';

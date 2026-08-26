@@ -267,7 +267,7 @@ export function performAction(current: GameState, action: CoreAction): ActionRes
       const loot = 10 + Math.floor(margin / 8);
       state.territory.spiritStones += loot;
       c.reputation += 3;
-      message = `斗法得胜，夺得 ${loot} 灵石。`;
+      message = `斗法得胜，夺得 ${loot} 玄玉。`;
       log(state, message, 'good');
     } else {
       const wound = Math.min(28, 7 + Math.ceil(Math.abs(margin) / 7));

@@ -208,7 +208,7 @@ function TerritoryPanel({ state, onUseItem }: { state: GameState; onUseItem: (id
         <div className="resource-grid">
           <div><span>掌控</span><b>{t.control}%</b></div>
           <div><span>粮草</span><b>{t.food}</b></div>
-          <div><span>灵石</span><b>{t.spiritStones}</b></div>
+          <div><span>玄玉</span><b>{t.spiritStones}</b></div>
           <div><span>威势</span><b>{t.influence}</b></div>
         </div>
       </section>

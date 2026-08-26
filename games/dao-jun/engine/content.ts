@@ -91,7 +91,7 @@ export const EVENTS: GameEvent[] = [
   event('duel-thunder-beast', '雷泽凶兽', '六足雷兽从泽中跃起，背脊电芒照亮百丈泥沼。', '斗法',
     choice('夺取雷角', '雷角落手，掌心仍有电弧跳跃。', { health: -10, item: 'thunder-horn', influence: 5 }),
     choice('引雷炼魂', '你借凶兽之雷洗练神魂。', { soul: -10, maxSoul: 8, stability: 5 })),
-  event('duel-debt-collector', '旧债新仇', '一名散修认错了人，执意要你偿还十年前的灵石债。', '斗法',
+  event('duel-debt-collector', '旧债新仇', '一名散修认错了人，执意要你偿还十年前的玄玉债。', '斗法',
     choice('以力服人', '误会在拳掌之间讲清了。', { reputation: -3, spiritStones: 10, karma: -3 }),
     choice('查清账册', '真正的欠债者浮出水面。', { influence: 8, reputation: 4 })),
   event('duel-fallen-guardian', '失控守傀', '古遗迹守傀重启，将每个靠近者都视作盗墓贼。', '斗法',
@@ -130,7 +130,7 @@ export const EVENTS: GameEvent[] = [
     choice('答以本心', '答案没有对错，本心因此澄澈。', { harmony: 12, karma: 3 }),
     choice('沉默证道', '你以一身气机作答。', { soul: -8, maxSoul: 6 })),
   event('break-cracked-core', '道基生隙', '冲关余波在道基上留下一道细微裂隙。', '突破',
-    choice('立刻弥合', '大量灵石化作粉尘，裂隙终于闭合。', { spiritStones: -20, health: 8, stability: 5 }),
+    choice('立刻弥合', '大量玄玉化作粉尘，裂隙终于闭合。', { spiritStones: -20, health: 8, stability: 5 }),
     choice('以隙纳雷', '裂隙吞入雷光，危险中藏着新路。', { health: -9, insight: 11 })),
   event('break-world-whisper', '天地低语', '境界松动时，整片领地的风都在重复你的名号。', '突破',
     choice('回应天地', '你的意志沿地脉扩散。', { influence: 12, control: 7, soul: -7 }),
@@ -193,7 +193,7 @@ export const ENDINGS: Ending[] = [
 
 export const ORIGINS: Record<OriginId, { name: string; description: string }> = {
   mountain: { name: '山村遗孤', description: '体魄坚韧，知晓土地与饥寒。' },
-  clan: { name: '世家旁支', description: '携灵石入道，也背负家族目光。' },
+  clan: { name: '世家旁支', description: '携玄玉入道，也背负家族目光。' },
   wanderer: { name: '江湖散修', description: '见惯人心，声望与因果皆由己取。' },
   fallen: { name: '破宗余脉', description: '守着残卷与一段未雪旧恨。' },
 };
