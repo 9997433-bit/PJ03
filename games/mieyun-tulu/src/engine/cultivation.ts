@@ -16,7 +16,7 @@ import { STAGES } from '@/data/realms';
 import { derive } from './derived';
 import { roll } from './rng';
 import type { GameState, LogEntry, RealmState, Stage } from './types';
-import { clamp, entry } from './util';
+import { adjustCalamity, clamp, entry } from './util';
 
 /** Exp required to fill the character's *current* layer or stage. */
 export function expNeededFor(realm: RealmState): number {
@@ -107,7 +107,7 @@ export function cultivate(state: GameState): LogEntry[] {
       const hpLoss = Math.round(c.maxHp * 0.3);
       c.realm.exp = Math.max(0, c.realm.exp - loss);
       c.hp = Math.max(0, c.hp - hpLoss);
-      c.calamity.value = clamp(c.calamity.value + 3, 0, 100);
+      adjustCalamity(state, 3);
       out.push(
         entry(
           state.turn,
@@ -141,7 +141,7 @@ export function seclude(state: GameState): LogEntry[] {
   const c = state.character!;
   const gain = cultivationGain(state) * 3;
   const crossed = advanceProgress(state, gain);
-  c.calamity.value = clamp(c.calamity.value + 4, 0, 100);
+  adjustCalamity(state, 4);
   c.hp = Math.max(1, c.hp - Math.round(c.maxHp * 0.1));
   const out = [
     entry(state.turn, '系统', `闭死关三载,得修为 ${gain};出关时枯瘦如柴。劫运 +4。`, 'normal'),

@@ -44,7 +44,7 @@ import type {
   SpoilsChoice,
   TurnResult,
 } from './types';
-import { clamp, cloneState, countItem, entry, pushLog, round1 } from './util';
+import { adjustCalamity, clamp, cloneState, countItem, entry, pushLog, round1 } from './util';
 
 // ============================================================================
 // Commands
@@ -192,7 +192,7 @@ function runUpkeep(state: GameState): LogEntry[] {
   // 推演过深
   if (state.stats.divinations >= 25 && !c.flags.tianjiLost) {
     c.flags.tianjiLost = true;
-    c.calamity.value = clamp(c.calamity.value + 8, 0, 100);
+    adjustCalamity(state, 8);
     out.push(
       entry(state.turn, '天机', '看得太多了。你开始记不清哪些是看过的,哪些是过过的。劫运 +8。', 'danger'),
     );

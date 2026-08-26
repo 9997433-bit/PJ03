@@ -19,7 +19,7 @@ import { expNeededFor, isReadyForBreakthrough, realmLabel } from './cultivation'
 import { derive, lifespanFor } from './derived';
 import { roll } from './rng';
 import type { GameState, Injury, LogEntry } from './types';
-import { clamp, entry } from './util';
+import { adjustCalamity, clamp, entry } from './util';
 
 export interface BreakthroughOdds {
   ready: boolean;
@@ -105,7 +105,7 @@ export function attemptBreakthrough(state: GameState): LogEntry[] {
     c.mana = d.maxMana;
 
     const gain = Math.round(target.calamityOnEntry * d.calamityRate);
-    c.calamity.value = clamp(c.calamity.value + gain, 0, 100);
+    adjustCalamity(state, gain);
     c.fortune = clamp(c.fortune + Math.round(4 * d.fortuneGainMult), 0, 100);
 
     if (realmDef(c.realm.realm).order > realmDef(state.stats.peakRealm).order) {
@@ -129,7 +129,7 @@ export function attemptBreakthrough(state: GameState): LogEntry[] {
   const f = target.failure;
   const lost = Math.round(c.realm.exp * f.expLoss);
   c.realm.exp = Math.max(0, c.realm.exp - lost);
-  c.calamity.value = clamp(c.calamity.value + 3, 0, 100);
+  adjustCalamity(state, 3);
   out.push(entry(state.turn, '系统', `破关失手:折修为 ${lost},劫运 +3。`, 'danger'));
 
   if (f.deathChance > 0) {

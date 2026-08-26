@@ -54,3 +54,25 @@ export function removeItem(inventory: ItemStack[], itemId: string, count: number
 export function countItem(inventory: readonly ItemStack[], itemId: string): number {
   return inventory.find((s) => s.itemId === itemId)?.count ?? 0;
 }
+
+/**
+ * The only writer of 劫运.
+ *
+ * `checkInvariants` asserts `peak >= value`, so a module that raised the meter
+ * without also raising the high-water mark would not merely record a wrong
+ * statistic — the resolver would find the state unlawful and roll the whole
+ * turn back. Routing every adjustment through here keeps meter, peak and run
+ * statistics in step by construction.
+ *
+ * Returns the change actually applied after clamping to 0..100, which is the
+ * number the narrator should report.
+ */
+export function adjustCalamity(state: GameState, delta: number): number {
+  const c = state.character;
+  if (!c) return 0;
+  const before = c.calamity.value;
+  c.calamity.value = clamp(round1(before + delta), 0, 100);
+  c.calamity.peak = Math.max(c.calamity.peak, c.calamity.value);
+  state.stats.peakCalamity = Math.max(state.stats.peakCalamity, c.calamity.value);
+  return round1(c.calamity.value - before);
+}

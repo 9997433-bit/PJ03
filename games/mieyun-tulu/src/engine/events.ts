@@ -36,7 +36,7 @@ import {
   type LogEntry,
   type ResolvedChoice,
 } from './types';
-import { addItem, clamp, countItem, entry, removeItem } from './util';
+import { addItem, adjustCalamity, clamp, countItem, entry, removeItem } from './util';
 
 // ============================================================================
 // 定桶
@@ -188,8 +188,7 @@ export function applyEventEffect(state: GameState, fx: EventEffect): LogEntry[] 
   }
   if (fx.calamity) {
     const scaled = fx.calamity > 0 ? Math.round(fx.calamity * d.calamityRate) : fx.calamity;
-    c.calamity.value = clamp(c.calamity.value + scaled, 0, 100);
-    c.calamity.peak = Math.max(c.calamity.peak, c.calamity.value);
+    adjustCalamity(state, scaled);
     notes.push(`劫运 ${scaled > 0 ? '+' : '−'}${Math.abs(scaled)}`);
   }
   if (fx.merit) {

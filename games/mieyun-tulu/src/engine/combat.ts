@@ -28,7 +28,7 @@ import type {
   LogEntry,
   SpoilsChoice,
 } from './types';
-import { addItem, clamp, countItem, entry, removeItem } from './util';
+import { addItem, adjustCalamity, clamp, countItem, entry, removeItem } from './util';
 
 export const COMBAT_ACTIONS: readonly CombatAction[] = ['出手', '术法', '用符', '遁走'];
 
@@ -96,7 +96,7 @@ function finishWin(state: GameState, enemy: EnemyDef): LogEntry[] {
   if (enemy.isCalamity) {
     const c = state.character!;
     const vent = combat.vent > 0 ? combat.vent : 20;
-    c.calamity.value = clamp(c.calamity.value - vent, 0, 100);
+    adjustCalamity(state, -vent);
     c.calamity.survived += 1;
     state.stats.calamitiesSurvived += 1;
     delete c.flags.pendingStrike;
@@ -130,7 +130,7 @@ function finishLoss(state: GameState, enemy: EnemyDef): LogEntry[] {
     const lost = Math.round(c.spiritStones * 0.5);
     c.spiritStones -= lost;
     c.hp = 1;
-    c.calamity.value = clamp(c.calamity.value + 2, 0, 100);
+    adjustCalamity(state, 2);
     out.push(
       entry(
         state.turn,
@@ -274,7 +274,7 @@ export function resolveSpoils(state: GameState, choice: SpoilsChoice): LogEntry[
     const gain = Math.round(enemy.fortune * d.extinguishMult * d.fortuneGainMult);
     const cost = Math.round(enemy.fortune * 0.55);
     c.fortune = clamp(c.fortune + gain, 0, 100);
-    c.calamity.value = clamp(c.calamity.value + cost, 0, 100);
+    adjustCalamity(state, cost);
     c.merit -= enemy.merit;
     c.extinguishCount += 1;
     state.stats.extinguished += 1;
@@ -291,7 +291,7 @@ export function resolveSpoils(state: GameState, choice: SpoilsChoice): LogEntry[
     );
   } else if (choice === '饶恕') {
     c.merit += enemy.merit;
-    c.calamity.value = clamp(c.calamity.value - 2, 0, 100);
+    adjustCalamity(state, -2);
     c.sparedCount += 1;
     out.push(
       entry(state.turn, '系统', `你收了手。功德 +${enemy.merit},劫运 −2,分文未取。`, 'calm'),

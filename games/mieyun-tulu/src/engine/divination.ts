@@ -32,7 +32,7 @@ import type {
   GameState,
   LogEntry,
 } from './types';
-import { clamp, cloneState, entry, round1 } from './util';
+import { adjustCalamity, clamp, cloneState, entry, round1 } from './util';
 
 export const DEPTH_LABELS: Record<DivinationDepth, string> = {
   shallow: '浅观',
@@ -201,8 +201,7 @@ export function divine(state: GameState, depth: DivinationDepth): LogEntry[] {
   // already include the cost of having looked.
   c.spiritStones -= cost.stones;
   c.mana = clamp(c.mana - cost.mana, 0, c.maxMana);
-  c.calamity.value = clamp(c.calamity.value + cost.calamity, 0, 100);
-  c.calamity.peak = Math.max(c.calamity.peak, c.calamity.value);
+  adjustCalamity(state, cost.calamity);
   const forecast = buildForecast(state, depth);
   state.stats.divinations += 1;
   c.flags.divinations = (Number(c.flags.divinations) || 0) + 1;

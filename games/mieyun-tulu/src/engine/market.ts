@@ -13,7 +13,7 @@ import { itemById, marketStock } from '@/data/items';
 import { realmDef } from '@/data/realms';
 import { derive } from './derived';
 import type { GameState, ItemDef, LogEntry } from './types';
-import { addItem, clamp, countItem, entry, removeItem } from './util';
+import { addItem, adjustCalamity, clamp, countItem, entry, removeItem } from './util';
 
 export const SELL_RATIO = 0.45;
 
@@ -125,7 +125,7 @@ export function useItem(state: GameState, itemId: string): LogEntry[] {
   }
   if (fx.calamity) {
     const v = Math.round(fx.calamity * (fx.calamity < 0 ? mult : 1));
-    c.calamity.value = clamp(c.calamity.value + v, 0, 100);
+    adjustCalamity(state, v);
     notes.push(`劫运 ${v > 0 ? '+' : '−'}${Math.abs(v)}`);
   }
   if (fx.merit) {

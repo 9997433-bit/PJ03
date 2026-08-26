@@ -38,7 +38,7 @@ import type {
   LogEntry,
   MitigationId,
 } from './types';
-import { clamp, countItem, entry, removeItem, round1 } from './util';
+import { adjustCalamity, clamp, countItem, entry, removeItem, round1 } from './util';
 
 // ============================================================================
 // 积累
@@ -111,7 +111,7 @@ export function resolveStrike(
   if (c.flags.jieWard) {
     delete c.flags.jieWard;
     const vented = Math.round(strike.vent * 0.6);
-    c.calamity.value = clamp(c.calamity.value - vented, 0, 100);
+    adjustCalamity(state, -vented);
     c.calamity.dissolved += 1;
     state.stats.calamitiesDissolved += 1;
     out.push(
@@ -176,7 +176,7 @@ export function resolveStrike(
   }
 
   const vent = Math.round(strike.vent * ventMultiplier);
-  c.calamity.value = clamp(c.calamity.value - vent, 0, 100);
+  adjustCalamity(state, -vent);
   c.calamity.survived += 1;
   state.stats.calamitiesSurvived += 1;
   out.push(entry(state.turn, '劫', `此劫已过。劫运 −${vent}。`, 'violet'));
@@ -324,12 +324,12 @@ export function dissolveCalamity(state: GameState, id: MitigationId): LogEntry[]
     entry(state.turn, '系统', `${def.name}:需 D100 ≤ ${target},掷得 ${d100}。`, 'normal'),
   );
   if (d100 <= target) {
-    c.calamity.value = clamp(c.calamity.value - def.relief, 0, 100);
+    adjustCalamity(state, -def.relief);
     c.calamity.dissolved += 1;
     state.stats.calamitiesDissolved += 1;
     out.push(entry(state.turn, '劫', `化解成:劫运 −${def.relief}。`, 'violet'));
   } else {
-    c.calamity.value = clamp(c.calamity.value + 2, 0, 100);
+    adjustCalamity(state, 2);
     out.push(entry(state.turn, '劫', '化解不成。做过的事,不是散点财就能抹掉的。劫运 +2。', 'danger'));
   }
   return out;
