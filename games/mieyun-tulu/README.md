@@ -21,7 +21,7 @@ that opts out; there is only how you choose to pay.
 npm install
 npm run dev            # http://localhost:3000
 npm run build          # static export → out/index.html
-npm test               # 412 tests
+npm test               # 415 tests
 npm run typecheck
 ```
 
@@ -54,6 +54,22 @@ dependency on anything but the browser. Saves live in `localStorage` under
 | 万法坊 | free | Buy, sell, use, equip. |
 | 习功法 | one year | Commit to a route, or deepen the one you walk. |
 | 归隐 | ends the run | Available from 窥命 onward, after the fifteenth year. |
+
+### Keyboard
+
+Number keys map to whatever is on screen and stand down while a text field has
+focus. `Esc` closes any open panel.
+
+| Situation | Keys |
+|---|---|
+| 行动 | `1` 修炼 · `2` 突破 · `3` 探索 · `4` 斗法 · `5` 坊市 · `6` 推演命数 · `7` 化解劫运 · `8` 闭关 · `9` 功法 |
+| 斗法中 | `1` 出手 · `2` 术法 · `3` 用符 · `4` 遁走 |
+| 战利 | `1` 灭运 · `2` 饶恕 · `3` 搜刮 |
+| 抉择 | `1`–`9` pick the nth affordable option |
+
+The scroll is an `aria-live="polite"` region, every icon button carries a label,
+and `prefers-reduced-motion` flattens the star-track drift and the calamity
+pulse to nothing.
 
 ## The mechanics that are specific to this game
 
@@ -120,6 +136,32 @@ in three coarse buckets and nothing finer. It is revealed as a number exactly
 once: on the ending screen, after the run is over. `seal.test.ts` asserts that
 no module outside the type, the roll and the seal itself ever touches the field.
 
+### 图录 — the chain nobody is told about
+
+The book the game is named after is not a reward for playing well; it is a
+separate route that only opens if the sealed 道缘 roll was generous, and it runs
+the length of a life:
+
+1. **异兆** finds you in 引气…玄光, but only at 道缘 ≥ 55. Nothing announces the
+   gate — a run below it simply never dreams of the book.
+2. **残卷现世** offers the first volume in a junk shop. Refusing is a real
+   choice, and it closes the route for good.
+3. **窃录之人** has the second and names two prices: 5000 灵石, or a duel with an
+   元神 who is well above you when he first appears. The event fires once.
+4. **一域之主** has the third. 洞真魔君 does not flee and does not lose, so the
+   other door is 等他的劫 — his own pillar has already been shortened, and a
+   定力 check decides what standing that close costs you, not whether you get
+   the volume.
+5. Holding all three wakes 《灭运图录》 on the next turn tick, which unlocks a
+   fifth technique route that stacks on top of whichever trunk you walk.
+6. Learn 启卷 → 观运篇 → 灭运真解, then step into 长生 — and the last realm
+   closes on 图录出世 instead of 长生.
+
+A volume counts the moment it is in your bag, however it got there; 搜刮 is the
+only spoils choice that takes loot, so 灭运 on 窃录之人 leaves the book behind.
+`reachability.test.ts` runs a 图录 hunter through the whole thing with nothing
+but legal commands, so the route is verified rather than asserted.
+
 ### 天机录 — an audited, checkable run
 
 Every die in the game is filed with an id, a turn, a face and a reason, and
@@ -163,7 +205,7 @@ four-rung ladders and a 门规 apiece · 13 named calamity strikes · 6 injuries
 
 ## Tests
 
-412 tests in 19 files (`npm test`). Beyond per-module coverage, four suites
+415 tests in 19 files (`npm test`). Beyond per-module coverage, four suites
 carry most of the weight:
 
 - `dataIntegrity.test.ts` — every cross-reference between data files resolves,
@@ -172,16 +214,16 @@ carry most of the weight:
 - `soak.test.ts` — eight autopiloted lifetimes per property. Invariants hold at
   every step, every seed reaches an ending, the same seed plays the same life
   twice, and a trimmed hash chain still verifies.
-- `reachability.test.ts` — eight goal-directed bots play 24 seeded lives each and
-  between them must claim all 14 endings. This is a stronger claim than the unit
-  tests make: those prove an ending is *awardable* given the right state, which
-  passes just as happily for a state no legal sequence of commands can build.
-  Both balance bugs listed below were found here.
+- `reachability.test.ts` — nine goal-directed bots play 24 seeded lives each and
+  between them must claim all 14 endings, the secret one included. This is a
+  stronger claim than the unit tests make: those prove an ending is *awardable*
+  given the right state, which passes just as happily for a state no legal
+  sequence of commands can build. Every balance bug listed below was found here.
 - `seal.test.ts` — the 道缘 seal, asserted at the filesystem level.
 
 ### What reachability testing caught
 
-Two defects that every unit test in the repo was happy to sign off on:
+Four defects that every unit test in the repo was happy to sign off on:
 
 - deaths under 天雷法相 and 业火魔相 — both 劫数所化 — were reported as 陨于斗法,
   because only 天诛神使 was named in the attribution list. Roughly a third of all
@@ -190,6 +232,13 @@ Two defects that every unit test in the repo was happy to sign off on:
 - 声望 had no repeatable source at all, so across every playstyle no bot ever
   reached even the *first* of four sect ranks, and 道统之主 was unreachable by
   construction. Sects now pay for deeds (see 门规 above).
+- 图录残卷·二 arrived as loot when 窃录之人 lost the duel, but only the *bought*
+  copy set the flag the next link reads. Winning the fight closed the hunt as
+  surely as losing it; possession now registers on the turn tick.
+- 一域之主 offered no way past 洞真魔君 at all — 6800 气血 and ~800 damage a round
+  against a fully built 洞真 dealing ~1000 and holding ~2700, which is 0 wins in
+  20 simulated fights. 图录出世 was unreachable outright. 等他的劫 is the second
+  door, and the 定力 check sets the price rather than the outcome.
 
 ## Theme
 
