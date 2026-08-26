@@ -64,6 +64,7 @@
 | R2-S1 道君 | ✅ | 98 测试 · 40 事件 · e2e/smoke 5/5 · `daojun_save_v1` |
 | R2-S2 流水线 | 🔄 | export 脚本加固 · mortal+daojun zip 已产出 |
 | R2-F1/F2 文档 | ✅ | PLAN ×3（lanke/mieyun/daojun 全交付）· ARCHITECTURE.md · engine-core 契约包（types-only）· workspaces `games/*`+`packages/*` · briefs 三份 |
+| R2-F2 道君审计 | ✅ | [AUDIT_daojun_R2.md](./AUDIT_daojun_R2.md) · **7.5/12**（修复前 5.5）· 320 局 bot 通关模拟 · 4 项快修（lint+Math.random 禁令 / noUncheckedIndexedAccess / 软锁 / 结局优先级）· 101 测试全绿 |
 | R2-O1 烂柯 | 🔄 | engine 26 文件已扩 · **仍缺 app/UI** |
 | R2-O2 灭运 | 🔄 | **仍缺 app/** · build/test 失败 |
 
@@ -76,3 +77,4 @@
 - 2026-08-26: R1-F2 完成代码审计与 SOTA 验收标准；补交三份 per-game briefs
 - 2026-08-26: R2-S1 道君 SOTA 打磨完成（98 测试，探针全绿）
 - 2026-08-26: R1-F1(架构) 交付：`.agent_workspace/ARCHITECTURE.md`（目录布局/共享边界/流水线/8 项 R2 风险）、三游戏 PLAN.md（各 18 结局+指令表+主题色+测试计划+MoSCoW）、`packages/engine-core` 契约包、根 workspaces 增补 `packages/*`、根 README monorepo 索引
+- 2026-08-26: R2-F2 道君 G0–G11 交叉审计完成（7.5/12）：G0 补 lint+noUncheckedIndexedAccess、修软锁（资源枯竭死局）与结局同回合优先级；**关键发现**：320 局 bot 实测仅 4/12 结局可达（里程碑结局遮蔽全部登顶线），G4 战斗/经济与 G9 防作弊链为 R3 两大结构缺口；根游戏回归 164/164 全绿
