@@ -9,6 +9,7 @@ const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../.
 describe('monorepo tooling', () => {
   it('declares game workspaces and root orchestration commands', () => {
     const packageJson = JSON.parse(readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+    const tsconfig = JSON.parse(readFileSync(path.join(rootDir, 'tsconfig.json'), 'utf8'));
 
     expect(packageJson.workspaces).toContain('games/*');
     expect(packageJson.scripts).toMatchObject({
@@ -17,6 +18,7 @@ describe('monorepo tooling', () => {
       'package:all': 'bash scripts/package-all.sh',
       benchmark: 'node scripts/benchmark.mjs',
     });
+    expect(tsconfig.exclude).toContain('games');
   });
 
   it.each(['build-all.sh', 'test-all.sh', 'package-all.sh'])(
@@ -53,6 +55,10 @@ describe('monorepo tooling', () => {
       for (const source of tooling) {
         expect(source).toContain(gameDirectory);
       }
+    }
+
+    for (const source of [tooling[0], tooling[2], tooling[3]]) {
+      expect(source).toContain('index.html');
     }
   });
 });

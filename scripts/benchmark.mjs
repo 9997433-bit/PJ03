@@ -114,8 +114,9 @@ async function benchmarkGame(game) {
     }
 
     const outDirectory = path.join(game.directory, 'out');
-    if (!(await exists(outDirectory))) {
-      throw new Error(`static export not found: ${path.relative(rootDir, outDirectory)}`);
+    const entryPoint = path.join(outDirectory, 'index.html');
+    if (!(await exists(entryPoint))) {
+      throw new Error(`static entry point not found: ${path.relative(rootDir, entryPoint)}`);
     }
 
     const metrics = await measureDirectory(outDirectory);

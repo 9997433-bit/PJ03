@@ -31,10 +31,12 @@ npm run benchmark
 npm run benchmark -- --no-build
 ```
 
-`build:all` expects each build to create an `out/` directory. `package:all`
-therefore runs after `build:all`; it uses `zip`, with Python 3's `zipfile` as a
-fallback. The benchmark records elapsed wall-clock build time, exported file
-count, and total uncompressed static-export bytes in `dist/benchmark.json`.
+`build:all` expects each build to create an `out/index.html` entry point, which
+prevents an incomplete Next project that exports only a 404 page from passing.
+`package:all` therefore runs after `build:all`; it uses `zip`, with Python 3's
+`zipfile` as a fallback. The benchmark records elapsed wall-clock build time,
+exported file count, and total uncompressed static-export bytes in
+`dist/benchmark.json`.
 
 All orchestrators print a clear skip when a game directory has not landed yet,
 so the scripts remain usable while games are integrated concurrently. Once a

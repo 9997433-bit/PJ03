@@ -49,8 +49,8 @@ for index in "${!GAME_NAMES[@]}"; do
 
   out_dir="${game_dir}/out"
   target_dir="${DIST_DIR}/${name}"
-  if [[ ! -d "${out_dir}" ]]; then
-    printf '[error] %s built without producing %s\n' "${name}" "${out_dir}" >&2
+  if [[ ! -f "${out_dir}/index.html" ]]; then
+    printf '[error] %s built without producing %s/index.html\n' "${name}" "${out_dir}" >&2
     exit 1
   fi
 

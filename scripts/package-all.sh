@@ -64,8 +64,8 @@ for index in "${!GAME_NAMES[@]}"; do
   fi
 
   out_dir="${game_dir}/out"
-  if [[ ! -d "${out_dir}" ]]; then
-    printf '[error] %s is missing; run npm run build:all first\n' "${out_dir}" >&2
+  if [[ ! -f "${out_dir}/index.html" ]]; then
+    printf '[error] %s/index.html is missing; run npm run build:all first\n' "${out_dir}" >&2
     exit 1
   fi
 
