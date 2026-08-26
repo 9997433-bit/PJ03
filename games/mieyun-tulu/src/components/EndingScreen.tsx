@@ -31,7 +31,7 @@ export function EndingScreen({ state }: { state: GameState }) {
     ['气运峰值', s.peakFortune],
     ['功德', s.merit],
     ['推演次数', s.divinations],
-    ['入账灵石', s.stonesEarned],
+    ['入账玄晶', s.stonesEarned],
     ['封掷·道缘', c ? revealDaoYuan(c) : '—'],
   ];
 

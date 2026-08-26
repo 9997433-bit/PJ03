@@ -37,10 +37,10 @@ describe('divination · 推演命数', () => {
     );
   });
 
-  it('refuses when 灵石 or 法力 fall short', () => {
+  it('refuses when 玄晶 or 法力 fall short', () => {
     const s = rich('poor');
     s.character!.spiritStones = 0;
-    expect(canDivine(s, 'deep')).toContain('灵石不足');
+    expect(canDivine(s, 'deep')).toContain('玄晶不足');
     s.character!.spiritStones = 50000;
     s.character!.mana = 0;
     expect(canDivine(s, 'deep')).toContain('法力不足');

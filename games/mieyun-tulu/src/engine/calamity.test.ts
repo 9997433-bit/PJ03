@@ -170,7 +170,7 @@ describe('calamity · 化解劫运', () => {
     s.character!.merit = 0;
     const opts = mitigationOptions(s);
     expect(opts.find((o) => o.id === 'sheCai')!.affordable).toBe(false);
-    expect(opts.find((o) => o.id === 'sheCai')!.reason).toBe('灵石不足');
+    expect(opts.find((o) => o.id === 'sheCai')!.reason).toBe('玄晶不足');
   });
 
   it('refuses 主动应劫 when there is no 劫 to meet', () => {

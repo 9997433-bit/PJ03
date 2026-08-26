@@ -23,7 +23,7 @@ export interface DiceRoll {
   turn: number;
   die: Die;
   value: number;
-  /** Human-readable cause, e.g. "突破·通玄" or "劫运降临判定". */
+  /** Human-readable cause, e.g. "突破·窥命" or "劫运降临判定". */
   reason: string;
   /** PRNG state *before* the roll — lets any single roll be replayed. */
   seedState: string;
@@ -258,7 +258,7 @@ export interface MitigationDef {
   id: MitigationId;
   name: string;
   desc: string;
-  /** Cost in 功德 / 灵石 / 气运 — all optional. */
+  /** Cost in 功德 / 玄晶 / 气运 — all optional. */
   cost: { merit?: number; stones?: number; fortune?: number; itemId?: string };
   /** 劫运 removed on success. */
   relief: number;
@@ -339,9 +339,9 @@ export interface SectDef {
   desc: string;
   /** Minimum realm order to be accepted. */
   minRealmOrder: number;
-  /** Entry donation in 灵石. */
+  /** Entry donation in 玄晶. */
   tuition: number;
-  /** 灵石 per turn while a member. */
+  /** 玄晶 per turn while a member. */
   stipend: number;
   /** Fraction off the market. */
   discount: number;

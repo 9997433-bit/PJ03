@@ -158,12 +158,12 @@ describe('endings · 归隐', () => {
     expect(checkEndings(s, true)?.id).toBe('guiyin');
   });
 
-  it('refuses retirement before 通玄 and before the fifteenth year', () => {
+  it('refuses retirement before 窥命 and before the fifteenth year', () => {
     const early = newRun('too-early');
     expect(canRetire(early)).not.toBeNull();
     const lowRealm = forceRealm(newRun('low'), 'yinqi');
     lowRealm.turn = 40;
-    expect(canRetire(lowRealm)).toContain('未通玄');
+    expect(canRetire(lowRealm)).toContain('未窥命');
     const tooSoon = forceRealm(newRun('soon'), 'tongxuan');
     tooSoon.turn = 3;
     expect(canRetire(tooSoon)).toContain('太早');

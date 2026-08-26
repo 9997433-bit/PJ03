@@ -103,9 +103,9 @@ describe('rng · 星轨', () => {
   it('audits every roll with reason and pre-roll state', () => {
     const s = initialState('audit');
     const before = s.rngState;
-    roll(s, 'D20', '突破·通玄');
+    roll(s, 'D20', '突破·窥命');
     expect(s.rolls).toHaveLength(1);
-    expect(s.rolls[0]!.reason).toBe('突破·通玄');
+    expect(s.rolls[0]!.reason).toBe('突破·窥命');
     expect(s.rolls[0]!.seedState).toBe(before);
     expect(s.rolls[0]!.die).toBe('D20');
   });
@@ -127,7 +127,7 @@ describe('rng · 星轨', () => {
 
   it('rollRange records the window in the audit reason', () => {
     const s = initialState('window');
-    const v = rollRange(s, 10, 20, '战利·灵石');
+    const v = rollRange(s, 10, 20, '战利·玄晶');
     expect(v).toBeGreaterThanOrEqual(10);
     expect(v).toBeLessThanOrEqual(20);
     expect(s.rolls[0]!.reason).toContain('10–20');

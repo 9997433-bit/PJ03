@@ -1,8 +1,8 @@
 /**
- * market.ts — 坊市 (buy, sell, use, equip)
+ * market.ts — 万法坊 (buy, sell, use, equip)
  *
  * The spread is the point: you buy at `price × (1 − 折扣)` and sell at
- * `price × 0.45`, so churning inventory bleeds 灵石 and the only way to get
+ * `price × 0.45`, so churning inventory bleeds 玄晶 and the only way to get
  * rich is to take things off corpses or out of the ground. 出身·商行少东 and
  * the 稷下 route narrow the spread but never close it.
  *
@@ -49,7 +49,7 @@ export function buyItem(state: GameState, itemId: string, count = 1): LogEntry[]
   const c = state.character!;
   const item = itemById(itemId);
   if (!item || item.noTrade || item.price <= 0) {
-    return [entry(state.turn, '系统', '此物不入坊市。', 'danger')];
+    return [entry(state.turn, '系统', '此物不入万法坊。', 'danger')];
   }
   const order = realmDef(c.realm.realm).order;
   if ((item.minRealmOrder ?? 0) > order) {
@@ -58,11 +58,11 @@ export function buyItem(state: GameState, itemId: string, count = 1): LogEntry[]
   const n = Math.max(1, Math.floor(count));
   const total = buyPrice(state, item) * n;
   if (c.spiritStones < total) {
-    return [entry(state.turn, '系统', `灵石不足(需 ${total})。`, 'danger')];
+    return [entry(state.turn, '系统', `玄晶不足(需 ${total})。`, 'danger')];
   }
   c.spiritStones -= total;
   addItem(c.inventory, item.id, n);
-  return [entry(state.turn, '系统', `购入 ${item.name}×${n},付灵石 ${total}。`, 'normal')];
+  return [entry(state.turn, '系统', `购入 ${item.name}×${n},付玄晶 ${total}。`, 'normal')];
 }
 
 export function sellItem(state: GameState, itemId: string, count = 1): LogEntry[] {
@@ -82,7 +82,7 @@ export function sellItem(state: GameState, itemId: string, count = 1): LogEntry[
   const total = sellPrice(state, item) * n;
   c.spiritStones += total;
   state.stats.stonesEarned += total;
-  return [entry(state.turn, '系统', `售出 ${item.name}×${n},得灵石 ${total}。`, 'normal')];
+  return [entry(state.turn, '系统', `售出 ${item.name}×${n},得玄晶 ${total}。`, 'normal')];
 }
 
 export function consumeItem(state: GameState, itemId: string): LogEntry[] {
@@ -134,7 +134,7 @@ export function consumeItem(state: GameState, itemId: string): LogEntry[] {
   }
   if (fx.stones) {
     c.spiritStones = Math.max(0, c.spiritStones + fx.stones);
-    notes.push(`灵石 ${fx.stones > 0 ? '+' : '−'}${Math.abs(fx.stones)}`);
+    notes.push(`玄晶 ${fx.stones > 0 ? '+' : '−'}${Math.abs(fx.stones)}`);
   }
   if (fx.breakthroughBonus) {
     c.breakthroughBuff += Math.round(fx.breakthroughBonus * mult);

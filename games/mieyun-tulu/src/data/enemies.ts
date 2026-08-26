@@ -71,7 +71,7 @@ export const ENEMIES: readonly EnemyDef[] = [
     taunt: '它没有气运,只有饥饿。这种东西灭无可灭。',
   },
 
-  // ---- 通玄 ---------------------------------------------------------------
+  // ---- 窥命 ---------------------------------------------------------------
   {
     id: 'yaolang',
     name: '妖狼王',
@@ -104,7 +104,7 @@ export const ENEMIES: readonly EnemyDef[] = [
   },
   {
     id: 'youxia',
-    name: '通玄游侠',
+    name: '窥命游侠',
     identity: '仗剑之人',
     realmOrder: 2,
     power: 58,

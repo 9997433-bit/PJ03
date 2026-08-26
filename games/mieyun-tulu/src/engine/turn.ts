@@ -60,8 +60,8 @@ export type Command =
   | { kind: '推演命数'; depth: DivinationDepth }
   | { kind: '习功法'; techniqueId: string }
   | { kind: '归隐' }
-  | { kind: '坊市买'; itemId: string; count?: number }
-  | { kind: '坊市卖'; itemId: string; count?: number }
+  | { kind: '万法坊买'; itemId: string; count?: number }
+  | { kind: '万法坊卖'; itemId: string; count?: number }
   | { kind: '用物'; itemId: string }
   | { kind: '装备'; itemId: string }
   | { kind: '卸下'; slot: 'weapon' | 'robe' | 'charm' }
@@ -100,8 +100,8 @@ const PHASE_WHITELIST: Record<string, ReadonlySet<Command['kind']>> = {
     '推演命数',
     '习功法',
     '归隐',
-    '坊市买',
-    '坊市卖',
+    '万法坊买',
+    '万法坊卖',
     '用物',
     '装备',
     '卸下',
@@ -120,10 +120,10 @@ export function commandLabel(command: Command): string {
       return `推演命数·${command.depth}`;
     case '习功法':
       return `习功法·${command.techniqueId}`;
-    case '坊市买':
-      return `坊市买·${command.itemId}×${command.count ?? 1}`;
-    case '坊市卖':
-      return `坊市卖·${command.itemId}×${command.count ?? 1}`;
+    case '万法坊买':
+      return `万法坊买·${command.itemId}×${command.count ?? 1}`;
+    case '万法坊卖':
+      return `万法坊卖·${command.itemId}×${command.count ?? 1}`;
     case '用物':
       return `用物·${command.itemId}`;
     case '装备':
@@ -256,9 +256,9 @@ function runBody(state: GameState, command: Command): LogEntry[] {
       return divine(state, command.depth);
     case '习功法':
       return learnTechnique(state, command.techniqueId);
-    case '坊市买':
+    case '万法坊买':
       return buyItem(state, command.itemId, command.count ?? 1);
-    case '坊市卖':
+    case '万法坊卖':
       return sellItem(state, command.itemId, command.count ?? 1);
     case '用物':
       return consumeItem(state, command.itemId);

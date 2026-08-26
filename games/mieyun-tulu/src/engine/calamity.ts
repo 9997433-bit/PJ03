@@ -13,7 +13,7 @@
  *      way it *vents* the meter, so surviving a 劫 is the cheap way down.
  *
  * The expensive way down is 化解劫运: five mitigations, each with published
- * odds and a real price in 功德 / 灵石 / 气运. 主动应劫 is the strange one — it
+ * odds and a real price in 功德 / 玄晶 / 气运. 主动应劫 is the strange one — it
  * buys nothing and instead pulls the strike forward, on the theory that a
  * tribulation you scheduled is easier than one that picks its own moment.
  */
@@ -158,7 +158,7 @@ export function resolveStrike(
   if (strike.stoneLossPct) {
     const loss = Math.round(c.spiritStones * strike.stoneLossPct * soften);
     c.spiritStones = Math.max(0, c.spiritStones - loss);
-    out.push(entry(state.turn, '系统', `灵石 −${loss}。`, 'danger'));
+    out.push(entry(state.turn, '系统', `玄晶 −${loss}。`, 'danger'));
   }
   if (strike.fortuneLoss) {
     const loss = Math.round(strike.fortuneLoss * soften);
@@ -250,7 +250,7 @@ function costLabelOf(id: MitigationId): string {
   const def = mitigationById(id)!;
   const parts: string[] = [];
   if (def.cost.merit) parts.push(`功德 ${def.cost.merit}`);
-  if (def.cost.stones) parts.push(`灵石 ${def.cost.stones}`);
+  if (def.cost.stones) parts.push(`玄晶 ${def.cost.stones}`);
   if (def.cost.fortune) parts.push(`气运 ${def.cost.fortune}`);
   if (def.cost.itemId) parts.push(`蔽运符 ×1`);
   return parts.length > 0 ? parts.join(' · ') : '无耗';
@@ -267,7 +267,7 @@ export function mitigationOptions(state: GameState): MitigationOption[] {
     }
     if (def.cost.stones && c.spiritStones < def.cost.stones) {
       affordable = false;
-      reason = '灵石不足';
+      reason = '玄晶不足';
     }
     if (def.cost.fortune && c.fortune < def.cost.fortune) {
       affordable = false;

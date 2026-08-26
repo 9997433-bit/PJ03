@@ -179,7 +179,7 @@ describe('creation · 四步门禁', () => {
     expect(new Set(roots).size).toBeGreaterThan(1);
   });
 
-  it('starts alive, at 凡尘, aged 16, with full bars', () => {
+  it('starts alive, at 未录, aged 16, with full bars', () => {
     const c = newRun('start').character!;
     expect(c.realm.realm).toBe('mortal');
     expect(c.age).toBe(16);

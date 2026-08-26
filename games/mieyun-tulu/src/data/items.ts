@@ -59,7 +59,7 @@ export const ITEMS: readonly ItemDef[] = [
   },
   {
     id: 'tongxuandan',
-    name: '通玄丹',
+    name: '窥命丹',
     kind: 'pill',
     grade: 3,
     price: 950,
@@ -352,7 +352,7 @@ export function itemName(id: string): string {
   return ITEM_BY_ID[id]?.name ?? id;
 }
 
-/** Everything the 坊市 will stock at a given realm order. */
+/** Everything the 万法坊 will stock at a given realm order. */
 export function marketStock(realmOrder: number): ItemDef[] {
   return ITEMS.filter(
     (i) => !i.noTrade && i.price > 0 && (i.minRealmOrder ?? 0) <= realmOrder,

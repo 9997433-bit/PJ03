@@ -3,7 +3,7 @@
  *
  * The blob written to `localStorage` is a `SaveEnvelope`: magic, version,
  * timestamp, the state, and a SHA-256 of the state under a salted prefix.
- * Loading recomputes the checksum and *refuses* a mismatch — editing 灵石 by
+ * Loading recomputes the checksum and *refuses* a mismatch — editing 玄晶 by
  * hand in devtools produces 「因果紊乱」 rather than a rich character.
  *
  * The key is `mieyun_save_v1`. `localStorage` is scoped per origin, not per

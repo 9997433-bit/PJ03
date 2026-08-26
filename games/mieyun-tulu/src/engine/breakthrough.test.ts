@@ -104,7 +104,7 @@ describe('breakthrough · 结果', () => {
     s.character!.breakthroughBuff = 200;
     attemptBreakthrough(s);
     expect(s.stats.peakRealm).toBe('tongxuan');
-    expect(s.stats.peakRealmLabel).toContain('通玄');
+    expect(s.stats.peakRealmLabel).toContain('窥命');
   });
 
   it('on failure keeps the realm, sheds exp and adds 劫运', () => {

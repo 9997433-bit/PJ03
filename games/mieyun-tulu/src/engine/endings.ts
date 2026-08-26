@@ -125,7 +125,7 @@ export function checkEndings(state: GameState, retiring = false): EndingResult |
 export function canRetire(state: GameState): string | null {
   const c = state.character;
   if (!c) return '尚未入世。';
-  if (realmDef(c.realm.realm).order < 2) return '未通玄者,归隐与凡人无异。';
+  if (realmDef(c.realm.realm).order < 2) return '未窥命者,归隐与凡人无异。';
   if (state.turn < 15) return '入世未久,言归太早。';
   return null;
 }

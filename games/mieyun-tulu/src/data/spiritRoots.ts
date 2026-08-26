@@ -59,7 +59,7 @@ export const SPIRIT_ROOT_TABLE: readonly SpiritRootDef[] = [
     speedMultiplier: 1.6,
     calamityAffinity: 1.15,
     pool: WU_XING,
-    desc: '一气独纯,百年可望通玄。',
+    desc: '一气独纯,百年可望窥命。',
   },
   {
     grade: '变异灵根',

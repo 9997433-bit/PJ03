@@ -59,7 +59,7 @@ export const ORIGINS: readonly OriginDef[] = [
     startCalamity: 1,
     startMerit: 0,
     startFlags: { merchant: true },
-    special: '精算:坊市买价 −12%,售价 +10%。',
+    special: '精算:万法坊买价 −12%,售价 +10%。',
   },
   {
     id: 'yaotong',

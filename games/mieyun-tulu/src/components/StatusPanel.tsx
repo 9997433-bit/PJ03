@@ -74,7 +74,7 @@ export function StatusPanel({ state }: { state: GameState }) {
 
       <div>
         <SectionTitle>身外</SectionTitle>
-        <Stat label="灵石" value={c.spiritStones} />
+        <Stat label="玄晶" value={c.spiritStones} />
         <Stat label="功德" value={c.merit} hint="化解劫运与部分门派的门槛" />
         <Stat label="声望" value={c.reputation} />
         <Stat label="斗法威能" value={d.power} />

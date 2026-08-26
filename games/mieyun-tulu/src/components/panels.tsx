@@ -3,7 +3,7 @@
 /**
  * panels.tsx — the drawer surfaces
  *
- * 坊市 / 功法 / 门派 / 行囊 / 推演 / 化解 / 天机录. Each one reads a list built by
+ * 万法坊 / 功法 / 门派 / 行囊 / 推演 / 化解 / 天机录. Each one reads a list built by
  * the engine (prices, odds, eligibility, rejection reasons) and renders it. No
  * panel computes a probability or a price itself; if a number is shown here,
  * some function in `engine/` produced it.
@@ -22,7 +22,7 @@ import { Button, Odds, SectionTitle } from './primitives';
 export type PanelId = 'market' | 'techniques' | 'sects' | 'bag' | 'divine' | 'mitigate' | 'audit';
 
 export const PANEL_TITLES: Record<PanelId, string> = {
-  market: '坊市',
+  market: '万法坊',
   techniques: '功法',
   sects: '门派',
   bag: '行囊',
@@ -50,8 +50,8 @@ export function MarketPanel({ state, dispatch }: PanelProps) {
   const rows = marketList(state);
   return (
     <div>
-      <SectionTitle note={`灵石 ${state.character?.spiritStones ?? 0} · 售价为标价四成半`}>
-        坊市
+      <SectionTitle note={`玄晶 ${state.character?.spiritStones ?? 0} · 售价为标价四成半`}>
+        万法坊
       </SectionTitle>
       <ul className="space-y-2">
         {rows.map(({ item, buy, owned }) => (
@@ -62,13 +62,13 @@ export function MarketPanel({ state, dispatch }: PanelProps) {
                 {item.name}
                 {owned > 0 ? <span className="ml-2 text-[11px] text-star-faint">持 {owned}</span> : null}
               </span>
-              <span className="text-xs tabular-nums text-track">{buy} 灵石</span>
+              <span className="text-xs tabular-nums text-track">{buy} 玄晶</span>
             </div>
             <p className="mt-1 text-xs leading-6 text-star-dim">{item.desc}</p>
             <div className="mt-2 flex gap-2">
-              <Button onClick={() => dispatch({ kind: '坊市买', itemId: item.id })}>购一</Button>
+              <Button onClick={() => dispatch({ kind: '万法坊买', itemId: item.id })}>购一</Button>
               {owned > 0 ? (
-                <Button tone="ghost" onClick={() => dispatch({ kind: '坊市卖', itemId: item.id })}>
+                <Button tone="ghost" onClick={() => dispatch({ kind: '万法坊卖', itemId: item.id })}>
                   售一({sellPrice(state, item)})
                 </Button>
               ) : null}
@@ -96,7 +96,7 @@ export function TechniquePanel({ state, dispatch }: PanelProps) {
                   {o.node.name}
                   <span className="ml-2 text-[11px] text-amethyst">{o.routeName}·{o.node.tier} 阶</span>
                 </span>
-                <span className="text-xs text-track tabular-nums">{o.node.costStones} 灵石</span>
+                <span className="text-xs text-track tabular-nums">{o.node.costStones} 玄晶</span>
               </div>
               <p className="mt-1 text-xs leading-6 text-star-dim">{o.node.desc}</p>
               <div className="mt-2 flex items-center gap-3">
@@ -205,7 +205,7 @@ export function BagPanel({ state, dispatch }: PanelProps) {
                     </Button>
                   ) : null}
                   {!item.noTrade ? (
-                    <Button tone="ghost" onClick={() => dispatch({ kind: '坊市卖', itemId: item.id })}>
+                    <Button tone="ghost" onClick={() => dispatch({ kind: '万法坊卖', itemId: item.id })}>
                       售一
                     </Button>
                   ) : null}
@@ -239,7 +239,7 @@ export function DivinePanel({ state, dispatch }: PanelProps) {
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <span className="font-cjk-serif text-star">{DEPTH_LABELS[depth]}</span>
                 <span className="text-[11px] text-star-faint">
-                  灵石 {cost.stones} · 法力 {cost.mana} · 反噬 劫运 +{cost.calamity}
+                  玄晶 {cost.stones} · 法力 {cost.mana} · 反噬 劫运 +{cost.calamity}
                   {cost.costsTurn ? ' · 耗一载' : ''}
                 </span>
               </div>

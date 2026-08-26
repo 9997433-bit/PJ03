@@ -208,7 +208,7 @@ export const EVENTS: readonly GameEvent[] = [
         text: '买路',
         pay: { stones: 40 },
         upside: '免于一战',
-        downside: '四十灵石',
+        downside: '四十玄晶',
         success: { narrative: '他数得很仔细,数完还找了你两颗。' },
       },
     ],
@@ -308,7 +308,7 @@ export const EVENTS: readonly GameEvent[] = [
     kind: 'neutral',
     realmOrders: [1, 2],
     weight: 12,
-    narrative: '客栈里有人在讲一个坊市的价钱,讲得比坊市里的人还清楚。',
+    narrative: '客栈里有人在讲一个万法坊的价钱,讲得比万法坊里的人还清楚。',
     choices: [
       {
         id: 'ting',
@@ -340,7 +340,7 @@ export const EVENTS: readonly GameEvent[] = [
     choices: [
       {
         id: 'mai',
-        text: '花五十灵石买下',
+        text: '花五十玄晶买下',
         pay: { stones: 50 },
         check: { attr: 'wuXing', dc: 13 },
         upside: '果真是星陨铁',
@@ -348,7 +348,7 @@ export const EVENTS: readonly GameEvent[] = [
         success: { items: [{ itemId: 'xingyuntie', count: 1 }], flag: ['xingyunSeed', true] },
         failure: { narrative: '回去敲了半天,是石头。很硬的石头。' },
       },
-      { id: 'zou', text: '看看就走', upside: '省下五十灵石', downside: '也许错过了', success: {} },
+      { id: 'zou', text: '看看就走', upside: '省下五十玄晶', downside: '也许错过了', success: {} },
     ],
   },
   {
@@ -419,10 +419,10 @@ export const EVENTS: readonly GameEvent[] = [
     choices: [
       {
         id: 'zhu',
-        text: '赠他丹药与灵石',
+        text: '赠他丹药与玄晶',
         pay: { stones: 200 },
         upside: '功德与心安',
-        downside: '两百灵石',
+        downside: '两百玄晶',
         success: { merit: 35, calamity: -4, fortune: 2 },
       },
       {
@@ -440,7 +440,7 @@ export const EVENTS: readonly GameEvent[] = [
     kind: 'neutral',
     realmOrders: [4, 5, 6],
     weight: 9,
-    narrative: '坊市封了三日。理由是「有大人物在算一件大事」。',
+    narrative: '万法坊封了三日。理由是「有大人物在算一件大事」。',
     autoEffect: { exp: 400, mana: 60 },
   },
 
@@ -505,7 +505,7 @@ export const EVENTS: readonly GameEvent[] = [
     kind: 'encounter',
     realmOrders: [1, 2, 3],
     weight: 10,
-    narrative: '一支商队要过野狼谷,愿出灵石雇个护卫。价钱开得不高不低。',
+    narrative: '一支商队要过野狼谷,愿出玄晶雇个护卫。价钱开得不高不低。',
     choices: [
       {
         id: 'hu',
@@ -681,7 +681,7 @@ export const EVENTS: readonly GameEvent[] = [
       {
         id: 'quan',
         text: '尽数取走',
-        upside: '大笔灵石与法器',
+        upside: '大笔玄晶与法器',
         downside: '取绝户财者,天必记之',
         success: {
           stones: 2600,
@@ -799,7 +799,7 @@ export const EVENTS: readonly GameEvent[] = [
         text: '买',
         pay: { stones: 5000 },
         upside: '第二卷,不必动手',
-        downside: '五千灵石,且他知道了你要什么',
+        downside: '五千玄晶,且他知道了你要什么',
         success: { items: [{ itemId: 'tulu2', count: 1 }], flag: ['tulu2', true], calamity: 5 },
       },
     ],
@@ -915,7 +915,7 @@ export const EVENTS: readonly GameEvent[] = [
         text: '请他铸成护身之物',
         pay: { stones: 900 },
         upside: '定劫符两张',
-        downside: '九百灵石',
+        downside: '九百玄晶',
         success: {
           items: [{ itemId: 'dingjiefu', count: 2 }],
           flag: ['xingyunForged', true],

@@ -67,7 +67,7 @@ export function emptyStats(): GameState['stats'] {
     turns: 0,
     years: 0,
     peakRealm: 'mortal',
-    peakRealmLabel: '凡尘',
+    peakRealmLabel: '未录',
     totalRolls: 0,
     stonesEarned: 0,
     battlesWon: 0,

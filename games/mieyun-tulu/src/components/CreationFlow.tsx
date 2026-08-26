@@ -131,7 +131,7 @@ export function CreationFlow() {
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h4 className="font-cjk-serif text-lg text-star">{o.name}</h4>
                 <span className="text-[11px] text-track">
-                  灵石 {o.startStones} · 气运 {o.startFortune} · 劫运 {o.startCalamity} · 功德{' '}
+                  玄晶 {o.startStones} · 气运 {o.startFortune} · 劫运 {o.startCalamity} · 功德{' '}
                   {o.startMerit}
                 </span>
               </div>
@@ -232,7 +232,7 @@ export function CreationFlow() {
             <div>
               <dt className="text-xs text-star-faint">起始</dt>
               <dd className="text-sm text-star-dim">
-                灵石 {character.spiritStones} · 气运 {character.fortune} · 劫运{' '}
+                玄晶 {character.spiritStones} · 气运 {character.fortune} · 劫运{' '}
                 {character.calamity.value} · 功德 {character.merit}
               </dd>
             </div>

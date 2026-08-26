@@ -63,7 +63,7 @@ export function GameScreen() {
             },
             { key: '3', label: '探索', hint: '出门碰运气', run: () => send({ kind: '探索' }) },
             { key: '4', label: '斗法', hint: '主动寻敌', tone: 'danger', run: () => send({ kind: '斗法' }) },
-            { key: '5', label: '坊市', hint: '买卖', run: () => setPanel('market') },
+            { key: '5', label: '万法坊', hint: '买卖', run: () => setPanel('market') },
             { key: '6', label: '推演命数', hint: '看下一掷', tone: 'primary', run: () => setPanel('divine') },
             { key: '7', label: '化解劫运', hint: '压住那根柱子', tone: 'danger', run: () => setPanel('mitigate') },
             { key: '8', label: '闭关', hint: '三倍修为,劫运 +4', run: () => send({ kind: '闭关' }) },

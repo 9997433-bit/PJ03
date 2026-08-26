@@ -167,7 +167,7 @@ describe('turn · 原子性与哈希链', () => {
   it('rolls the whole turn back when an invariant would break', () => {
     const s = newRun('invariant');
     s.character!.spiritStones = 10;
-    // 坊市卖 of a nonexistent item is a no-op; force a violation instead.
+    // 万法坊卖 of a nonexistent item is a no-op; force a violation instead.
     s.character!.fortune = 500;
     const r = execute(s, { kind: '修炼' });
     expect(r.rejected).toContain('因果紊乱');

@@ -165,7 +165,7 @@ const eraser: Policy = (s) => {
   if (sit) return sit;
   const c = s.character!;
   if (c.fortune <= 8 && c.calamity.value <= 10 && !canRetire(s)) return { kind: '归隐' };
-  // 无录之人 is gated behind 通玄, so climb out of 引气 before erasing anything.
+  // 无录之人 is gated behind 窥命, so climb out of 引气 before erasing anything.
   if (isReadyForBreakthrough(c.realm)) return { kind: '突破' };
   if (realmDef(c.realm.realm).order < 2) return { kind: '修炼' };
   // 隐匿气机 is the one mitigation billed in 气运 — the exact meter to drain.

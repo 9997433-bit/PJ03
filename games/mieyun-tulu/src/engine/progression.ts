@@ -80,7 +80,7 @@ export function learnTechnique(state: GameState, techniqueId: string): LogEntry[
   if (!offer) return [entry(state.turn, '系统', '此法与你无缘——路已择,或卷未开。', 'danger')];
   if (offer.blocked) return [entry(state.turn, '系统', offer.blocked, 'danger')];
   if (c.spiritStones < node.costStones) {
-    return [entry(state.turn, '系统', `灵石不足(需 ${node.costStones})。`, 'danger')];
+    return [entry(state.turn, '系统', `玄晶不足(需 ${node.costStones})。`, 'danger')];
   }
 
   c.spiritStones -= node.costStones;
@@ -91,7 +91,7 @@ export function learnTechnique(state: GameState, techniqueId: string): LogEntry[
   ];
   if (d100 > target) {
     c.realm.exp = Math.max(0, c.realm.exp - Math.round(c.realm.expNeeded * 0.05));
-    out.push(entry(state.turn, '图录', '读了三年,读不通。灵石已付,岁月不返。', 'danger'));
+    out.push(entry(state.turn, '图录', '读了三年,读不通。玄晶已付,岁月不返。', 'danger'));
     return out;
   }
 
@@ -174,7 +174,7 @@ export function joinSect(state: GameState, sectId: string): LogEntry[] {
   c.reputation = Math.max(c.reputation, 0);
   return [
     entry(state.turn, '图录', `入 ${sect.name}。${sect.desc}`, 'violet'),
-    entry(state.turn, '系统', `束脩 ${sect.tuition};此后每载得月俸 ${sect.stipend} 灵石。`, 'normal'),
+    entry(state.turn, '系统', `束脩 ${sect.tuition};此后每载得月俸 ${sect.stipend} 玄晶。`, 'normal'),
   ];
 }
 
@@ -234,7 +234,7 @@ export function sectUpkeep(state: GameState): LogEntry[] {
     if (nextRank.reward.stones) {
       c.spiritStones += nextRank.reward.stones;
       state.stats.stonesEarned += nextRank.reward.stones;
-      parts.push(`灵石 ${nextRank.reward.stones}`);
+      parts.push(`玄晶 ${nextRank.reward.stones}`);
     }
     if (nextRank.reward.merit) {
       c.merit = clamp(c.merit + nextRank.reward.merit, -300, 600);

@@ -184,7 +184,7 @@ const WISH_PATTERNS: readonly RegExp[] = [
   /直接(获得|突破|飞升|满级)/,
   /作弊/,
   /金手指/,
-  /修改(属性|灵石|存档|数据|劫运|气运)/,
+  /修改(属性|玄晶|存档|数据|劫运|气运)/,
   /wish/i,
   /cheat/i,
   /hack/i,
@@ -211,7 +211,7 @@ export function checkInvariants(state: GameState): string | null {
 
   const c = state.character;
   if (c) {
-    if (!(c.spiritStones >= 0)) v.push(`灵石为负: ${c.spiritStones}`);
+    if (!(c.spiritStones >= 0)) v.push(`玄晶为负: ${c.spiritStones}`);
     if (!(c.maxHp > 0)) v.push(`气血上限异常: ${c.maxHp}`);
     if (c.hp < 0) v.push(`气血为负: ${c.hp}`);
     if (c.hp > c.maxHp) v.push(`气血逾限: ${c.hp}/${c.maxHp}`);

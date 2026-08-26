@@ -13,7 +13,7 @@
  *          and reports, by name, the 劫 that is coming.
  *
  * Crucially the command itself burns **no** audited rolls. If it did, the act
- * of looking would move what you were looking at. The price is paid in 灵石,
+ * of looking would move what you were looking at. The price is paid in 玄晶,
  * 法力 and 天机反噬 — a flat 劫运 surcharge for the impertinence.
  */
 
@@ -60,7 +60,7 @@ export function divinationCost(state: GameState, depth: DivinationDepth): Divina
 export function canDivine(state: GameState, depth: DivinationDepth): string | null {
   const c = state.character!;
   const cost = divinationCost(state, depth);
-  if (c.spiritStones < cost.stones) return `灵石不足(需 ${cost.stones})`;
+  if (c.spiritStones < cost.stones) return `玄晶不足(需 ${cost.stones})`;
   if (c.mana < cost.mana) return `法力不足(需 ${cost.mana})`;
   return null;
 }
@@ -211,7 +211,7 @@ export function divine(state: GameState, depth: DivinationDepth): LogEntry[] {
     entry(
       state.turn,
       '天机',
-      `${DEPTH_LABELS[depth]}:耗灵石 ${cost.stones}、法力 ${cost.mana};天机反噬,劫运 +${cost.calamity}。`,
+      `${DEPTH_LABELS[depth]}:耗玄晶 ${cost.stones}、法力 ${cost.mana};天机反噬,劫运 +${cost.calamity}。`,
       'calm',
     ),
   ];

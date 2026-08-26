@@ -301,7 +301,7 @@ export const MITIGATIONS: readonly MitigationDef[] = [
   {
     id: 'sheCai',
     name: '舍财消灾',
-    desc: '灵石本就是别人的气运换来的。还回去一部分,不算亏。',
+    desc: '玄晶本就是别人的气运换来的。还回去一部分,不算亏。',
     cost: { stones: 400 },
     relief: 10,
     baseChance: 80,

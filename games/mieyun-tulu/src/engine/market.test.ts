@@ -78,7 +78,7 @@ describe('market · 买卖', () => {
     const log = buyItem(s, 'huiyuandan');
     expect(s.character!.spiritStones).toBe(1);
     expect(countItem(s.character!.inventory, 'huiyuandan')).toBe(0);
-    expect(log[0]!.text).toContain('灵石不足');
+    expect(log[0]!.text).toContain('玄晶不足');
   });
 
   it('refuses stock above the buyer’s realm', () => {
@@ -92,7 +92,7 @@ describe('market · 买卖', () => {
   it('refuses to trade 图录残卷 in either direction', () => {
     const s = give(newRun('notrade'), 'tulu1');
     s.character!.spiritStones = 100000;
-    expect(buyItem(s, 'tulu1')[0]!.text).toContain('不入坊市');
+    expect(buyItem(s, 'tulu1')[0]!.text).toContain('不入万法坊');
     expect(sellItem(s, 'tulu1')[0]!.text).toContain('不可易手');
     expect(countItem(s.character!.inventory, 'tulu1')).toBe(1);
   });

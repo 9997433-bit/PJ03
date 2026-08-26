@@ -1,7 +1,7 @@
 /**
  * cultivation.ts — 修炼 (progress, and what progress costs)
  *
- * Layers inside 引气 and stages inside 通玄 and above fill by themselves; only
+ * Layers inside 引气 and stages inside 窥命 and above fill by themselves; only
  * crossing a realm boundary needs 突破. So a 修炼 turn is a single number —
  * `cultivationGain` — poured into `advanceProgress`, which spills over as many
  * layers as the pour is worth and then stops dead at the realm ceiling.

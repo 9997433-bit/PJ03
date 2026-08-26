@@ -140,7 +140,7 @@ function finishLoss(state: GameState, enemy: EnemyDef): LogEntry[] {
       entry(
         state.turn,
         '斗法',
-        `你倒下了,但对方只取了财物(D100=${d100} ≤ 55):灵石 −${lost}。`,
+        `你倒下了,但对方只取了财物(D100=${d100} ≤ 55):玄晶 −${lost}。`,
         'danger',
       ),
     );
@@ -283,14 +283,14 @@ export function resolveSpoils(state: GameState, choice: SpoilsChoice): LogEntry[
     c.merit -= enemy.merit;
     c.extinguishCount += 1;
     state.stats.extinguished += 1;
-    const stones = Math.round(rollRange(state, enemy.stones[0], enemy.stones[1], '战利·灵石') * 0.5);
+    const stones = Math.round(rollRange(state, enemy.stones[0], enemy.stones[1], '战利·玄晶') * 0.5);
     c.spiritStones += stones;
     state.stats.stonesEarned += stones;
     out.push(
       entry(
         state.turn,
         '图录',
-        `你在他身后那根柱子上落了一笔。气运 +${gain},劫运 +${cost},功德 −${enemy.merit},拾灵石 ${stones}。`,
+        `你在他身后那根柱子上落了一笔。气运 +${gain},劫运 +${cost},功德 −${enemy.merit},拾玄晶 ${stones}。`,
         'violet',
       ),
     );
@@ -304,7 +304,7 @@ export function resolveSpoils(state: GameState, choice: SpoilsChoice): LogEntry[
     );
     out.push(...creditDeed(state, 'spare'));
   } else {
-    const stones = rollRange(state, enemy.stones[0], enemy.stones[1], '战利·灵石');
+    const stones = rollRange(state, enemy.stones[0], enemy.stones[1], '战利·玄晶');
     c.spiritStones += stones;
     state.stats.stonesEarned += stones;
     const got: string[] = [];
@@ -319,7 +319,7 @@ export function resolveSpoils(state: GameState, choice: SpoilsChoice): LogEntry[
       entry(
         state.turn,
         '系统',
-        `搜得灵石 ${stones}${got.length > 0 ? `,并 ${got.join('、')}` : ''}。`,
+        `搜得玄晶 ${stones}${got.length > 0 ? `,并 ${got.join('、')}` : ''}。`,
         'normal',
       ),
     );

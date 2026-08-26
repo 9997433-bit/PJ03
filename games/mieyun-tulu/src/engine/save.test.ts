@@ -136,7 +136,7 @@ describe('save · 拒伪', () => {
     if (!r.ok) expect(r.reason).toContain('版本不合');
   });
 
-  it('rejects hand-edited 灵石', () => {
+  it('rejects hand-edited 玄晶', () => {
     const envelope = JSON.parse(encodeSave(playedRun('rich')));
     envelope.state.character.spiritStones = 999999;
     storage.setItem(SAVE_KEY, JSON.stringify(envelope));

@@ -178,7 +178,7 @@ describe('breakthrough · 突破', () => {
     s.character!.calamity.value = 95;
     const before = s.rolls.length;
     attemptBreakthrough(s);
-    // 通玄 has deathChance 0, so no 生死 roll should ever appear.
+    // 窥命 has deathChance 0, so no 生死 roll should ever appear.
     expect(s.rolls.slice(before).some((r) => r.reason === '破关·生死')).toBe(false);
   });
 

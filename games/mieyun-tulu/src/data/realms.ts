@@ -1,9 +1,9 @@
 /**
  * realms.ts — 境界阶梯
  *
- * 凡尘 → 引气(九层) → 通玄 → 玄光 → 元神 → 洞真 → 长生
+ * 未录 → 引气(九层) → 窥命 → 玄光 → 元神 → 洞真 → 长生
  *
- * Layers inside 引气 and stages inside 通玄 and above fill automatically; only
+ * Layers inside 引气 and stages inside 窥命 and above fill automatically; only
  * crossing from one realm to the next needs the 突破 command, and every such
  * crossing draws 劫运 — the higher you climb, the harder heaven looks at you.
  */
@@ -15,7 +15,7 @@ export const STAGES: readonly Stage[] = ['初期', '中期', '后期', '圆满']
 export const REALMS: Record<RealmId, RealmDef> = {
   mortal: {
     id: 'mortal',
-    name: '凡尘',
+    name: '未录',
     order: 0,
     baseExp: 40,
     expGrowth: 1,
@@ -44,7 +44,7 @@ export const REALMS: Record<RealmId, RealmDef> = {
   },
   tongxuan: {
     id: 'tongxuan',
-    name: '通玄',
+    name: '窥命',
     order: 2,
     stages: STAGES,
     baseExp: 760,

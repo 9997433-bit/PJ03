@@ -118,7 +118,7 @@ export function choiceChance(state: GameState, choice: EventChoice): number | nu
 function costLabel(choice: EventChoice): string | null {
   if (!choice.pay) return null;
   const parts: string[] = [];
-  if (choice.pay.stones) parts.push(`灵石 ${choice.pay.stones}`);
+  if (choice.pay.stones) parts.push(`玄晶 ${choice.pay.stones}`);
   if (choice.pay.merit) parts.push(`功德 ${choice.pay.merit}`);
   if (choice.pay.fortune) parts.push(`气运 ${choice.pay.fortune}`);
   if (choice.pay.itemId) parts.push(`${itemById(choice.pay.itemId)?.name ?? choice.pay.itemId} ×1`);
@@ -179,7 +179,7 @@ export function applyEventEffect(state: GameState, fx: EventEffect): LogEntry[] 
   if (fx.stones) {
     c.spiritStones = Math.max(0, c.spiritStones + fx.stones);
     if (fx.stones > 0) state.stats.stonesEarned += fx.stones;
-    notes.push(`灵石 ${fx.stones > 0 ? '+' : '−'}${Math.abs(fx.stones)}`);
+    notes.push(`玄晶 ${fx.stones > 0 ? '+' : '−'}${Math.abs(fx.stones)}`);
   }
   if (fx.fortune) {
     const scaled = fx.fortune > 0 ? Math.round(fx.fortune * d.fortuneGainMult) : fx.fortune;

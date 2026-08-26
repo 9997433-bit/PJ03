@@ -138,7 +138,7 @@ describe('events · 抉择赔率', () => {
   it('surfaces the cost label for paid choices', () => {
     const s = newRun('cost');
     const options = resolveChoices(s, eventById('t_panyin')!);
-    expect(options.find((o) => o.id === 'mai')!.costLabel).toContain('灵石');
+    expect(options.find((o) => o.id === 'mai')!.costLabel).toContain('玄晶');
   });
 });
 

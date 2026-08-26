@@ -62,7 +62,7 @@ describe('progression · 功法', () => {
   it('marks a realm-gated offer blocked rather than hiding it', () => {
     const s = grant(forceRealm(newRun('gate'), 'yinqi'), 'dao1');
     const offer = techniqueOffers(s).find((o) => o.node.id === 'dao2a');
-    expect(offer?.blocked).toContain('通玄');
+    expect(offer?.blocked).toContain('窥命');
   });
 
   it('publishes a learn chance inside 5–95 that falls with difficulty', () => {
@@ -97,7 +97,7 @@ describe('progression · 功法', () => {
   it('refuses when the purse is short and takes nothing', () => {
     const s = forceRealm(newRun('broke'), 'yinqi');
     s.character!.spiritStones = 10;
-    expect(learnTechnique(s, 'dao1')[0]!.text).toContain('灵石不足');
+    expect(learnTechnique(s, 'dao1')[0]!.text).toContain('玄晶不足');
     expect(s.character!.spiritStones).toBe(10);
     expect(s.character!.learned).not.toContain('dao1');
   });
@@ -140,7 +140,7 @@ describe('progression · 功法', () => {
 });
 
 describe('progression · 门派', () => {
-  it('turns away a 凡尘 applicant everywhere', () => {
+  it('turns away a 未录 applicant everywhere', () => {
     const s = newRun('mortal-apply');
     s.character!.spiritStones = 100000;
     expect(sectOffers(s).every((o) => !o.eligible)).toBe(true);

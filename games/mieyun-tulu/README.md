@@ -12,7 +12,7 @@ the fastest way to grow and the fastest way to be noticed. There is no build
 that opts out; there is only how you choose to pay.
 
 ```
-凡尘 → 引气(九层) → 通玄 → 玄光 → 元神 → 洞真 → 长生
+未录 → 引气(九层) → 窥命 → 玄光 → 元神 → 洞真 → 长生
 ```
 
 ## Running it
@@ -51,9 +51,9 @@ dependency on anything but the browser. Saves live in `localStorage` under
 | 斗法 | one year | Go looking for a fight. |
 | 化解劫运 | one year | Five ways to pay the ledger down, including walking into it early. |
 | 推演命数 | varies | Look at what is actually coming. |
-| 坊市 | free | Buy, sell, use, equip. |
+| 万法坊 | free | Buy, sell, use, equip. |
 | 习功法 | one year | Commit to a route, or deepen the one you walk. |
-| 归隐 | ends the run | Available from 通玄 onward, after the fifteenth year. |
+| 归隐 | ends the run | Available from 窥命 onward, after the fifteenth year. |
 
 ## The mechanics that are specific to this game
 
