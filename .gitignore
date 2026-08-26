@@ -9,9 +9,12 @@
 # next.js
 /.next/
 /out/
+/games/*/.next/
+/games/*/out/
 
 # production
 /build
+/dist/
 
 # misc
 .DS_Store

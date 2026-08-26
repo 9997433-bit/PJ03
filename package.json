@@ -3,14 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "description": "《凡人修仙传·人生模拟器》— a text-driven xianxia life simulator. Pure client-side, seeded dice, cold Heaven's Dao narration.",
+  "workspaces": [
+    "games/*"
+  ],
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:all": "bash scripts/build-all.sh",
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
+    "test:all": "bash scripts/test-all.sh",
     "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "package:all": "bash scripts/package-all.sh",
+    "benchmark": "node scripts/benchmark.mjs"
   },
   "dependencies": {
     "class-variance-authority": "^0.7.1",

@@ -1,0 +1,58 @@
+import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { describe, expect, it } from 'vitest';
+
+const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+
+describe('monorepo tooling', () => {
+  it('declares game workspaces and root orchestration commands', () => {
+    const packageJson = JSON.parse(readFileSync(path.join(rootDir, 'package.json'), 'utf8'));
+
+    expect(packageJson.workspaces).toContain('games/*');
+    expect(packageJson.scripts).toMatchObject({
+      'build:all': 'bash scripts/build-all.sh',
+      'test:all': 'bash scripts/test-all.sh',
+      'package:all': 'bash scripts/package-all.sh',
+      benchmark: 'node scripts/benchmark.mjs',
+    });
+  });
+
+  it.each(['build-all.sh', 'test-all.sh', 'package-all.sh'])(
+    '%s has valid Bash syntax',
+    (script) => {
+      const result = spawnSync('bash', ['-n', path.join(rootDir, 'scripts', script)], {
+        encoding: 'utf8',
+      });
+
+      expect(result.status, result.stderr).toBe(0);
+    },
+  );
+
+  it('loads the benchmark command without running builds', () => {
+    const result = spawnSync(
+      process.execPath,
+      [path.join(rootDir, 'scripts', 'benchmark.mjs'), '--help'],
+      { encoding: 'utf8' },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('--no-build');
+  });
+
+  it('registers all game directories in each orchestrator', () => {
+    const tooling = [
+      'build-all.sh',
+      'test-all.sh',
+      'package-all.sh',
+      'benchmark.mjs',
+    ].map((script) => readFileSync(path.join(rootDir, 'scripts', script), 'utf8'));
+
+    for (const gameDirectory of ['lanke-qiyuan', 'mieyun-tulu', 'dao-jun']) {
+      for (const source of tooling) {
+        expect(source).toContain(gameDirectory);
+      }
+    }
+  });
+});
