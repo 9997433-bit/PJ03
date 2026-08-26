@@ -1,20 +1,25 @@
+import {
+  GENESIS_HASH,
+  INVARIANT_ROLLBACK_MESSAGE,
+  beginCommand,
+  checkInvariants,
+  commitCommand,
+  recordDie,
+  recordSpan,
+} from './audit';
+import { combatTurn, startCombat, tacticAvailability } from './combat';
 import { ENDINGS, EVENTS, ITEMS } from './content';
 import {
   canEngrave,
   comprehend,
   createDaoPattern,
   engravePattern,
-  patternPower,
   patternsForBreakthrough,
 } from './daoPattern';
-import { chance, normalizeSeed, rollInt } from './rng';
-import {
-  createSoul,
-  restoreSoul,
-  soulCombatPower,
-  spendSoul,
-  temperSoul,
-} from './soulPower';
+import { INVENTORY_LIMIT, buyPrice, canBuy, canSell, sellPrice } from './market';
+import { totalPower } from './power';
+import { normalizeSeed } from './rng';
+import { createSoul, restoreSoul, spendSoul, temperSoul } from './soulPower';
 import {
   canClaim,
   claimDifficulty,
@@ -22,10 +27,10 @@ import {
   createTerritory,
   harvestTerritory,
   loseTerritory,
-  territoryPower,
 } from './territory';
 import type {
   ActionResult,
+  CombatTactic,
   CoreAction,
   CreationOptions,
   Effect,
@@ -92,29 +97,46 @@ export function createGame(options: CreationOptions, seed = Date.now()): GameSta
     inventory,
     seenEvents: [],
     pendingEvent: null,
+    pendingMilestone: null,
+    declinedEndings: [],
+    combat: null,
+    rolls: [],
+    rollCount: 0,
+    auditChain: [],
+    chainStart: GENESIS_HASH,
+    auditHash: GENESIS_HASH,
     logs: [{ turn: 0, tone: 'thunder', text: `十六岁，${options.name.trim() || '无名'}在雷雨中感应到第一缕道纹。` }],
     ending: null,
   };
 }
 
-export function totalPower(state: GameState): number {
-  const { character } = state;
-  const pathBonus = character.path === '剑' ? 16 : character.path === '体' ? 14 : 0;
-  return (
-    20 +
-    character.realm * 30 +
-    patternPower(state.daoPattern) +
-    soulCombatPower(state.soul, character.path) +
-    territoryPower(state.territory) +
-    pathBonus
-  );
+/**
+ * Single-writer command wrapper: clone, mutate, assert invariants, seal the
+ * rolls into the hash chain. A violated invariant discards the whole command.
+ */
+function runCommand(
+  current: GameState,
+  command: string,
+  body: (state: GameState) => string,
+): ActionResult {
+  const state = copy(current);
+  const since = beginCommand(state);
+  const message = body(state);
+  const violation = checkInvariants(state);
+  if (violation) {
+    return { ok: false, message: `${INVARIANT_ROLLBACK_MESSAGE}（${violation}）`, state: current };
+  }
+  commitCommand(state, command, since);
+  return { ok: true, message, state };
 }
 
 export function actionAvailability(state: GameState, action: CoreAction): { available: boolean; reason: string } {
   if (state.ending) return { available: false, reason: '此生已成定局' };
+  if (state.combat) return { available: false, reason: '先了结眼前这一战' };
+  if (state.pendingMilestone) return { available: false, reason: '先回应天道之问' };
   if (state.pendingEvent) return { available: false, reason: '先作出当前抉择' };
-  // 悟道 is always available: with a drained soul it degrades to a pure rest
-  // turn, guaranteeing the resource-regeneration path can never soft-lock.
+  // 悟道 and 调息 are always available: with a drained soul 悟道 degrades to a
+  // rest turn, so the resource-regeneration path can never soft-lock.
   if (action === '凝纹') {
     if (!canEngrave(state.daoPattern)) {
       const need = 12 + state.daoPattern.engraved * 4;
@@ -156,7 +178,6 @@ function applyEffectMutable(state: GameState, effect: Effect): void {
   c.reputation += effect.reputation ?? 0;
   c.karma += effect.karma ?? 0;
   d.insight = Math.max(0, d.insight + (effect.insight ?? 0));
-  d.engraved = Math.max(0, d.engraved + (effect.engraved ?? 0));
   d.harmony = clamp(d.harmony + (effect.harmony ?? 0), 0, 100);
   s.power = clamp(s.power + (effect.soul ?? 0), 0, s.maxPower);
   s.stability = clamp(s.stability + (effect.stability ?? 0), 0, 100);
@@ -165,7 +186,9 @@ function applyEffectMutable(state: GameState, effect: Effect): void {
   t.food = clamp(t.food + (effect.food ?? 0), 0, 999);
   t.spiritStones = clamp(t.spiritStones + (effect.spiritStones ?? 0), 0, 9999);
   t.influence = Math.max(0, t.influence + (effect.influence ?? 0));
-  if (effect.item && ITEMS.some((item) => item.id === effect.item)) state.inventory.push(effect.item);
+  if (effect.item && ITEMS.some((item) => item.id === effect.item) && state.inventory.length < INVENTORY_LIMIT) {
+    state.inventory.push(effect.item);
+  }
 }
 
 function selectEvent(state: GameState, action: CoreAction): void {
@@ -178,9 +201,7 @@ function selectEvent(state: GameState, action: CoreAction): void {
   const unseen = eligible.filter((item) => !state.seenEvents.includes(item.id));
   const pool = unseen.length ? unseen : eligible;
   if (!pool.length) return;
-  const roll = rollInt(state.seed, 0, pool.length - 1);
-  state.seed = roll.seed;
-  state.pendingEvent = pool[roll.value]!.id;
+  state.pendingEvent = pool[recordSpan(state, 0, pool.length - 1, '天机·择事')]!.id;
 }
 
 function advanceTurn(state: GameState): void {
@@ -196,10 +217,37 @@ function advanceTurn(state: GameState): void {
   }
 }
 
+// ============================================================================
+// Endings — terminal outcomes fire on their own, milestones are offered
+// ============================================================================
+
+/** Milestone endings the player may accept or wave away (opt-in). */
+export const MILESTONE_ENDINGS: readonly EndingKey[] = [
+  'conqueror',
+  'patternSage',
+  'soulAscendant',
+  'magnate',
+  'benevolent',
+  'wanderer',
+];
+
+/** Endings that close the run the moment their condition holds. */
+export const TERMINAL_ENDINGS: readonly EndingKey[] = [
+  'death',
+  'oldAge',
+  'swordSupreme',
+  'spellSupreme',
+  'bodySupreme',
+  'soulSupreme',
+];
+
+/**
+ * Terminal outcomes only: death, old age, and the four rank-天 道君 ascensions.
+ * Milestone paths are never forced — see `evaluateMilestone`.
+ */
 export function evaluateEnding(state: GameState): EndingKey | null {
   if (state.character.health <= 0 || state.soul.stability <= 0) return 'death';
   if (state.character.age >= state.character.lifespan) return 'oldAge';
-  // Rank-天 victory endings outrank every milestone ending on the same turn.
   if (state.character.realm >= REALMS.length - 1) {
     const pathEndings: Record<GameState['character']['path'], EndingKey> = {
       剑: 'swordSupreme',
@@ -209,117 +257,180 @@ export function evaluateEnding(state: GameState): EndingKey | null {
     };
     return pathEndings[state.character.path];
   }
-  if (state.territory.nodes >= 8 && state.character.realm >= 3) return 'conqueror';
-  if (state.daoPattern.engraved >= 12) return 'patternSage';
-  if (state.soul.maxPower >= 180 && state.character.realm >= 3) return 'soulAscendant';
-  if (state.territory.spiritStones >= 1200) return 'magnate';
-  if (state.character.karma >= 100 && state.character.reputation >= 80) return 'benevolent';
-  if (state.character.vow === 'freedom' && state.character.age >= 90 && state.territory.nodes <= 2) return 'wanderer';
   return null;
+}
+
+/**
+ * The milestone (if any) currently on offer. Thresholds now sit well past the
+ * numbers a 道君 run passes in transit, and anything waved away never comes
+ * back — together that keeps all twelve endings reachable.
+ */
+export function evaluateMilestone(state: GameState): EndingKey | null {
+  const c = state.character;
+  const offered: EndingKey[] = [];
+  if (state.territory.nodes >= 10 && c.realm >= 4) offered.push('conqueror');
+  if (state.daoPattern.engraved >= 14) offered.push('patternSage');
+  if (state.soul.maxPower >= 180 && c.realm >= 4) offered.push('soulAscendant');
+  if (state.territory.spiritStones >= 1500) offered.push('magnate');
+  if (c.karma >= 120 && c.reputation >= 100) offered.push('benevolent');
+  if (c.vow === 'freedom' && c.age >= 96 && state.territory.nodes <= 2 && c.realm >= 2) {
+    offered.push('wanderer');
+  }
+  return offered.find((key) => !state.declinedEndings.includes(key)) ?? null;
 }
 
 function finishIfNeeded(state: GameState): void {
   const ending = evaluateEnding(state);
-  if (!ending) return;
-  state.ending = ending;
-  state.pendingEvent = null;
-  const detail = ENDINGS.find((item) => item.id === ending);
-  log(state, `命数已定：${detail?.title ?? ending}`, ending === 'death' ? 'danger' : 'thunder');
+  if (ending) {
+    state.ending = ending;
+    state.pendingEvent = null;
+    state.pendingMilestone = null;
+    state.combat = null;
+    const detail = ENDINGS.find((item) => item.id === ending);
+    log(state, `命数已定：${detail?.title ?? ending}`, ending === 'death' ? 'danger' : 'thunder');
+    return;
+  }
+  if (state.pendingMilestone) return;
+  const milestone = evaluateMilestone(state);
+  if (!milestone) return;
+  state.pendingMilestone = milestone;
+  const detail = ENDINGS.find((item) => item.id === milestone);
+  log(state, `天道垂问：${detail?.title ?? milestone}已在眼前，就此收官，抑或继续问道？`, 'thunder');
 }
+
+/**
+ * Answer a milestone offer: accept it as this life's ending, or decline and
+ * keep walking — that milestone is never offered again.
+ */
+export function resolveMilestone(current: GameState, accept: boolean): ActionResult {
+  const milestone = current.pendingMilestone;
+  if (!milestone) return { ok: false, message: '天道并未垂问', state: current };
+  return runCommand(current, accept ? `收官:${milestone}` : `续道:${milestone}`, (state) => {
+    state.pendingMilestone = null;
+    if (accept) {
+      state.ending = milestone;
+      state.pendingEvent = null;
+      const detail = ENDINGS.find((item) => item.id === milestone);
+      log(state, `命数已定：${detail?.title ?? milestone}`, 'thunder');
+      return `此生收于「${detail?.title ?? milestone}」。`;
+    }
+    state.declinedEndings = [...state.declinedEndings, milestone];
+    log(state, '你摇头不受，道途未尽，雷声仍在远山。', 'normal');
+    return '道途未尽，继续问道。';
+  });
+}
+
+// ============================================================================
+// Commands
+// ============================================================================
 
 export function performAction(current: GameState, action: CoreAction): ActionResult {
   const check = actionAvailability(current, action);
   if (!check.available) return { ok: false, message: check.reason, state: current };
-  const state = copy(current);
-  const c = state.character;
-  let message = '';
 
-  if (action === '悟道') {
-    if (state.soul.power < 6) {
-      message = '神魂枯竭，此番静坐只得喘息，未见天地之纹。';
+  return runCommand(current, `行动:${action}`, (state) => {
+    const c = state.character;
+    let message = '';
+
+    if (action === '悟道') {
+      if (state.soul.power < 6) {
+        message = '神魂枯竭，此番静坐只得喘息，未见天地之纹。';
+        log(state, message, 'normal');
+      } else {
+        const gain = recordSpan(state, 6, 13, '悟道·天地之纹');
+        const pathBonus = c.path === '法' || c.path === '神' ? 2 : 0;
+        state.soul = spendSoul(state.soul, 6);
+        state.daoPattern = comprehend(state.daoPattern, gain + pathBonus);
+        message = `静观天地，得 ${gain + pathBonus} 点道纹感悟。`;
+        log(state, message, 'good');
+      }
+    } else if (action === '调息') {
+      const before = state.soul.power;
+      state.soul = restoreSoul(state.soul, 10 + state.territory.nodes * 2);
+      state.soul.stability = Math.min(100, state.soul.stability + 2);
+      c.qi = Math.min(c.maxQi, c.qi + 12);
+      c.health = Math.min(c.maxHealth, c.health + Math.max(4, Math.round(c.maxHealth * 0.06)));
+      state.daoPattern.harmony = Math.min(100, state.daoPattern.harmony + 2);
+      message = `闭目调息，神魂回复 ${state.soul.power - before} 点，气血渐平。`;
       log(state, message, 'normal');
-    } else {
-      const roll = rollInt(state.seed, 6, 13);
-      state.seed = roll.seed;
-      const pathBonus = c.path === '法' || c.path === '神' ? 2 : 0;
-      state.soul = spendSoul(state.soul, 6);
-      state.daoPattern = comprehend(state.daoPattern, roll.value + pathBonus);
-      message = `静观天地，得 ${roll.value + pathBonus} 点道纹感悟。`;
-      log(state, message, 'good');
-    }
-  } else if (action === '凝纹') {
-    const before = state.daoPattern.engraved;
-    state.soul = spendSoul(state.soul, 8);
-    state.daoPattern = engravePattern(state.daoPattern, c.path);
-    const patternName = state.daoPattern.namedPatterns.at(-1) ?? `第 ${before + 1} 道纹`;
-    c.maxQi += c.path === '法' ? 6 : 3;
-    c.qi = Math.min(c.maxQi, c.qi + 8);
-    message = `${patternName}凝成，纹威流转周身。`;
-    log(state, message, 'thunder');
-  } else if (action === '斗法') {
-    c.qi -= 8;
-    const foe = rollInt(state.seed, 35 + c.realm * 28, 72 + c.realm * 34);
-    state.seed = foe.seed;
-    const strike = rollInt(state.seed, 0, 38);
-    state.seed = strike.seed;
-    const margin = totalPower(state) + strike.value - foe.value;
-    if (margin >= 0) {
-      const loot = 10 + Math.floor(margin / 8);
-      state.territory.spiritStones += loot;
-      c.reputation += 3;
-      message = `斗法得胜，夺得 ${loot} 玄玉。`;
-      log(state, message, 'good');
-    } else {
-      const wound = Math.min(28, 7 + Math.ceil(Math.abs(margin) / 7));
-      c.health = Math.max(0, c.health - wound);
-      state.soul.stability = Math.max(0, state.soul.stability - 3);
-      message = `斗法失利，受创 ${wound} 点。`;
-      log(state, message, 'danger');
-    }
-  } else if (action === '占地') {
-    c.qi -= 10;
-    const contest = rollInt(state.seed, 0, 55);
-    state.seed = contest.seed;
-    const margin = totalPower(state) + contest.value - claimDifficulty(state.territory.nodes);
-    if (margin >= 0) {
-      state.territory = claimTerritory(state.territory, margin);
-      message = `破阵立碑，疆域扩至 ${state.territory.nodes} 处灵地。`;
+    } else if (action === '凝纹') {
+      const before = state.daoPattern.engraved;
+      state.soul = spendSoul(state.soul, 8);
+      state.daoPattern = engravePattern(state.daoPattern, c.path);
+      const patternName = state.daoPattern.namedPatterns.at(-1) ?? `第 ${before + 1} 道纹`;
+      c.maxQi += c.path === '法' ? 6 : 3;
+      c.qi = Math.min(c.maxQi, c.qi + 8);
+      message = `${patternName}凝成，纹威流转周身。`;
       log(state, message, 'thunder');
+    } else if (action === '斗法') {
+      c.qi -= 8;
+      const foe = startCombat(state);
+      // The duel holds the turn open: it advances only when combat resolves.
+      return `${foe.name}拦路，斗法开始。`;
+    } else if (action === '占地') {
+      c.qi -= 10;
+      const contest = recordSpan(state, 0, 55, '占地·争锋');
+      const margin = totalPower(state) + contest - claimDifficulty(state.territory.nodes);
+      if (margin >= 0) {
+        state.territory = claimTerritory(state.territory, margin);
+        message = `破阵立碑，疆域扩至 ${state.territory.nodes} 处灵地。`;
+        log(state, message, 'thunder');
+      } else {
+        state.territory = loseTerritory(state.territory, 8);
+        c.health = Math.max(0, c.health - 5);
+        message = '开疆受阻，边境掌控动摇。';
+        log(state, message, 'danger');
+      }
     } else {
-      state.territory = loseTerritory(state.territory, 8);
-      c.health = Math.max(0, c.health - 5);
-      message = '开疆受阻，边境掌控动摇。';
-      log(state, message, 'danger');
+      const soulCost = 15 + c.realm * 5;
+      state.soul = spendSoul(state.soul, soulCost);
+      const odds = Math.min(90, Math.round(55 + state.daoPattern.harmony / 5 + state.soul.stability / 6));
+      const d100 = recordDie(state, 100, '突破·雷劫');
+      if (d100 <= odds) {
+        c.realm += 1;
+        c.maxHealth += 14 + (c.path === '体' ? 10 : 0);
+        c.health = c.maxHealth;
+        c.maxQi += 15 + (c.path === '法' ? 8 : 0);
+        c.qi = c.maxQi;
+        state.soul = temperSoul(state.soul, 10 + (c.path === '神' ? 7 : 0));
+        state.daoPattern.harmony = Math.min(100, state.daoPattern.harmony + 10);
+        c.lifespan += 24 + c.realm * 8;
+        message = `雷劫散尽，踏入${REALMS[c.realm]}境！`;
+        log(state, message, 'thunder');
+      } else {
+        const wound = 14 + c.realm * 5;
+        c.health = Math.max(1, c.health - wound);
+        state.daoPattern.harmony = Math.max(0, state.daoPattern.harmony - 10);
+        message = `天门未开，雷劫反噬 ${wound} 点。`;
+        log(state, message, 'danger');
+      }
     }
-  } else {
-    const soulCost = 15 + c.realm * 5;
-    state.soul = spendSoul(state.soul, soulCost);
-    const roll = chance(state.seed, Math.min(0.9, 0.55 + state.daoPattern.harmony / 500 + state.soul.stability / 600));
-    state.seed = roll.seed;
-    if (roll.value === 1) {
-      c.realm += 1;
-      c.maxHealth += 14 + (c.path === '体' ? 10 : 0);
-      c.health = c.maxHealth;
-      c.maxQi += 15 + (c.path === '法' ? 8 : 0);
-      c.qi = c.maxQi;
-      state.soul = temperSoul(state.soul, 10 + (c.path === '神' ? 7 : 0));
-      state.daoPattern.harmony = Math.min(100, state.daoPattern.harmony + 10);
-      c.lifespan += 24 + c.realm * 8;
-      message = `雷劫散尽，踏入${REALMS[c.realm]}境！`;
-      log(state, message, 'thunder');
-    } else {
-      const wound = 14 + c.realm * 5;
-      c.health = Math.max(1, c.health - wound);
-      state.daoPattern.harmony = Math.max(0, state.daoPattern.harmony - 10);
-      message = `天门未开，雷劫反噬 ${wound} 点。`;
-      log(state, message, 'danger');
-    }
-  }
 
-  advanceTurn(state);
-  finishIfNeeded(state);
-  if (!state.ending) selectEvent(state, action);
-  return { ok: true, message, state };
+    advanceTurn(state);
+    finishIfNeeded(state);
+    if (!state.ending && !state.pendingMilestone) selectEvent(state, action);
+    return message;
+  });
+}
+
+/** One round of the pending duel; resolving it closes out the 斗法 turn. */
+export function fightRound(current: GameState, tactic: CombatTactic): ActionResult {
+  if (!current.combat || current.combat.over) return { ok: false, message: '并无对敌', state: current };
+  const check = tacticAvailability(current, tactic);
+  if (!check.available) return { ok: false, message: check.reason, state: current };
+
+  return runCommand(current, `战术:${tactic}`, (state) => {
+    combatTurn(state, tactic);
+    const combat = state.combat!;
+    if (!combat.over) return combat.log.at(-1) ?? `${tactic}既出。`;
+
+    const message = combat.log.at(-1) ?? '此战了结。';
+    state.combat = null;
+    advanceTurn(state);
+    finishIfNeeded(state);
+    if (!state.ending && !state.pendingMilestone) selectEvent(state, '斗法');
+    return message;
+  });
 }
 
 export function chooseEvent(current: GameState, choiceIndex: 0 | 1): ActionResult {
@@ -327,13 +438,15 @@ export function chooseEvent(current: GameState, choiceIndex: 0 | 1): ActionResul
   const event = EVENTS.find((item) => item.id === current.pendingEvent);
   if (!event) return { ok: false, message: '事件已消散', state: { ...current, pendingEvent: null } };
   const selected = event.choices[choiceIndex];
-  const state = copy(current);
-  applyEffectMutable(state, selected.effect);
-  state.seenEvents = [...state.seenEvents, event.id].slice(-24);
-  state.pendingEvent = null;
-  log(state, `${event.title}：${selected.result}`, choiceIndex === 0 ? 'normal' : 'good');
-  finishIfNeeded(state);
-  return { ok: true, message: selected.result, state };
+
+  return runCommand(current, `抉择:${event.id}#${choiceIndex}`, (state) => {
+    applyEffectMutable(state, selected.effect);
+    state.seenEvents = [...state.seenEvents, event.id].slice(-24);
+    state.pendingEvent = null;
+    log(state, `${event.title}：${selected.result}`, choiceIndex === 0 ? 'normal' : 'good');
+    finishIfNeeded(state);
+    return selected.result;
+  });
 }
 
 export function useItem(current: GameState, itemId: string): ActionResult {
@@ -341,12 +454,44 @@ export function useItem(current: GameState, itemId: string): ActionResult {
   const item = ITEMS.find((candidate) => candidate.id === itemId);
   if (index < 0 || !item) return { ok: false, message: '行囊中没有此物', state: current };
   if (current.ending) return { ok: false, message: '命数已定', state: current };
-  const state = copy(current);
-  applyEffectMutable(state, item.effect);
-  if (item.consumable) state.inventory.splice(index, 1);
-  log(state, `使用${item.name}：${item.description}`, 'good');
-  finishIfNeeded(state);
-  return { ok: true, message: `已使用${item.name}`, state };
+
+  return runCommand(current, `用物:${itemId}`, (state) => {
+    applyEffectMutable(state, item.effect);
+    if (item.consumable) state.inventory.splice(index, 1);
+    log(state, `使用${item.name}：${item.description}`, 'good');
+    finishIfNeeded(state);
+    return `已使用${item.name}`;
+  });
+}
+
+export function buyItem(current: GameState, itemId: string): ActionResult {
+  const check = canBuy(current, itemId);
+  if (!check.available) return { ok: false, message: check.reason, state: current };
+  const item = ITEMS.find((candidate) => candidate.id === itemId)!;
+  const price = buyPrice(current, item);
+
+  return runCommand(current, `购入:${itemId}`, (state) => {
+    state.territory.spiritStones -= price;
+    state.inventory.push(itemId);
+    const message = `购入${item.name}，耗 ${price} 玄玉（余 ${state.territory.spiritStones}）。`;
+    log(state, message, 'good');
+    return message;
+  });
+}
+
+export function sellItem(current: GameState, itemId: string): ActionResult {
+  const check = canSell(current, itemId);
+  if (!check.available) return { ok: false, message: check.reason, state: current };
+  const item = ITEMS.find((candidate) => candidate.id === itemId)!;
+  const price = sellPrice(current, item);
+
+  return runCommand(current, `售出:${itemId}`, (state) => {
+    state.inventory.splice(state.inventory.indexOf(itemId), 1);
+    state.territory.spiritStones = Math.min(9999, state.territory.spiritStones + price);
+    const message = `售出${item.name}，得 ${price} 玄玉（现有 ${state.territory.spiritStones}）。`;
+    log(state, message, 'good');
+    return message;
+  });
 }
 
 export function getEnding(key: EndingKey | null) {

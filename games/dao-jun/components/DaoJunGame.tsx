@@ -3,37 +3,58 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   ACTIONS,
+  COMBAT_TACTICS,
   CREATION_STEPS,
   EVENTS,
+  INVENTORY_LIMIT,
   ITEMS,
+  MAX_COMBAT_ROUNDS,
   ORIGINS,
   PATH_INFO,
   REALMS,
+  SAVE_KEY,
   VOWS,
   actionAvailability,
   advanceCreation,
+  buyItem,
+  buyPrice,
   canAdvanceCreation,
+  canBuy,
+  canSell,
   chooseEvent,
+  clearSave,
   createCreationState,
   createGame,
+  fightRound,
+  getBrowserStorage,
   getEnding,
+  getFoe,
+  loadGame,
+  marketStock,
   performAction,
+  resolveMilestone,
   retreatCreation,
+  saveGame,
   selectCreationOrigin,
   selectCreationPath,
   selectCreationVow,
+  sellItem,
+  sellPrice,
   setCreationName,
+  tacticAvailability,
   totalPower,
   useItem,
+  type CombatTactic,
   type CoreAction,
   type CreationOptions,
   type DaoPath,
   type GameState,
   type OriginId,
+  type StorageAdapter,
   type VowId,
 } from '@/engine';
 
-export const SAVE_KEY = 'daojun_save_v1';
+export { SAVE_KEY };
 
 const ACTION_META: Record<CoreAction, { seal: string; subtitle: string; cost: string }> = {
   悟道: { seal: '悟', subtitle: '观天地而得纹意', cost: '神魂 -6' },
@@ -41,6 +62,16 @@ const ACTION_META: Record<CoreAction, { seal: string; subtitle: string; cost: st
   斗法: { seal: '战', subtitle: '以术争名夺资源', cost: '灵气 -8' },
   占地: { seal: '疆', subtitle: '破阵立碑拓灵域', cost: '粮草 10 · 灵气 10' },
   突破: { seal: '劫', subtitle: '渡雷劫叩问天门', cost: '道纹与神魂' },
+  调息: { seal: '息', subtitle: '收功静坐，回气养神', cost: '仅耗一回' },
+};
+
+const TACTIC_META: Record<CombatTactic, { seal: string; subtitle: string }> = {
+  力破: { seal: '破', subtitle: '倾力破敌，门户随之大开' },
+  周旋: { seal: '旋', subtitle: '游走试探，伤敌浅而自保深' },
+  布纹: { seal: '纹', subtitle: '铺纹蓄势，下一记力破威力倍增' },
+  摄神: { seal: '摄', subtitle: '神念夺魄，无视护体外甲' },
+  吞丹: { seal: '丹', subtitle: '仰头服丹，敌手趁隙一击' },
+  遁土: { seal: '遁', subtitle: '敛去气机，遁土而走' },
 };
 
 function Meter({ value, max, tone = 'blue' }: { value: number; max: number; tone?: 'blue' | 'cyan' | 'violet' | 'gold' }) {
@@ -193,7 +224,53 @@ function StatPanel({ state }: { state: GameState }) {
   );
 }
 
-function TerritoryPanel({ state, onUseItem }: { state: GameState; onUseItem: (id: string) => void }) {
+function MarketPanel({
+  state,
+  onBuy,
+}: {
+  state: GameState;
+  onBuy: (id: string) => void;
+}) {
+  const stock = marketStock(state);
+  return (
+    <section className="panel market-card">
+      <header><p className="section-label">法会</p><span>玄玉 {state.territory.spiritStones}</span></header>
+      {stock.length ? (
+        <div className="market-list">
+          {stock.map((item) => {
+            const price = buyPrice(state, item);
+            const check = canBuy(state, item.id);
+            return (
+              <button
+                type="button"
+                key={item.id}
+                disabled={!check.available}
+                onClick={() => onBuy(item.id)}
+                title={check.available ? item.description : check.reason}
+              >
+                <i className={`rarity-${item.rarity}`}>{item.name.slice(0, 1)}</i>
+                <span><b>{item.name}</b><small>{check.available ? item.description : check.reason}</small></span>
+                <em>{price} 石</em>
+              </button>
+            );
+          })}
+        </div>
+      ) : <p className="empty">境界尚浅，法会不为你开门。</p>}
+    </section>
+  );
+}
+
+function TerritoryPanel({
+  state,
+  onUseItem,
+  onSellItem,
+  onBuyItem,
+}: {
+  state: GameState;
+  onUseItem: (id: string) => void;
+  onSellItem: (id: string) => void;
+  onBuyItem: (id: string) => void;
+}) {
   const t = state.territory;
   const counts = state.inventory.reduce<Record<string, number>>((acc, id) => ({ ...acc, [id]: (acc[id] ?? 0) + 1 }), {});
   return (
@@ -213,23 +290,95 @@ function TerritoryPanel({ state, onUseItem }: { state: GameState; onUseItem: (id
         </div>
       </section>
       <section className="panel inventory-card">
-        <header><p className="section-label">乾坤囊</p><span>{state.inventory.length}/24</span></header>
+        <header><p className="section-label">乾坤囊</p><span>{state.inventory.length}/{INVENTORY_LIMIT}</span></header>
         {Object.keys(counts).length ? (
           <div className="inventory-list">
             {Object.entries(counts).map(([id, count]) => {
               const item = ITEMS.find((candidate) => candidate.id === id);
               if (!item) return null;
+              const sellable = canSell(state, id);
               return (
-                <button key={id} onClick={() => onUseItem(id)} title={`${item.description} 点击使用`}>
-                  <i className={`rarity-${item.rarity}`}>{item.name.slice(0, 1)}</i>
-                  <span><b>{item.name} {count > 1 ? `×${count}` : ''}</b><small>{item.description}</small></span>
-                </button>
+                <div className="inventory-row" key={id}>
+                  <button type="button" onClick={() => onUseItem(id)} title={`${item.description} 点击使用`}>
+                    <i className={`rarity-${item.rarity}`}>{item.name.slice(0, 1)}</i>
+                    <span><b>{item.name} {count > 1 ? `×${count}` : ''}</b><small>{item.description}</small></span>
+                  </button>
+                  <button
+                    type="button"
+                    className="sell-button"
+                    disabled={!sellable.available}
+                    onClick={() => onSellItem(id)}
+                    title={sellable.available ? `售出得 ${sellPrice(state, item)} 玄玉` : sellable.reason}
+                  >
+                    售 {sellPrice(state, item)}
+                  </button>
+                </div>
               );
             })}
           </div>
         ) : <p className="empty">囊中空空，唯余清风。</p>}
       </section>
+      <MarketPanel state={state} onBuy={onBuyItem} />
     </aside>
+  );
+}
+
+/** The duel takes over the stage: no other command is legal until it resolves. */
+function CombatPanel({
+  state,
+  onTactic,
+}: {
+  state: GameState;
+  onTactic: (tactic: CombatTactic) => void;
+}) {
+  const combat = state.combat!;
+  const foe = getFoe(combat.foeId);
+  return (
+    <div className="panel combat-panel">
+      <header className="stage-header">
+        <div>
+          <p className="section-label">斗法 · 第 {combat.round} 合</p>
+          <h1>{foe?.name ?? combat.foeId}</h1>
+        </div>
+        <span className="weather">
+          {combat.charged ? 'ϟ 蓄势已成' : combat.opening ? '⌖ 敌现破绽' : `⚔ 至多 ${MAX_COMBAT_ROUNDS} 合`}
+        </span>
+      </header>
+      <div className="combat-bars">
+        <div className="stat-row">
+          <label>敌 <b>{combat.foeHp}/{combat.foeMaxHp}</b></label>
+          <Meter value={combat.foeHp} max={combat.foeMaxHp} tone="gold" />
+        </div>
+        <div className="stat-row">
+          <label>己 <b>{state.character.health}/{state.character.maxHealth}</b></label>
+          <Meter value={state.character.health} max={state.character.maxHealth} tone="cyan" />
+        </div>
+      </div>
+      <div className="actions-grid">
+        {COMBAT_TACTICS.map((tactic, index) => {
+          const availability = tacticAvailability(state, tactic);
+          const meta = TACTIC_META[tactic];
+          return (
+            <button
+              type="button"
+              key={tactic}
+              disabled={!availability.available}
+              onClick={() => onTactic(tactic)}
+              title={availability.reason}
+            >
+              <i>{meta.seal}</i>
+              <span>
+                <b>{tactic}<kbd>{index + 1}</kbd></b>
+                <small>{availability.available ? meta.subtitle : availability.reason}</small>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="combat-log" aria-live="polite" aria-label="斗法实录">
+        {combat.log.slice(-6).map((line, index) => <p key={`${index}-${line}`}>{line}</p>)}
+      </div>
+    </div>
   );
 }
 
@@ -237,23 +386,25 @@ export function DaoJunGame() {
   const [state, setState] = useState<GameState | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState('');
+  const [storage, setStorage] = useState<StorageAdapter | null>(null);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(SAVE_KEY);
-      if (saved) {
-        const parsed = JSON.parse(saved) as GameState;
-        if (parsed.version === 1 && parsed.character && parsed.daoPattern) setState(parsed);
+    const adapter = getBrowserStorage();
+    setStorage(adapter);
+    if (adapter) {
+      const result = loadGame<GameState>(adapter);
+      if (result.ok) setState(result.state);
+      else if (result.code !== 'empty') {
+        setNotice(result.message);
+        clearSave(adapter);
       }
-    } catch {
-      localStorage.removeItem(SAVE_KEY);
     }
     setLoaded(true);
   }, []);
 
   useEffect(() => {
-    if (loaded && state) localStorage.setItem(SAVE_KEY, JSON.stringify(state));
-  }, [loaded, state]);
+    if (loaded && state && storage) saveGame(storage, state);
+  }, [loaded, state, storage]);
 
   useEffect(() => {
     if (!notice) return;
@@ -279,10 +430,29 @@ export function DaoJunGame() {
     });
   }, []);
 
+  const strike = useCallback((tactic: CombatTactic) => {
+    setState((current) => {
+      if (!current) return current;
+      const result = fightRound(current, tactic);
+      setNotice(result.message);
+      return result.state;
+    });
+  }, []);
+
+  const answerMilestone = useCallback((accept: boolean) => {
+    setState((current) => {
+      if (!current) return current;
+      const result = resolveMilestone(current, accept);
+      setNotice(result.message);
+      return result.state;
+    });
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement || !state || state.ending) return;
       const index = Number(event.key) - 1;
+      if (state.pendingMilestone) return;
       if (state.pendingEvent) {
         if (index === 0 || index === 1) {
           event.preventDefault();
@@ -290,14 +460,23 @@ export function DaoJunGame() {
         }
         return;
       }
+      if (state.combat) {
+        const tactic = COMBAT_TACTICS[index];
+        if (tactic && tacticAvailability(state, tactic).available) {
+          event.preventDefault();
+          strike(tactic);
+        }
+        return;
+      }
       if (index >= 0 && index < ACTIONS.length) act(ACTIONS[index]!);
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [act, choose, state]);
+  }, [act, choose, strike, state]);
 
   const pending = useMemo(() => EVENTS.find((event) => event.id === state?.pendingEvent), [state?.pendingEvent]);
   const ending = getEnding(state?.ending ?? null);
+  const milestone = getEnding(state?.pendingMilestone ?? null);
 
   if (!loaded) return <main className="loading-screen"><div className="title-sigil">道</div><p>引雷入卷……</p></main>;
   if (!state) return <Creation onComplete={(options) => setState(createGame(options))} />;
@@ -307,9 +486,19 @@ export function DaoJunGame() {
     setState(result.state);
     setNotice(result.message);
   };
+  const sell = (id: string) => {
+    const result = sellItem(state, id);
+    setState(result.state);
+    setNotice(result.message);
+  };
+  const buy = (id: string) => {
+    const result = buyItem(state, id);
+    setState(result.state);
+    setNotice(result.message);
+  };
   const restart = () => {
     if (!window.confirm('舍弃此世存档，重新入道？')) return;
-    localStorage.removeItem(SAVE_KEY);
+    if (storage) clearSave(storage);
     setState(null);
   };
 
@@ -326,24 +515,28 @@ export function DaoJunGame() {
       <div className="game-grid">
         <StatPanel state={state} />
         <section className="center-stage">
-          <div className="panel action-panel">
-            <header className="stage-header">
-              <div><p className="section-label">道途抉择</p><h1>{REALMS[state.character.realm]} · 第 {state.turn + 1} 回</h1></div>
-              <span className="weather">ϟ 雷意：{Math.round((state.daoPattern.harmony + state.soul.stability) / 2)}%</span>
-            </header>
-            <div className="actions-grid">
-              {ACTIONS.map((action, index) => {
-                const availability = actionAvailability(state, action);
-                const meta = ACTION_META[action];
-                return (
-                  <button type="button" key={action} disabled={!availability.available} onClick={() => act(action)} title={availability.reason}>
-                    <i>{meta.seal}</i>
-                    <span><b>{action}<kbd>{index + 1}</kbd></b><small>{availability.available ? meta.subtitle : availability.reason}</small><em>{meta.cost}</em></span>
-                  </button>
-                );
-              })}
+          {state.combat ? (
+            <CombatPanel state={state} onTactic={strike} />
+          ) : (
+            <div className="panel action-panel">
+              <header className="stage-header">
+                <div><p className="section-label">道途抉择</p><h1>{REALMS[state.character.realm]} · 第 {state.turn + 1} 回</h1></div>
+                <span className="weather">ϟ 雷意：{Math.round((state.daoPattern.harmony + state.soul.stability) / 2)}%</span>
+              </header>
+              <div className="actions-grid">
+                {ACTIONS.map((action, index) => {
+                  const availability = actionAvailability(state, action);
+                  const meta = ACTION_META[action];
+                  return (
+                    <button type="button" key={action} disabled={!availability.available} onClick={() => act(action)} title={availability.reason}>
+                      <i>{meta.seal}</i>
+                      <span><b>{action}<kbd>{index + 1}</kbd></b><small>{availability.available ? meta.subtitle : availability.reason}</small><em>{meta.cost}</em></span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           <section className="panel chronicle">
             <header><p className="section-label">命卷纪事</p><span>近事 {Math.min(60, state.logs.length)} 则</span></header>
@@ -356,12 +549,31 @@ export function DaoJunGame() {
             </div>
           </section>
         </section>
-        <TerritoryPanel state={state} onUseItem={consume} />
+        <TerritoryPanel state={state} onUseItem={consume} onSellItem={sell} onBuyItem={buy} />
       </div>
 
       {notice && <div className="toast" role="status">{notice}</div>}
 
-      {pending && (
+      {milestone && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="milestone-title" aria-describedby="milestone-description">
+          <section className="event-modal">
+            <div className="event-rune">问</div>
+            <p className="step-kicker">天道垂问 · {milestone.rank}品结局</p>
+            <h2 id="milestone-title">{milestone.title}</h2>
+            <p className="event-text" id="milestone-description">{milestone.description}</p>
+            <div className="event-choices">
+              <button type="button" onClick={() => answerMilestone(true)}>
+                <span>受</span><div><b>就此收官</b><small>以此结局封存此生命卷</small></div><i>›</i>
+              </button>
+              <button type="button" onClick={() => answerMilestone(false)}>
+                <span>辞</span><div><b>道途未尽</b><small>此结局不再垂问，继续问道</small></div><i>›</i>
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {pending && !milestone && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="event-title" aria-describedby="event-description">
           <section className="event-modal">
             <div className="event-rune">ϟ</div>

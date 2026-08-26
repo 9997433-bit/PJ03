@@ -23,6 +23,8 @@ import {
   createTerritory,
   engravePattern,
   evaluateEnding,
+  evaluateMilestone,
+  fightRound,
   getEnding,
   harmonize,
   harvestTerritory,
@@ -51,10 +53,17 @@ import {
   type CreationOptions,
   type GameState,
 } from './index';
+import { grantPatterns } from './testkit';
 
 const options: CreationOptions = { name: '宁玄', origin: 'mountain', path: '剑', vow: 'guard' };
 const fresh = (seed = 1) => createGame(options, seed);
-const settle = (state: GameState) => state.pendingEvent ? chooseEvent(state, 1).state : state;
+
+/** Clear whatever phase an action left behind: duel rounds first, then the event. */
+const settle = (state: GameState): GameState => {
+  let current = state;
+  while (current.combat && !current.ending) current = fightRound(current, '力破').state;
+  return current.pendingEvent ? chooseEvent(current, 1).state : current;
+};
 
 describe('seeded random engine', () => {
   it('returns the same roll for the same seed', () => {
@@ -532,10 +541,32 @@ describe('complete game loop', () => {
 
   it('can break through after meeting requirements', () => {
     const state = fresh(1);
-    state.daoPattern.engraved = 1;
+    grantPatterns(state, 1);
     const result = performAction(state, '突破');
     expect(result.ok).toBe(true);
     expect(result.state.character.realm).toBe(1);
+  });
+
+  it('rolls a whole command back when it would break an invariant', () => {
+    const state = fresh(1);
+    // 道纹数 without matching 纹名 is exactly the shape a hand-edited save takes.
+    state.daoPattern.engraved = 1;
+    const result = performAction(state, '突破');
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('回溯');
+    expect(result.state).toBe(state);
+  });
+
+  it('restores soul, qi and health on a 调息 turn', () => {
+    const state = fresh(1);
+    state.soul.power = 4;
+    state.character.qi = 10;
+    state.character.health = 40;
+    const after = performAction(state, '调息').state;
+    expect(after.soul.power).toBeGreaterThan(state.soul.power);
+    expect(after.character.qi).toBeGreaterThan(state.character.qi);
+    expect(after.character.health).toBeGreaterThan(state.character.health);
+    expect(after.turn).toBe(1);
   });
 
   it('advances age every fourth action', () => {
@@ -573,11 +604,12 @@ describe('complete game loop', () => {
     expect(evaluateEnding(state)).toBe('oldAge');
   });
 
-  it('detects the territorial conquest ending', () => {
+  it('offers the territorial conquest milestone instead of forcing it', () => {
     const state = fresh();
-    state.character.realm = 3;
-    state.territory.nodes = 8;
-    expect(evaluateEnding(state)).toBe('conqueror');
+    state.character.realm = 4;
+    state.territory.nodes = 10;
+    expect(evaluateEnding(state)).toBeNull();
+    expect(evaluateMilestone(state)).toBe('conqueror');
   });
 
   it('detects a path-specific Dao Lord ending', () => {
@@ -611,9 +643,9 @@ describe('complete game loop', () => {
   it('prefers the rank-天 path ending over milestone endings on the same turn', () => {
     const state = fresh();
     state.character.realm = REALMS.length - 1;
-    state.territory.nodes = 8;
+    state.territory.nodes = 10;
     state.territory.spiritStones = 2000;
-    state.daoPattern.engraved = 12;
+    grantPatterns(state, 14);
     expect(evaluateEnding(state)).toBe('swordSupreme');
   });
 
