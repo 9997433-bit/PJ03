@@ -19,11 +19,13 @@ export function restoreSoul(soul: SoulState, amount: number): SoulState {
 }
 
 export function temperSoul(soul: SoulState, gain: number): SoulState {
-  const maxPower = Math.max(1, soul.maxPower + gain);
+  const safeGain = Math.max(0, gain);
+  if (safeGain === 0) return soul;
+  const maxPower = soul.maxPower + safeGain;
   return {
-    power: Math.min(maxPower, soul.power + Math.ceil(gain / 2)),
+    power: Math.min(maxPower, soul.power + Math.ceil(safeGain / 2)),
     maxPower,
-    stability: Math.min(100, soul.stability + Math.max(1, Math.floor(gain / 3))),
+    stability: Math.min(100, soul.stability + Math.max(1, Math.floor(safeGain / 3))),
   };
 }
 

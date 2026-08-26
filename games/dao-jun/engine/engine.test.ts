@@ -6,6 +6,8 @@ import {
   ITEMS,
   REALMS,
   actionAvailability,
+  advanceCreation,
+  canAdvanceCreation,
   canClaim,
   canEngrave,
   canSpendSoul,
@@ -14,6 +16,7 @@ import {
   claimDifficulty,
   claimTerritory,
   comprehend,
+  createCreationState,
   createDaoPattern,
   createGame,
   createSoul,
@@ -31,7 +34,12 @@ import {
   patternsForBreakthrough,
   performAction,
   restoreSoul,
+  retreatCreation,
   rollInt,
+  selectCreationOrigin,
+  selectCreationPath,
+  selectCreationVow,
+  setCreationName,
   shakeSoul,
   soulCombatPower,
   spendSoul,
@@ -86,6 +94,74 @@ describe('seeded random engine', () => {
   });
 });
 
+describe('four-step creation gate', () => {
+  it('starts at 留名 with no preselected answers', () => {
+    const creation = createCreationState();
+    expect(creation.step).toBe(0);
+    expect(creation.draft).toEqual({ name: '', origin: null, path: null, vow: null });
+  });
+
+  it('blocks advancement until the current question is answered', () => {
+    const creation = createCreationState();
+    expect(canAdvanceCreation(creation)).toBe(false);
+    expect(advanceCreation(creation)).toMatchObject({ ok: false, state: creation });
+  });
+
+  it('trims overlong names to the eight-character UI contract', () => {
+    const creation = setCreationName(createCreationState(), '道号恰好超过八个字符');
+    expect(creation.draft.name).toHaveLength(8);
+  });
+
+  it('moves from name to origin without silently selecting an origin', () => {
+    const named = setCreationName(createCreationState(), '宁玄');
+    const result = advanceCreation(named);
+    expect(result.state.step).toBe(1);
+    expect(result.state.draft.origin).toBeNull();
+    expect(canAdvanceCreation(result.state)).toBe(false);
+  });
+
+  it('rejects out-of-order selections', () => {
+    const creation = createCreationState();
+    expect(selectCreationOrigin(creation, 'clan')).toBe(creation);
+    expect(selectCreationPath(creation, '神')).toBe(creation);
+    expect(selectCreationVow(creation, 'freedom')).toBe(creation);
+  });
+
+  it('preserves prior answers when returning to an earlier question', () => {
+    const named = setCreationName(createCreationState(), '宁玄');
+    const originStep = advanceCreation(named).state;
+    const selected = selectCreationOrigin(originStep, 'fallen');
+    const pathStep = advanceCreation(selected).state;
+    const returned = retreatCreation(pathStep);
+    expect(returned.step).toBe(1);
+    expect(returned.draft.origin).toBe('fallen');
+  });
+
+  it('cannot retreat before the first question', () => {
+    const creation = createCreationState();
+    expect(retreatCreation(creation)).toBe(creation);
+  });
+
+  it('completes all four questions into valid game options', () => {
+    let creation = setCreationName(createCreationState(), ' 宁玄 ');
+    creation = advanceCreation(creation).state;
+    creation = selectCreationOrigin(creation, 'clan');
+    creation = advanceCreation(creation).state;
+    creation = selectCreationPath(creation, '法');
+    creation = advanceCreation(creation).state;
+    creation = selectCreationVow(creation, 'mercy');
+    const result = advanceCreation(creation);
+    expect(result.ok).toBe(true);
+    expect(result.options).toEqual({ name: '宁玄', origin: 'clan', path: '法', vow: 'mercy' });
+  });
+
+  it('does not mutate an earlier creation snapshot', () => {
+    const initial = createCreationState();
+    setCreationName(initial, '宁玄');
+    expect(initial).toEqual(createCreationState());
+  });
+});
+
 describe('daoPattern module', () => {
   it('creates an unengraved pattern state', () => {
     expect(createDaoPattern()).toEqual({ insight: 0, engraved: 0, harmony: 50, namedPatterns: [] });
@@ -131,6 +207,33 @@ describe('daoPattern module', () => {
     expect([0, 1, 2, 3].map(patternsForBreakthrough)).toEqual([1, 2, 3, 4]);
   });
 
+  it('treats a negative engraving count as unengraved', () => {
+    expect(insightNeeded(-3)).toBe(12);
+  });
+
+  it('ignores non-positive comprehension without granting harmony', () => {
+    const pattern = createDaoPattern();
+    expect(comprehend(pattern, -20)).toEqual(pattern);
+    expect(comprehend(pattern, 0)).toEqual(pattern);
+  });
+
+  it('blocks engraving when harmony is below twenty', () => {
+    expect(canEngrave({ ...createDaoPattern(), insight: 99, harmony: 19 })).toBe(false);
+  });
+
+  it('assigns a named pattern for every dao path', () => {
+    for (const path of ['剑', '法', '体', '神'] as const) {
+      const result = engravePattern({ ...createDaoPattern(), insight: 12 }, path);
+      expect(result.namedPatterns[0]).toContain(`${path}纹`);
+    }
+  });
+
+  it('cycles stable pattern names after the fourth engraving', () => {
+    let pattern = { ...createDaoPattern(), insight: 200 };
+    for (let index = 0; index < 5; index += 1) pattern = engravePattern(pattern, '剑');
+    expect(pattern.namedPatterns[4]).toBe(pattern.namedPatterns[0]);
+  });
+
   it('clamps harmony to its valid range', () => {
     expect(harmonize(createDaoPattern(), 80).harmony).toBe(100);
     expect(harmonize(createDaoPattern(), -80).harmony).toBe(0);
@@ -151,6 +254,12 @@ describe('soulPower module', () => {
     expect(canSpendSoul(createSoul('剑'), 51)).toBe(false);
   });
 
+  it('rejects negative soul costs', () => {
+    const soul = createSoul('剑');
+    expect(canSpendSoul(soul, -1)).toBe(false);
+    expect(spendSoul(soul, -1)).toBe(soul);
+  });
+
   it('spends soul and slightly reduces stability', () => {
     const result = spendSoul(createSoul('剑'), 16);
     expect(result.power).toBe(34);
@@ -167,8 +276,24 @@ describe('soulPower module', () => {
     expect(restoreSoul(soul, 99).power).toBe(50);
   });
 
+  it('does not turn a negative restoration into damage', () => {
+    const soul = spendSoul(createSoul('剑'), 10);
+    expect(restoreSoul(soul, -20)).toEqual(soul);
+  });
+
   it('tempering increases maximum soul power', () => {
     expect(temperSoul(createSoul('剑'), 12).maxPower).toBe(62);
+  });
+
+  it('ignores non-positive tempering gains', () => {
+    const soul = createSoul('剑');
+    expect(temperSoul(soul, 0)).toBe(soul);
+    expect(temperSoul(soul, -12)).toBe(soul);
+  });
+
+  it('caps tempering stability at one hundred', () => {
+    const soul = { ...createSoul('剑'), stability: 99 };
+    expect(temperSoul(soul, 30).stability).toBe(100);
   });
 
   it('soul shock never produces negative values', () => {
@@ -180,6 +305,13 @@ describe('soulPower module', () => {
   it('gives the soul path an affinity in combat', () => {
     const sameSoul = createSoul('剑');
     expect(soulCombatPower(sameSoul, '神')).toBeGreaterThan(soulCombatPower(sameSoul, '剑'));
+  });
+
+  it('orders combat affinities from mundane through spell to soul', () => {
+    const sameSoul = createSoul('剑');
+    expect(soulCombatPower(sameSoul, '剑')).toBe(soulCombatPower(sameSoul, '体'));
+    expect(soulCombatPower(sameSoul, '法')).toBeGreaterThan(soulCombatPower(sameSoul, '剑'));
+    expect(soulCombatPower(sameSoul, '神')).toBeGreaterThan(soulCombatPower(sameSoul, '法'));
   });
 });
 
@@ -194,12 +326,20 @@ describe('territory module', () => {
     expect(claimDifficulty(3)).toBeGreaterThan(claimDifficulty(0));
   });
 
+  it('does not lower claim difficulty for a negative node count', () => {
+    expect(claimDifficulty(-5)).toBe(claimDifficulty(0));
+  });
+
   it('allows a supplied territory to claim land', () => {
     expect(canClaim(createTerritory())).toBe(true);
   });
 
   it('blocks claiming when food is scarce', () => {
     expect(canClaim({ ...createTerritory(), food: 9 })).toBe(false);
+  });
+
+  it('blocks claiming when control is too low', () => {
+    expect(canClaim({ ...createTerritory(), control: 9 })).toBe(false);
   });
 
   it('adds a node after a successful claim', () => {
@@ -215,14 +355,35 @@ describe('territory module', () => {
     expect(claimTerritory(territory, -1)).toBe(territory);
   });
 
+  it('does not claim when supplies fail even with a positive margin', () => {
+    const territory = { ...createTerritory(), food: 0 };
+    expect(claimTerritory(territory, 100)).toBe(territory);
+  });
+
+  it('caps control after an overwhelming claim', () => {
+    const territory = { ...createTerritory(), control: 98 };
+    expect(claimTerritory(territory, 100).control).toBe(100);
+  });
+
   it('reduces control after losing a contest', () => {
     expect(loseTerritory(createTerritory(), 8).control).toBe(22);
+  });
+
+  it('ignores a non-positive loss severity', () => {
+    const territory = createTerritory();
+    expect(loseTerritory(territory, 0)).toEqual(territory);
+    expect(loseTerritory(territory, -8)).toEqual(territory);
   });
 
   it('harvests more food from more nodes', () => {
     const empty = harvestTerritory(createTerritory()).food;
     const settled = harvestTerritory({ ...createTerritory(), nodes: 3 }).food;
     expect(settled).toBeGreaterThan(empty);
+  });
+
+  it('caps harvested resources and erodes control by one', () => {
+    const territory = { ...createTerritory(), nodes: 2, food: 998, spiritStones: 9998 };
+    expect(harvestTerritory(territory)).toMatchObject({ food: 999, spiritStones: 9999, control: 29 });
   });
 
   it('calculates power from control, influence, and nodes', () => {

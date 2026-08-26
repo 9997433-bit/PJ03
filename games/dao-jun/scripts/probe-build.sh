@@ -22,5 +22,6 @@ npm run build
 
 echo "[probe] inspecting exported artifact"
 node scripts/smoke-test.mjs
+node scripts/probe-e2e.mjs
 
-echo "[probe] PASS — tests, types, build, and static smoke checks succeeded"
+echo "[probe] PASS — tests, types, build, static smoke, and e2e artifact checks succeeded"

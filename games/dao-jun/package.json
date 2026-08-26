@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "probe": "bash scripts/probe-build.sh",
+    "probe:e2e": "node scripts/probe-e2e.mjs",
     "smoke": "node scripts/smoke-test.mjs"
   },
   "dependencies": {
