@@ -62,7 +62,7 @@ focus. `Esc` closes any open panel.
 
 | Situation | Keys |
 |---|---|
-| 行动 | `1` 修炼 · `2` 突破 · `3` 探索 · `4` 斗法 · `5` 坊市 · `6` 推演命数 · `7` 化解劫运 · `8` 闭关 · `9` 功法 |
+| 行动 | `1` 修炼 · `2` 突破 · `3` 探索 · `4` 斗法 · `5` 万法坊 · `6` 推演命数 · `7` 化解劫运 · `8` 闭关 · `9` 功法 |
 | 斗法中 | `1` 出手 · `2` 术法 · `3` 用符 · `4` 遁走 |
 | 战利 | `1` 灭运 · `2` 饶恕 · `3` 搜刮 |
 | 抉择 | `1`–`9` pick the nth affordable option |
@@ -146,7 +146,7 @@ the length of a life:
    gate — a run below it simply never dreams of the book.
 2. **残卷现世** offers the first volume in a junk shop. Refusing is a real
    choice, and it closes the route for good.
-3. **窃录之人** has the second and names two prices: 5000 灵石, or a duel with an
+3. **窃录之人** has the second and names two prices: 5000 玄晶, or a duel with an
    元神 who is well above you when he first appears. The event fires once.
 4. **一域之主** has the third. 洞真魔君 does not flee and does not lose, so the
    other door is 等他的劫 — his own pillar has already been shortened, and a
