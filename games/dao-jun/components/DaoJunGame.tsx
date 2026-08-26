@@ -253,7 +253,7 @@ function MarketPanel({
               >
                 <i className={`rarity-${item.rarity}`}>{item.name.slice(0, 1)}</i>
                 <span><b>{item.name}</b><small>{check.available ? item.description : check.reason}</small></span>
-                <em>{price} 石</em>
+                <em>{price} 玉</em>
               </button>
             );
           })}
@@ -313,7 +313,7 @@ function TerritoryPanel({
                     onClick={() => onSellItem(id)}
                     title={sellable.available ? `售出得 ${sellPrice(state, item)} 玄玉` : sellable.reason}
                   >
-                    售 {sellPrice(state, item)}
+                    售 {sellPrice(state, item)} 玉
                   </button>
                 </div>
               );
