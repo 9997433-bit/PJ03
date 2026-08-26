@@ -21,7 +21,7 @@ that opts out; there is only how you choose to pay.
 npm install
 npm run dev            # http://localhost:3000
 npm run build          # static export → out/index.html
-npm test               # 389 tests
+npm test               # 412 tests
 npm run typecheck
 ```
 
@@ -98,6 +98,18 @@ their corpse: you take the fortune itself, scaled by fate and by whether the
 图录 has woken, and the ledger notices every single time. Twelve of those with
 your merit in the floor is its own ending.
 
+### 门规 — sects that pay for their own kind of work
+
+Membership is a standing contract, and each of the five sects declares what it
+actually counts. 大梵寺 credits the hand you stayed and debits 灭运 outright;
+血蕴宗 pays for the taking and treats mercy as a loss; 太一道 pays for standing
+your ground and does not ask what happened afterwards; 阴阳家 pays for a 劫
+walked through and written up. Duels count for more against a stronger opponent.
+
+This is what the 声望 ledger is for, and it is the only gate on 道统之主: the
+top rung is 320 声望, so the ending belongs to whoever spent a career doing one
+sect's kind of work rather than to whoever merely lived a long time.
+
 ### 道缘 — the number you are never told
 
 One value is rolled in the dark at the end of character creation and sealed. It
@@ -147,11 +159,11 @@ That fixed order is what lets 推演命数 promise anything at all.
 51 events across five omen buckets plus flag-chained destiny events · 33 items ·
 14 endings · 18 enemies · 23 techniques on five routes (four mutually exclusive,
 one hidden and stacking) · 11 fates · 7 spirit roots · 6 origins · 5 sects with
-four-rung ladders · 13 named calamity strikes · 6 injuries.
+four-rung ladders and a 门规 apiece · 13 named calamity strikes · 6 injuries.
 
 ## Tests
 
-389 tests in 18 files (`npm test`). Beyond per-module coverage, three suites
+412 tests in 19 files (`npm test`). Beyond per-module coverage, four suites
 carry most of the weight:
 
 - `dataIntegrity.test.ts` — every cross-reference between data files resolves,
@@ -159,9 +171,25 @@ carry most of the weight:
   the engine. A content-only ending the player can never reach fails the build.
 - `soak.test.ts` — eight autopiloted lifetimes per property. Invariants hold at
   every step, every seed reaches an ending, the same seed plays the same life
-  twice, and a trimmed hash chain still verifies. All three bugs fixed in the
-  last commit were found here rather than by hand.
+  twice, and a trimmed hash chain still verifies.
+- `reachability.test.ts` — eight goal-directed bots play 24 seeded lives each and
+  between them must claim all 14 endings. This is a stronger claim than the unit
+  tests make: those prove an ending is *awardable* given the right state, which
+  passes just as happily for a state no legal sequence of commands can build.
+  Both balance bugs listed below were found here.
 - `seal.test.ts` — the 道缘 seal, asserted at the filesystem level.
+
+### What reachability testing caught
+
+Two defects that every unit test in the repo was happy to sign off on:
+
+- deaths under 天雷法相 and 业火魔相 — both 劫数所化 — were reported as 陨于斗法,
+  because only 天诛神使 was named in the attribution list. Roughly a third of all
+  deaths in a bot survey were closing on prose about an opponent who was not
+  there.
+- 声望 had no repeatable source at all, so across every playstyle no bot ever
+  reached even the *first* of four sect ranks, and 道统之主 was unreachable by
+  construction. Sects now pay for deeds (see 门规 above).
 
 ## Theme
 
