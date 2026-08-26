@@ -1,0 +1,522 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+
+/* ============================================================
+   玄墨鎏金 — Dark Ink & Gilded Jade
+   An ancient scroll lit by a single oil lamp.
+   Palette: 中国传统色 (漆黑 · 赤金 · 碧色 · 胭脂 · 象牙白)
+   ============================================================ */
+
+@theme {
+  /* ===== ink 墨 (base) ===== */
+  --color-ink-950: #0d0f17; /* 漆黑 deepened — page bg */
+  --color-ink-900: #161823; /* 漆黑 — panels */
+  --color-ink-800: #1c1a28; /* panel bg raised */
+  --color-ink-700: #211f2d; /* card bg */
+  --color-ink-600: #2e2b3d; /* hairline borders */
+  --color-ink-500: #3d3b4f; /* 玄青 — hover borders */
+
+  /* ===== gold 金 (identity — keep below ~10% of screen) ===== */
+  --color-gold-300: #eacd76; /* 金色 soft */
+  --color-gold-400: #f2be45; /* 赤金 primary */
+  --color-gold-500: #d4a638;
+  --color-gold-600: #a78e44; /* 乌金 muted */
+
+  /* ===== jade 玉 (vitality) ===== */
+  --color-jade-300: #3de1ad; /* 翡翠 glow */
+  --color-jade-400: #1bd1a5; /* 碧色 */
+  --color-jade-600: #0e8c6d;
+  --color-jade-700: #057748; /* 松花绿 */
+
+  /* ===== paper 纸 (text) ===== */
+  --color-paper-50: #fffbf0; /* 象牙白 body text */
+  --color-paper-200: #eedeb0; /* 牙色 secondary */
+  --color-paper-400: #b8b29e;
+  --color-paper-500: #8a93a6; /* 月白 dimmed — muted */
+
+  /* ===== semantic ===== */
+  --color-crimson-400: #ff4c00; /* 朱红 alert */
+  --color-crimson-500: #c73a2e;
+  --color-crimson-600: #9d2933; /* 胭脂 danger */
+  --color-mystic-500: #8b5a8f; /* 紫棠 lightened — rare items */
+
+  /* ===== fonts (variables injected by next/font in layout) ===== */
+  --font-display: var(--font-mashan), 'Ma Shan Zheng', 'STKaiti', 'KaiTi', serif;
+  --font-serif: var(--font-noto-serif), 'Noto Serif SC', 'Songti SC', 'SimSun', serif;
+  --font-sans: var(--font-noto-sans), 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  /* ===== motion ===== */
+  --animate-cursor-blink: cursor-blink 1.06s steps(2, start) infinite;
+  --animate-gold-shimmer: gold-shimmer 2.8s ease-in-out infinite;
+  --animate-jade-pulse: jade-pulse 2.4s ease-in-out infinite;
+  --animate-mist-drift: mist-drift 36s linear infinite;
+  --animate-mist-drift-slow: mist-drift 58s linear infinite reverse;
+  --animate-particle-rise: particle-rise 14s linear infinite;
+  --animate-seal-stamp: seal-stamp 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) forwards;
+  --animate-ink-bleed: ink-bleed 1.6s ease-out forwards;
+  --animate-heartbeat: heartbeat 0.9s ease-in-out infinite;
+  --animate-screen-crack: screen-crack 0.5s ease-out forwards;
+}
+
+/* ============ shadcn/ui semantic tokens (dark-only, 玄墨鎏金 mapping) ============ */
+
+:root {
+  color-scheme: dark;
+  --background: #0d0f17;
+  --foreground: #fffbf0;
+  --card: #1c1a28;
+  --card-foreground: #fffbf0;
+  --popover: #211f2d;
+  --popover-foreground: #fffbf0;
+  --primary: #f2be45; /* 赤金 */
+  --primary-foreground: #0d0f17;
+  --secondary: #211f2d;
+  --secondary-foreground: #eedeb0; /* 牙色 */
+  --muted: #211f2d;
+  --muted-foreground: #8a93a6; /* 月白 dimmed */
+  --accent: #2a2739;
+  --accent-foreground: #eacd76; /* 金色 */
+  --destructive: #9d2933; /* 胭脂 */
+  --destructive-foreground: #fffbf0;
+  --border: #2e2b3d;
+  --input: #2e2b3d;
+  --ring: #f2be45;
+  --radius: 0.5rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+/* ============ base ============ */
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-ink-950);
+  color: var(--color-paper-50);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-gold-400) 30%, transparent);
+  color: var(--color-paper-50);
+}
+
+/* ============ paper grain + ink-wash vignette overlays ============ */
+
+.paper-grain::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.ink-vignette::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 49;
+  background:
+    radial-gradient(ellipse 120% 90% at 50% 45%, transparent 55%, rgba(5, 6, 10, 0.55) 100%),
+    linear-gradient(to bottom, rgba(5, 6, 10, 0.35), transparent 12%, transparent 88%, rgba(5, 6, 10, 0.45));
+}
+
+/* ============ scrollbar ============ */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-500) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, var(--color-ink-500), var(--color-ink-600));
+  border-radius: 4px;
+  border: 2px solid var(--color-ink-950);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-gold-600);
+}
+
+/* ============ typography helpers ============ */
+
+.font-display {
+  font-family: var(--font-display);
+}
+.font-serif {
+  font-family: var(--font-serif);
+}
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.text-gold-gradient {
+  background: linear-gradient(120deg, var(--color-gold-600) 0%, var(--color-gold-300) 30%, #fff3c4 50%, var(--color-gold-300) 70%, var(--color-gold-600) 100%);
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: var(--animate-gold-shimmer);
+}
+
+/* ============ panels: hairline double-border 回纹-inspired corners ============ */
+
+.panel-ornate {
+  position: relative;
+  border: 1px solid var(--color-ink-600);
+  background: color-mix(in srgb, var(--color-ink-800) 72%, transparent);
+  backdrop-filter: blur(8px);
+}
+.panel-ornate::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid color-mix(in srgb, var(--color-gold-600) 25%, transparent);
+  pointer-events: none;
+}
+.corner-brackets {
+  position: relative;
+}
+.corner-brackets > .cb {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: var(--color-gold-600);
+  border-style: solid;
+  border-width: 0;
+  pointer-events: none;
+}
+.corner-brackets > .cb-tl { top: -1px; left: -1px; border-top-width: 1px; border-left-width: 1px; }
+.corner-brackets > .cb-tr { top: -1px; right: -1px; border-top-width: 1px; border-right-width: 1px; }
+.corner-brackets > .cb-bl { bottom: -1px; left: -1px; border-bottom-width: 1px; border-left-width: 1px; }
+.corner-brackets > .cb-br { bottom: -1px; right: -1px; border-bottom-width: 1px; border-right-width: 1px; }
+
+/* ============ red seal 印章 ============ */
+
+.seal-stamp {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--color-crimson-500);
+  color: var(--color-crimson-500);
+  font-family: var(--font-display);
+  transform: rotate(-6deg);
+  animation: var(--animate-seal-stamp);
+}
+
+/* ============ typewriter cursor ============ */
+
+.tw-cursor::after {
+  content: '▌';
+  color: var(--color-gold-400);
+  animation: var(--animate-cursor-blink);
+  margin-left: 1px;
+}
+
+/* ============ mist / fog layers (title screen) ============ */
+
+.mist-layer {
+  position: absolute;
+  inset: -20%;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 40% 26% at 20% 60%, color-mix(in srgb, var(--color-jade-700) 9%, transparent), transparent 70%),
+    radial-gradient(ellipse 46% 30% at 75% 35%, color-mix(in srgb, var(--color-ink-500) 24%, transparent), transparent 70%),
+    radial-gradient(ellipse 36% 22% at 55% 80%, color-mix(in srgb, var(--color-gold-600) 6%, transparent), transparent 70%);
+  animation: var(--animate-mist-drift);
+  will-change: transform;
+}
+.mist-layer-2 {
+  animation: var(--animate-mist-drift-slow);
+  background:
+    radial-gradient(ellipse 44% 28% at 70% 70%, color-mix(in srgb, var(--color-ink-500) 20%, transparent), transparent 70%),
+    radial-gradient(ellipse 34% 20% at 30% 25%, color-mix(in srgb, var(--color-jade-700) 7%, transparent), transparent 70%);
+}
+
+/* floating qi particles */
+.qi-particle {
+  position: absolute;
+  bottom: -4px;
+  border-radius: 9999px;
+  pointer-events: none;
+  animation: var(--animate-particle-rise);
+  will-change: transform, opacity;
+}
+
+/* ============ keyframes ============ */
+
+@keyframes cursor-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes gold-shimmer {
+  0% { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+@keyframes jade-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-jade-400) 32%, transparent); }
+  50% { box-shadow: 0 0 18px 3px color-mix(in srgb, var(--color-jade-400) 18%, transparent); }
+}
+
+@keyframes mist-drift {
+  0% { transform: translate3d(-4%, 0, 0) scale(1); }
+  50% { transform: translate3d(4%, -2%, 0) scale(1.06); }
+  100% { transform: translate3d(-4%, 0, 0) scale(1); }
+}
+
+@keyframes particle-rise {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  8% { opacity: var(--p-opacity, 0.5); }
+  90% { opacity: var(--p-opacity, 0.5); }
+  100% { transform: translate3d(var(--p-drift, 20px), -105vh, 0); opacity: 0; }
+}
+
+@keyframes seal-stamp {
+  0% { transform: rotate(-6deg) scale(2.2); opacity: 0; }
+  60% { transform: rotate(-6deg) scale(0.92); opacity: 1; }
+  100% { transform: rotate(-6deg) scale(1); opacity: 1; }
+}
+
+@keyframes ink-bleed {
+  0% { opacity: 0; filter: blur(14px); transform: scale(1.04); }
+  100% { opacity: 1; filter: blur(0); transform: scale(1); }
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  14% { transform: scale(1.04); }
+  28% { transform: scale(1); }
+  42% { transform: scale(1.05); }
+}
+
+@keyframes screen-crack {
+  0% { box-shadow: inset 0 0 0 0 transparent; }
+  100% { box-shadow: inset 0 0 120px 30px color-mix(in srgb, var(--color-crimson-600) 55%, transparent); }
+}
+
+/* ============ progress bars ============ */
+
+.bar-track {
+  background: var(--color-ink-600);
+  overflow: hidden;
+  border-radius: 2px;
+}
+.bar-fill-jade {
+  background: linear-gradient(90deg, var(--color-jade-700), var(--color-jade-400));
+  height: 100%;
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.bar-fill-crimson {
+  background: linear-gradient(90deg, var(--color-crimson-600), var(--color-crimson-400));
+  height: 100%;
+  transition: width 0.4s ease-out;
+}
+.bar-fill-gold {
+  background: linear-gradient(90deg, var(--color-gold-600), var(--color-gold-400));
+  height: 100%;
+  transition: width 0.6s ease-out;
+}
+
+/* ============================================================
+   shadcn/ui bridge + component-layer extensions
+   Restores the semantic variable layer the ui/ primitives consume
+   and a few tokens/utilities used by the game components.
+   ============================================================ */
+
+@theme {
+  /* aliases kept for components that use the muted "mist" scale */
+  --color-mist-400: #8a93a6;
+  --color-mist-600: #5c6373;
+  /* extended mystic (紫棠) ramp for legendary-tier styling */
+  --color-mystic-400: #c77dce;
+  --color-mystic-600: #8b3a91;
+  --color-mystic-900: #56004f;
+  --color-jade-500: #12b08c;
+
+  /* motion tokens used by game components */
+  --animate-qi-pulse: qi-pulse 3.2s ease-in-out infinite;
+  --animate-crack-shake: crack-shake 0.45s ease-in-out;
+  --animate-float-up: float-up 1.1s ease-out forwards;
+  --animate-flame: flame 1.3s ease-in-out infinite;
+  --animate-lightning: lightning 0.9s ease-out;
+}
+
+@theme inline {
+  /* shadcn semantic mapping → 玄墨鎏金 palette */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-heading: var(--font-display);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+:root {
+  --background: #161823;
+  --foreground: #fffbf0;
+  --card: #1c1a28;
+  --card-foreground: #fffbf0;
+  --popover: #211f2d;
+  --popover-foreground: #fffbf0;
+  --primary: #f2be45;
+  --primary-foreground: #0d0f17;
+  --secondary: #211f2d;
+  --secondary-foreground: #eedeb0;
+  --muted: #211f2d;
+  --muted-foreground: #8a93a6;
+  --accent: #2a2739;
+  --accent-foreground: #eacd76;
+  --destructive: #9d2933;
+  --border: #2e2b3d;
+  --input: #2e2b3d;
+  --ring: #f2be45;
+  --radius: 0.375rem;
+}
+
+/* frosted glass over ink — standard elevated panel treatment */
+.glass-panel {
+  background: color-mix(in srgb, var(--color-ink-800) 62%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid color-mix(in srgb, var(--color-ink-600) 90%, transparent);
+}
+
+/* text glows */
+.text-glow-gold {
+  text-shadow:
+    0 0 18px rgba(242, 190, 69, 0.45),
+    0 0 42px rgba(242, 190, 69, 0.18);
+}
+.text-glow-jade {
+  text-shadow:
+    0 0 16px rgba(27, 209, 165, 0.5),
+    0 0 40px rgba(27, 209, 165, 0.2);
+}
+.text-glow-crimson {
+  text-shadow:
+    0 0 16px rgba(255, 76, 0, 0.5),
+    0 0 40px rgba(157, 41, 51, 0.35);
+}
+
+/* engraved hairline divider with a center diamond */
+.ornament-divider {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(167, 142, 68, 0.55), transparent);
+}
+.ornament-divider::after {
+  content: '◆';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 7px;
+  color: rgba(167, 142, 68, 0.8);
+}
+
+@keyframes qi-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.035); }
+}
+@keyframes crack-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+@keyframes float-up {
+  0% { opacity: 0; transform: translateY(6px); }
+  15% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-34px); }
+}
+@keyframes flame {
+  0%, 100% { transform: scaleY(1) translateY(0); opacity: 0.85; }
+  50% { transform: scaleY(1.18) translateY(-3px); opacity: 1; }
+}
+@keyframes lightning {
+  0%, 100% { opacity: 0; }
+  8% { opacity: 0.9; }
+  12% { opacity: 0.1; }
+  20% { opacity: 0.75; }
+  30% { opacity: 0; }
+  46% { opacity: 0.5; }
+  52% { opacity: 0; }
+}
+
+/* ============ reduced motion ============ */
+
+@media (prefers-reduced-motion: reduce) {
+  .mist-layer,
+  .mist-layer-2,
+  .qi-particle,
+  .text-gold-gradient {
+    animation: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

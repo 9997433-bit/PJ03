@@ -1,0 +1,43 @@
+# dependencies (root, games/*, packages/*)
+node_modules/
+/.pnp
+.pnp.*
+games/*/package-lock.json
+packages/*/package-lock.json
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+/games/*/.next/
+/games/*/out/
+
+# production
+/build
+/dist/
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files
+.env*
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# next dev writes these into each app on boot; the root pair is the real one
+games/*/AGENTS.md
+games/*/CLAUDE.md

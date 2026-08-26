@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <rect width="32" height="32" fill="#06040e"/>
+  <!-- the star track everything is watched from -->
+  <ellipse cx="16" cy="16" rx="12.5" ry="5.5" fill="none" stroke="#2e2160" stroke-width="1.3"
+           transform="rotate(-28 16 16)"/>
+  <!-- the fortune pillar behind every character, gold and rising -->
+  <rect x="14.6" y="7" width="2.8" height="18" rx="1.4" fill="#f2c879"/>
+  <!-- the bill heaven keeps, coming down the same line -->
+  <path d="M16 4.5 L12.8 12 h4.2 l-2.6 6.5" fill="none" stroke="#ff6180"
+        stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="26.5" cy="8.5" r="2.2" fill="#b79aff"/>
+</svg>

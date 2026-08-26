@@ -1,0 +1,360 @@
+/**
+ * items.ts — 丹药 / 符箓 / 法器 / 材料 / 图录残卷
+ *
+ * Anything with a `passive` block applies while equipped; anything with an
+ * `effect` block is spent on use. The three 图录残卷 are the only items that
+ * cannot be bought, sold, or rolled as ordinary loot.
+ */
+
+import type { ItemDef } from '@/engine/types';
+
+export const ITEMS: readonly ItemDef[] = [
+  // ---- 丹药 ---------------------------------------------------------------
+  {
+    id: 'jinchuangyao',
+    name: '金疮药',
+    kind: 'pill',
+    grade: 1,
+    price: 18,
+    desc: '寻常伤药,止血生肌。凡人之物,救凡人之命。',
+    effect: { hp: 20 },
+  },
+  {
+    id: 'huiyuandan',
+    name: '回元丹',
+    kind: 'pill',
+    grade: 1,
+    price: 48,
+    desc: '气血两补。丹香浊而实。',
+    effect: { hp: 45, mana: 15 },
+  },
+  {
+    id: 'ningqidan',
+    name: '凝气丹',
+    kind: 'pill',
+    grade: 1,
+    price: 70,
+    desc: '化天地气入经络,省却半月苦坐。',
+    effect: { exp: 120 },
+  },
+  {
+    id: 'ningshendan',
+    name: '凝神丹',
+    kind: 'pill',
+    grade: 2,
+    price: 260,
+    desc: '神魂澄澈,推演之时不至于被天机灼伤。',
+    effect: { mana: 90, calamity: -2 },
+    minRealmOrder: 1,
+  },
+  {
+    id: 'jingxindan',
+    name: '静心丹',
+    kind: 'pill',
+    grade: 2,
+    price: 240,
+    desc: '专治心魔。药到时,那个在你耳边说话的声音会先安静下来。',
+    effect: { cureInjury: true, calamity: -4 },
+    minRealmOrder: 1,
+  },
+  {
+    id: 'tongxuandan',
+    name: '窥命丹',
+    kind: 'pill',
+    grade: 3,
+    price: 950,
+    desc: '通窍之资。服后三日内破关者,十有六七。',
+    effect: { breakthroughBonus: 15 },
+    minRealmOrder: 1,
+  },
+  {
+    id: 'xuanguangdan',
+    name: '玄光丹',
+    kind: 'pill',
+    grade: 4,
+    price: 4400,
+    desc: '一粒抵十年苦修。世家为此丹械斗,已是旧闻。',
+    effect: { breakthroughBonus: 18 },
+    minRealmOrder: 2,
+  },
+  {
+    id: 'xisuidan',
+    name: '洗髓丹',
+    kind: 'pill',
+    grade: 4,
+    price: 3800,
+    desc: '易骨换髓,痛如凌迟,痛后是另一副身子。',
+    effect: { attribute: ['tiPo', 1] },
+    minRealmOrder: 2,
+  },
+  {
+    id: 'dinghundan',
+    name: '定魂丹',
+    kind: 'pill',
+    grade: 4,
+    price: 4100,
+    desc: '固神魂于不摇。渡劫之人常留一粒在舌下。',
+    effect: { attribute: ['dingLi', 1] },
+    minRealmOrder: 2,
+  },
+
+  // ---- 符箓 ---------------------------------------------------------------
+  {
+    id: 'wuleifu',
+    name: '五雷符',
+    kind: 'talisman',
+    grade: 2,
+    price: 170,
+    desc: '一符五雷,不问缘由。',
+    effect: {},
+    power: 55,
+  },
+  {
+    id: 'dundifu',
+    name: '遁地符',
+    kind: 'talisman',
+    grade: 2,
+    price: 150,
+    desc: '入地三尺,断敌追踪。逃命者的体面。',
+    effect: {},
+  },
+  {
+    id: 'bianyunfu',
+    name: '蔽运符',
+    kind: 'talisman',
+    grade: 2,
+    price: 190,
+    desc: '掩去身后气运之柱。天看不见你,便暂时懒得管你。',
+    effect: { calamity: -7, fortune: -4 },
+  },
+  {
+    id: 'dingjiefu',
+    name: '定劫符',
+    kind: 'talisman',
+    grade: 3,
+    price: 760,
+    desc: '贴身而藏,可挡一次劫数落下。只一次。',
+    effect: { flag: ['jieWard', true] },
+    minRealmOrder: 2,
+  },
+  {
+    id: 'huhunfu',
+    name: '护魂符',
+    kind: 'talisman',
+    grade: 2,
+    price: 220,
+    desc: '心魔临身时替你挡一句话。',
+    effect: { flag: ['hunWard', true] },
+    minRealmOrder: 1,
+  },
+
+  // ---- 法器 ---------------------------------------------------------------
+  {
+    id: 'tiedao',
+    name: '铁刀',
+    kind: 'weapon',
+    grade: 1,
+    price: 30,
+    desc: '边军制式,刃口卷了三处。',
+    power: 6,
+  },
+  {
+    id: 'qingfengjian',
+    name: '青锋剑',
+    kind: 'weapon',
+    grade: 2,
+    price: 340,
+    desc: '寻常修士的第一柄法剑,青光三尺。',
+    power: 20,
+  },
+  {
+    id: 'xuantiejian',
+    name: '玄铁重剑',
+    kind: 'weapon',
+    grade: 3,
+    price: 1500,
+    desc: '重四十九斤,无锋。以势压人,不以巧。',
+    power: 52,
+    defense: 6,
+    minRealmOrder: 2,
+  },
+  {
+    id: 'zhaoyefeng',
+    name: '照夜神锋',
+    kind: 'weapon',
+    grade: 5,
+    price: 7600,
+    desc: '出鞘即照夜如昼。持之者,气运自旺,亦自招雷。',
+    power: 138,
+    passive: { fortuneGainMult: 1.1, calamityRateMult: 1.15 },
+    minRealmOrder: 3,
+  },
+  {
+    id: 'buyipao',
+    name: '粗布道袍',
+    kind: 'robe',
+    grade: 1,
+    price: 25,
+    desc: '洗得发白,补丁三处。',
+    defense: 4,
+  },
+  {
+    id: 'lingcanjia',
+    name: '灵蚕软甲',
+    kind: 'robe',
+    grade: 2,
+    price: 440,
+    desc: '贴身而穿,刀剑难透。',
+    defense: 15,
+  },
+  {
+    id: 'xingwenpao',
+    name: '星纹法袍',
+    kind: 'robe',
+    grade: 3,
+    price: 2000,
+    desc: '袍上星纹依二十八宿而绣,可引星力护体。',
+    defense: 36,
+    passive: { manaBonus: 30 },
+    minRealmOrder: 2,
+  },
+  {
+    id: 'xingguipan',
+    name: '星轨盘',
+    kind: 'charm',
+    grade: 2,
+    price: 400,
+    desc: '钦天监旧物。盘上七十二枚铜针,针针指着不同的将来。',
+    passive: { divinationDiscount: 0.25 },
+  },
+  {
+    id: 'zhenhunling',
+    name: '镇魂铃',
+    kind: 'charm',
+    grade: 3,
+    price: 1600,
+    desc: '铃响时心魔止步。铃不响时,你会开始怀念铃声。',
+    passive: { calamityRateMult: 0.85 },
+    minRealmOrder: 2,
+  },
+  {
+    id: 'gongdeyupai',
+    name: '功德玉牒',
+    kind: 'charm',
+    grade: 3,
+    price: 1800,
+    desc: '大梵寺所赐。持牒者,所行善举天必录之。',
+    passive: { meritPerTurn: 1, mitigationBonus: 8 },
+    minRealmOrder: 2,
+  },
+
+  // ---- 材料 ---------------------------------------------------------------
+  {
+    id: 'lingcao',
+    name: '灵草',
+    kind: 'material',
+    grade: 1,
+    price: 14,
+    desc: '山阴处三年生,可入丹。',
+  },
+  {
+    id: 'yaodan',
+    name: '妖丹',
+    kind: 'material',
+    grade: 2,
+    price: 95,
+    desc: '妖兽一生的修为凝成一颗珠子,还带着温度。',
+  },
+  {
+    id: 'youmingcao',
+    name: '幽冥草',
+    kind: 'material',
+    grade: 3,
+    price: 280,
+    desc: '生于死人堆里,叶背有细纹,像未写完的名字。',
+    minRealmOrder: 2,
+  },
+  {
+    id: 'xingyuntie',
+    name: '星陨铁',
+    kind: 'material',
+    grade: 3,
+    price: 430,
+    desc: '天外落下的铁,冷得不合常理。',
+    minRealmOrder: 2,
+  },
+
+  // ---- 遗物 ---------------------------------------------------------------
+  {
+    id: 'canjuan',
+    name: '无名残卷',
+    kind: 'relic',
+    grade: 1,
+    price: 0,
+    desc: '来路不明的半册书,纸上无字,遇气则显。',
+    passive: { cultivationMult: 1.04 },
+    noTrade: true,
+  },
+  {
+    id: 'tulu1',
+    name: '图录残卷·一',
+    kind: 'relic',
+    grade: 5,
+    price: 0,
+    desc: '第一卷。上面画着一个人,和他身后一根将断未断的气运之柱。',
+    passive: { fortuneGainMult: 1.15 },
+    effect: { flag: ['tulu1', true] },
+    noTrade: true,
+  },
+  {
+    id: 'tulu2',
+    name: '图录残卷·二',
+    kind: 'relic',
+    grade: 5,
+    price: 0,
+    desc: '第二卷。画的是一座城,城上气运如盖,盖上有一道裂。',
+    passive: { fortuneGainMult: 1.15, calamityRateMult: 1.1 },
+    effect: { flag: ['tulu2', true] },
+    noTrade: true,
+  },
+  {
+    id: 'tulu3',
+    name: '图录残卷·三',
+    kind: 'relic',
+    grade: 5,
+    price: 0,
+    desc: '第三卷无画,只有一句话:「运可灭,劫不可欺。」',
+    passive: { mitigationBonus: 10 },
+    effect: { flag: ['tulu3', true] },
+    noTrade: true,
+  },
+  {
+    id: 'mieyuntulu',
+    name: '灭运图录',
+    kind: 'relic',
+    grade: 5,
+    price: 0,
+    desc: '三卷合一。翻开时无声,合上时天地间少了一点什么。',
+    passive: { fortuneGainMult: 1.5, powerBonus: 60, calamityRateMult: 1.2 },
+    noTrade: true,
+  },
+];
+
+export const ITEM_BY_ID: Record<string, ItemDef> = Object.fromEntries(
+  ITEMS.map((i) => [i.id, i]),
+);
+
+export function itemById(id: string): ItemDef | null {
+  return ITEM_BY_ID[id] ?? null;
+}
+
+export function itemName(id: string): string {
+  return ITEM_BY_ID[id]?.name ?? id;
+}
+
+/** Everything the 万法坊 will stock at a given realm order. */
+export function marketStock(realmOrder: number): ItemDef[] {
+  return ITEMS.filter(
+    (i) => !i.noTrade && i.price > 0 && (i.minRealmOrder ?? 0) <= realmOrder,
+  );
+}

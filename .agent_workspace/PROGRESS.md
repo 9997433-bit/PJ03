@@ -1,0 +1,94 @@
+# 多小说人生模拟器 — 主调度进度
+
+## 任务目标
+基于《凡人修仙传·人生模拟器》架构，再开发 **3 款** 非顶流小说改编的人生模拟器，均可静态导出、浏览器直接游玩。
+
+## 选定小说（非顶流，题材各异）
+
+| ID | 小说 | 作者 | 题材特色 | 目录 |
+|----|------|------|----------|------|
+| G1 | 《烂柯棋缘》 | 真费烟 | 棋道、游历、因果、温和修仙 | `games/lanke-qiyuan/` |
+| G2 | 《灭运图录》 | 爱潜水的乌贼 | 命运、劫运、功法体系、理性修仙 | `games/mieyun-tulu/` |
+| G3 | 《道君》 | 萧舒 | 道纹、神魂、斗法、道途抉择 | `games/dao-jun/` |
+
+> 已有成品：《凡人修仙传·人生模拟器》保留于仓库根目录。
+
+## 技术约束
+- TypeScript + Next.js 16 静态导出（`output: 'export'`）
+- 纯前端，Zustand 存档，种子化骰子引擎
+- 每款游戏独立 `package.json`，共享 `packages/engine-core/` 可选抽象
+- 157+ 测试为基线参考；每款至少 40 项测试
+
+## 3 轮 Loop 状态
+
+| Round | 状态 | 6 子代理 | 结论简报 |
+|-------|------|----------|----------|
+| R1 | ✅ 完成 | 2×fable + 2×opus-fast + 2×gpt-sol | [ROUND1_BRIEF.md](./ROUND1_BRIEF.md) |
+| R2 | ✅ 完成 | 2×fable + 2×opus-fast + 2×gpt-sol | [ROUND2_BRIEF.md](./ROUND2_BRIEF.md) |
+| R3 | ✅ 完成 | 2×fable + 2×opus-fast + 2×gpt-sol | [ROUND3_REPORT.md](./ROUND3_REPORT.md) · [RELEASE_R3.md](./RELEASE_R3.md) · PR #3 |
+
+## Round 1 子代理分工
+
+| 代理 | 模型 | 职责 |
+|------|------|------|
+| R1-F1 | fable | 全局 monorepo 架构 + 三游戏 PLAN.md |
+| R1-F2 | fable | 现有代码审计 + SOTA 验收标准 |
+| R1-O1 | opus-fast | G1 烂柯棋缘：脚手架+引擎+UI+内容 |
+| R1-O2 | opus-fast | G2 灭运图录：脚手架+引擎+UI+内容 |
+| R1-S1 | gpt-sol | G3 道君：脚手架+引擎+UI+内容 |
+| R1-S2 | gpt-sol | 共享构建脚本 + 三游戏探针/基准测试 |
+
+## 发布目标
+- 每款游戏独立 zip + GitHub Release 资产
+- 可直接 `python3 -m http.server` 游玩
+
+## R1-S2 工具链
+- 根项目采用 npm workspaces（`games/*`），统一提供 `build:all`、`test:all`、`package:all` 与 `benchmark`
+- 四游戏固定产物目录：`dist/{mortal,lanke,mieyun,daojun}/`
+- 缺席的并发游戏会明确跳过；已存在游戏的失败会聚合报告，但不会阻止其余游戏运行
+- 根级 smoke test 已随 163 项测试通过；Mortal 构建、复制与 zip 打包已验证
+- 基准报告写入 `dist/benchmark.json`；Mortal 基线为 2.898s / 16,213,806 bytes / 332 files
+- 聚合测试当前为 Mortal 163 项、Daojun 73 项通过；Lanke 与 Mieyun 尚无测试文件
+- 三个并发子项目仍未形成有效首页导出（Lanke 仅 404、Mieyun 缺 app/pages、Daojun 有 `EndingKey` 类型错误），合入后须复测完整基线
+
+## R1-F2 审计要点
+- 交付：`SOTA_CRITERIA.md`（G0–G11 验收单）、`REUSE_MAP.md`（逐文件复用地图 + 拷贝-适配策略）、`briefs/{lanke,mieyun,daojun}.md`（各 3 项签名机制、领域模型、工程常量、测试焦点）
+- 基线复核：根游戏 build ✅ / 157 测试 ✅ / 静态导出 ✅
+- ⚠️ 根游戏缺口（R2/R3 备选补课）：结局 16 定义仅 5 接线（data/endings.ts 未入引擎）；lifecycle.advanceTime/rest 死代码双轨；缺 prefers-reduced-motion
+- ⚠️ 硬约束：同源部署下 localStorage 共享 —— 各游戏 SAVE_KEY/SAVE_MAGIC 必须唯一（lanke_save_v1 / mieyun_save_v1 / daojun_save_v1）；结局须「引擎接线可达」而非仅存数据
+
+## Round 2 进展（✅ 完成）
+
+| 代理 | 状态 | 要点 |
+|------|------|------|
+| R2-S1 道君 | ✅ | 98 测试 · 40 事件 · e2e/smoke 5/5 · `daojun_save_v1` |
+| R2-S2 流水线 | ✅ | 4/4 zip · [PIPELINE_R2.md](./PIPELINE_R2.md) |
+| R2-F1/F2 文档 | ✅ | PLAN ×3 · ARCHITECTURE.md · briefs 三份 · AUDIT_daojun_R2.md |
+| R2-F2 道君审计 | ✅ | 7.5/12 · 320 局 bot 模拟 |
+| R2-O1 烂柯 | ✅ | 292 测试 · title+game 路由 · 青竹枯枰 UI |
+| R2-O2 灭运 | ✅ | 412 测试 · 劫运账簿/推演/灭运 · `mieyun_save_v1` |
+
+当前可打包游玩：四款全部就绪（`dist/zips/`；⚠️ R3 终审判定为 G8 改名前旧构建，发布前须重打包）
+
+## Round 3 进展（🔄 进行中）
+
+| 代理 | 状态 | 要点 |
+|------|------|------|
+| R3-F1 终审 | ✅ | [AUDIT_FINAL_R3.md](./AUDIT_FINAL_R3.md) + [ROUND3_PRIORITIES.md](./ROUND3_PRIORITIES.md) · 基准 `48ded19` 增审至 `f2c4bc1` · 980 测试全绿 |
+| R3 道君攻坚 | 🔄 | `cursor/daojun-r3-sota-a9cb` 分支：G4 市场/斗法 + G9 信封/审计链重做中 |
+| R3 G8 改名 | ✅ | 烂柯 弈者/墟市 · 道君 观纹七阶/玄玉 · 灭运 未录/窥命/玄晶/万法坊（`c072c80`）· 四作术语零重合 |
+| R3 烂柯/灭运收尾 | ✅ | 烂柯 16 结局（`595318d`）+ reduced-motion 测试 · 灭运 图录链可玩达（`7c156d9`）+ README 键盘表 |
+
+**终审裁定（G0–G11 计分，@`f2c4bc1`）**：烂柯 11.5/12 ✅ 可发布 · 灭运 11/12 ✅ 可发布（补 lint 门）· 凡人 10/12 ✅ 基线可发布 · **道君 6/12 ❌ 不可发布**（G3/G4/G6/G9 结构缺口，修复未合入）。剩余阻塞：道君四门（P0）、根/灭运 lint（P0）、最终 SHA 重打包 + Release v2.0.0 + PR（P3）。
+
+## 日志
+- 2026-08-26: 初始化分支与 PROGRESS.md，启动 Round 1（6 并发子代理）
+- 2026-08-26: R1-S2 添加 monorepo 构建、测试、打包、基准脚本及根级 smoke test
+- 2026-08-26: R1-S2 完成 Mortal 基线；工具链能隔离 workspace 类型检查并聚合报告子游戏失败
+- 2026-08-26: R1-F2 完成代码审计与 SOTA 验收标准；补交三份 per-game briefs
+- 2026-08-26: R2-S1 道君 SOTA 打磨完成（98 测试，探针全绿）
+- 2026-08-26: R1-F1(架构) 交付：`.agent_workspace/ARCHITECTURE.md`（目录布局/共享边界/流水线/8 项 R2 风险）、三游戏 PLAN.md（各 18 结局+指令表+主题色+测试计划+MoSCoW）、`packages/engine-core` 契约包、根 workspaces 增补 `packages/*`、根 README monorepo 索引
+- 2026-08-26: R2-F2 道君 G0–G11 交叉审计完成（7.5/12）：G0 补 lint+noUncheckedIndexedAccess、修软锁（资源枯竭死局）与结局同回合优先级；**关键发现**：320 局 bot 实测仅 4/12 结局可达（里程碑结局遮蔽全部登顶线），G4 战斗/经济与 G9 防作弊链为 R3 两大结构缺口；根游戏回归 164/164 全绿
+- 2026-08-26: R2-F1 文档收口：三份 PLAN.md 以已落盘引擎/数据模型重写接地（烂柯 16 结局/棋盘天机+烂柯观弈、灭运 16 结局/劫运账簿+匿运改命、道君 16 结局/斗法重做+G9 补课清单，均含结局→引擎接线表与判定序）；ARCHITECTURE.md 增补跨作命名冲突登记表（道君境界撞根游戏、烂柯灭运「凡尘/通玄」互撞、「灵石」双撞 → 已裁定改名）与并发文档冲突裁定（R1-F1 从零稿留 git 历史，可移植创意标注待 R3 吸收）
+- 2026-08-26: **事故记录**：`da47091` 把道君半成品推上共享分支（`game.ts` 引用未 add 的 `engine/audit.ts` 等 5 文件），typecheck/test/build 三红；`abf1eff` 回退恢复。教训：推送前干净树跑 `test:all`
+- 2026-08-26: R3-F1 终审完成（基准 `48ded19`，独立 worktree 全流水线实测，增审至 `f2c4bc1`）：test-all 基准 969/969、增审顶点 980/980 全绿（凡人 164 / 烂柯 300 / 灭运 415 / 道君 101）、build-all 4/4、validate-exports 4/4；G0–G11 矩阵见 AUDIT_FINAL_R3.md；发布就绪 3/4（道君 ❌：无市场与战术制战斗、无存档信封/防篡改、结局遮蔽 4/12、出身 4 种）；十条优先级清单交 ROUND3_PRIORITIES.md，审计期间 #6/#7/#8 已被其他 R3 代理落地并复测收编（灭运改名/两份 README 键盘表/图录链），剩余 P0 道君四门 + lint 双缺、P3 重打包+Release v2.0.0+PR

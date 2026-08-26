@@ -1,0 +1,307 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   青竹枰纹 — Green Bamboo & Board Lines
+   A bright paper-and-bamboo palette: this is a daylight game.
+   You are outdoors, in a grove, watching somebody else play.
+   Palette: 竹青 · 宣纸 · 松烟 · 苔痕 · 落霞
+   ============================================================ */
+
+@theme {
+  /* ===== 宣纸 xuan (paper base — this game is LIGHT) ===== */
+  --color-xuan-50: #fbfaf3;  /* page bg, sun-bleached paper */
+  --color-xuan-100: #f5f2e6; /* panel bg */
+  --color-xuan-200: #ece7d4; /* raised card */
+  --color-xuan-300: #ddd6bd; /* hairline borders */
+  --color-xuan-400: #c6bd9f; /* stronger rule */
+
+  /* ===== 竹 bamboo (identity colour) ===== */
+  --color-zhu-300: #8fbf8a;
+  --color-zhu-400: #5c9e63;
+  --color-zhu-500: #3f7d4d; /* 竹青 primary */
+  --color-zhu-600: #2f6140;
+  --color-zhu-700: #234a32;
+
+  /* ===== 松烟 pine-soot (text / board lines) ===== */
+  --color-yan-900: #1b1e1a; /* body text — 13.7:1 on xuan-50 */
+  --color-yan-700: #3a4038; /* secondary text — 8.9:1 */
+  --color-yan-500: #5c6459; /* muted text — 5.2:1 */
+  --color-yan-300: #8b9187; /* placeholder only, never body copy */
+
+  /* ===== 苔 moss / 落霞 dusk (semantic) ===== */
+  --color-tai-500: #7a8c3f;  /* 苔痕 — gains */
+  --color-xia-500: #b5643c;  /* 落霞 — losses, burdens */
+  --color-xia-700: #8a4526;
+  --color-yue-500: #6b7fa8;  /* 月白青 — wonder, spirits */
+
+  /* ===== fonts (variables injected by next/font in layout) ===== */
+  --font-display: var(--font-zcool), 'STKaiti', 'KaiTi', 'Kaiti SC', serif;
+  --font-serif: var(--font-lxgw), 'Songti SC', 'SimSun', serif;
+  --font-sans: var(--font-lxgw), 'PingFang SC', 'Microsoft YaHei', sans-serif;
+
+  /* ===== motion ===== */
+  --animate-stone-drop: stone-drop 0.42s cubic-bezier(0.16, 1.1, 0.3, 1) both;
+  --animate-leaf-drift: leaf-drift 22s linear infinite;
+  --animate-bamboo-sway: bamboo-sway 9s ease-in-out infinite;
+  --animate-ink-in: ink-in 0.7s ease-out both;
+  --animate-caret: caret 1.05s steps(2, start) infinite;
+  --animate-ripple: ripple 1.6s ease-out forwards;
+}
+
+@theme inline {
+  --color-background: var(--color-xuan-50);
+  --color-foreground: var(--color-yan-900);
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 5px;
+}
+
+:root {
+  color-scheme: light;
+  --ring: var(--color-zhu-500);
+}
+
+/* ============ base ============ */
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-xuan-50);
+  color: var(--color-yan-900);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-zhu-400) 28%, transparent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* ============ 枰纹 — the 19×19 grid, this game's signature texture ============
+   A real go board is 19 lines each way. The background is exactly that,
+   drawn with two repeating-linear-gradients at 1px, plus the nine 星位.     */
+
+.board-grid {
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      color-mix(in srgb, var(--color-yan-900) 8%, transparent) 0 1px,
+      transparent 1px 34px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-yan-900) 8%, transparent) 0 1px,
+      transparent 1px 34px
+    );
+  background-position: 0.5px 0.5px;
+}
+
+.board-grid-faint {
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      color-mix(in srgb, var(--color-yan-900) 4%, transparent) 0 1px,
+      transparent 1px 28px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-yan-900) 4%, transparent) 0 1px,
+      transparent 1px 28px
+    );
+}
+
+/* 竹纹 — vertical bamboo culms behind the title screen */
+.bamboo-field {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, color-mix(in srgb, var(--color-zhu-500) 11%, transparent) 0 3px, transparent 3px 96px),
+    linear-gradient(to right, color-mix(in srgb, var(--color-zhu-700) 7%, transparent) 0 2px, transparent 2px 149px);
+  background-position: 18px 0, 71px 0;
+  animation: var(--animate-bamboo-sway);
+  transform-origin: bottom center;
+  will-change: transform;
+}
+
+/* 纸纹 — paper fibre grain */
+.paper-fiber::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 40;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23f)'/%3E%3C/svg%3E");
+}
+
+/* ============ panels ============ */
+
+.panel {
+  border: 1px solid var(--color-xuan-300);
+  background: color-mix(in srgb, var(--color-xuan-100) 88%, transparent);
+}
+
+.panel-raised {
+  border: 1px solid var(--color-xuan-400);
+  background: var(--color-xuan-100);
+  box-shadow: 0 1px 0 0 color-mix(in srgb, var(--color-yan-900) 5%, transparent);
+}
+
+/* a 竹节 — the bamboo-node marker used as a section rule */
+.node-rule {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--color-xuan-400), transparent);
+}
+.node-rule::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--color-zhu-500);
+}
+
+/* 印 — the small seal used for the player's 道号 */
+.seal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--color-xia-500);
+  color: var(--color-xia-500);
+  font-family: var(--font-display);
+  letter-spacing: 0.05em;
+}
+
+/* stones */
+.stone-black,
+.stone-white {
+  display: inline-block;
+  border-radius: 9999px;
+  animation: var(--animate-stone-drop);
+}
+.stone-black {
+  background: radial-gradient(circle at 32% 28%, #4a4f48, #14170f 68%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.stone-white {
+  background: radial-gradient(circle at 32% 28%, #ffffff, #ddd8c6 72%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.22);
+}
+
+/* ============ typography ============ */
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.vertical-title {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  letter-spacing: 0.22em;
+}
+
+.caret::after {
+  content: '▍';
+  color: var(--color-zhu-500);
+  animation: var(--animate-caret);
+  margin-left: 1px;
+}
+
+/* ============ meters ============ */
+
+.meter {
+  background: var(--color-xuan-300);
+  overflow: hidden;
+  border-radius: 1px;
+}
+.meter > i {
+  display: block;
+  height: 100%;
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.meter-zhu > i { background: linear-gradient(90deg, var(--color-zhu-600), var(--color-zhu-400)); }
+.meter-tai > i { background: linear-gradient(90deg, var(--color-tai-500), #a3b556); }
+.meter-xia > i { background: linear-gradient(90deg, var(--color-xia-700), var(--color-xia-500)); }
+.meter-yue > i { background: linear-gradient(90deg, var(--color-yue-500), #93a5c6); }
+
+/* ============ scrollbar ============ */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-xuan-400) transparent;
+}
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--color-xuan-400);
+  border-radius: 4px;
+  border: 2px solid var(--color-xuan-50);
+}
+::-webkit-scrollbar-thumb:hover { background: var(--color-zhu-400); }
+
+/* ============ keyframes ============ */
+
+@keyframes stone-drop {
+  0% { transform: translateY(-7px) scale(0.82); opacity: 0; }
+  70% { transform: translateY(0) scale(1.05); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes leaf-drift {
+  0% { transform: translate3d(0, -6vh, 0) rotate(0deg); opacity: 0; }
+  10% { opacity: 0.55; }
+  90% { opacity: 0.45; }
+  100% { transform: translate3d(var(--leaf-x, 40px), 106vh, 0) rotate(320deg); opacity: 0; }
+}
+
+@keyframes bamboo-sway {
+  0%, 100% { transform: skewX(0deg); }
+  50% { transform: skewX(0.45deg); }
+}
+
+@keyframes ink-in {
+  0% { opacity: 0; filter: blur(5px); transform: translateY(3px); }
+  100% { opacity: 1; filter: blur(0); transform: translateY(0); }
+}
+
+@keyframes caret {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+@keyframes ripple {
+  0% { transform: scale(0.2); opacity: 0.6; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+/* ============ reduced motion ============
+   G7: every decorative animation is opt-out, and the typewriter falls back
+   to instant text (handled in Typewriter.tsx via the same media query).   */
+
+@media (prefers-reduced-motion: reduce) {
+  .bamboo-field,
+  .stone-black,
+  .stone-white,
+  .caret::after {
+    animation: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

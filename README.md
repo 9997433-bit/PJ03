@@ -1,1 +1,159 @@
-# PJ03
+# 凡人修仙传·人生模拟器
+
+**Mortal Cultivation Life Simulator** — 一款纯浏览器端的修仙人生文字模拟器。
+
+天道为叙述者，冷眼旁观；命数由一枚受审计的骰子裁定。凡人之躯，自炼气一层起步，
+历突破、探秘境、斗妖邪、炼丹药、结因果——或身死道消，或寿元耗尽，或飞升而去。
+
+> 天道无情，以万物为刍狗。
+
+## 特性
+
+- **全程离线单机** — 无服务器、无数据库，所有逻辑在浏览器内运行，存档保存于 `localStorage`
+- **种子化骰子引擎** — 所有随机性经由单一 D100/D20/D6 骰子权柄，逐次记录、可回放、可审计
+- **九层防作弊** — 命令白名单、隐藏属性封印、哈希链审计、存档校验和、状态不变量断言
+- **四步捏人** — 立名 → 出身（六选一）→ 属性分配 → 灵根抽取（D100 天命）→ 暗掷机缘
+- **完整修行闭环** — 修炼 / 突破 / 探索 / 坊市 / 炼丹 / 战斗 / NPC 好感 / 三章主线
+- **玄墨鎏金主题** — 水墨暗色 UI，毛笔书法标题，金玉朱砂点缀，打字机叙述，骰子动画
+
+## 快速开始
+
+```bash
+# 安装依赖
+npm install
+
+# 本地开发（http://localhost:3000）
+npm run dev
+
+# 生产构建（静态导出至 out/）
+npm run build
+
+# 引擎单元测试
+npx vitest run
+
+# TypeScript 类型检查
+npm run typecheck
+```
+
+## 怎么玩
+
+1. 打开首页，点击 **开始游戏**，完成四步捏人（每一步落子无悔）。
+2. 主界面三区：顶栏状态条 · 天道叙述卷轴 · 右侧情报页签（面板/背包/任务/坊市/炼丹/审计）。
+3. 底部命令栏点按或输入指令行动；每个耗时指令推进一回合（约三个月），回合末天道掷 D100 定吉凶。
+4. 炼气一至十三层自动升层；冲击筑基/金丹/元婴/化神须主动 **突破**，D100 对赌成功率。
+5. 寿元耗尽或气血归零即身死道消；化神大圆满可窥飞升之门。
+
+### 指令一览
+
+| 指令 | 效果 | 耗时 |
+|---|---|---|
+| `修炼` | 打坐炼气，增长修为 | 1 回合 |
+| `突破` | 冲击下一大境界（D100 判定） | 1 回合 |
+| `探索` | 探访秘境，机缘与凶险并存 | 1 回合 |
+| `静养` | 疗伤回血 | 1 回合 |
+| `坊市` | 前往坊市（此后可买卖） | 1 回合 |
+| `炼丹` | 开炉炼丹（选定丹方后耗时） | 1 回合 |
+| `使用 <物品>` / `装备 <物品>` | 服丹、佩剑 | 免费 |
+| `赠礼 <NPC>` | 赠礼结好感 | 免费 |
+| `面板` / `背包` / `任务` / `审计` / `保存` | 查看信息 | 免费 |
+| 战斗中：`强攻` `游斗` `设伏` `术法` `服药` `遁走` | 回合制搏杀 | — |
+
+### 键盘快捷键
+
+- **平时**：`1` 修炼 · `2` 突破 · `3` 探索；`4`–`9` 切换右侧页签（坊市/炼丹/背包/任务/面板/审计）。
+- **战斗中**：`1`–`6` 对应 强攻/游斗/设伏/术法/服药/遁走。
+- **事件抉择中**：`1`–`9` 直选对应选项。
+- 输入框聚焦时快捷键让位于打字；叙述打字机效果可点击跳过。
+
+### 存档
+
+- 每次行动后**自动保存**（带校验和的版本化存档信封）；篡改存档会被天道察觉，只可重开。
+- **重开**须经确认对话框（“因果尽散，再入轮回？”），会清空存档并更换种子。
+
+## 部署
+
+项目为纯静态导出（`next.config.mjs` 中 `output: 'export'`），`npm run build` 产物在 `out/`：
+
+- **Vercel**：直接导入仓库即可（零配置）。
+- **GitHub Pages / Cloudflare Pages / 任意静态托管**：上传 `out/` 目录。
+
+  ```bash
+  npm run build
+  npx serve out   # 本地预览静态产物
+  ```
+
+无服务端依赖：无 API 路由、无 Server Actions、无数据库。
+
+## 技术栈
+
+- [Next.js 16](https://nextjs.org/)（App Router，静态导出）+ TypeScript（strict）
+- [Tailwind CSS v4](https://tailwindcss.com/) + [shadcn/ui](https://ui.shadcn.com/)
+- [Zustand](https://zustand.docs.pmnd.rs/)（`persist` 中间件包装引擎校验和存档）
+- [Framer Motion](https://motion.dev/)（骰面翻滚、突破动画、雾气飘移）
+- [Vitest](https://vitest.dev/)（引擎纯函数单元测试）
+
+## 项目结构
+
+```
+src/
+├── app/               # 两条路由：/（标题页）与 /game（创角/游玩/战斗/结局同屏切换）
+├── engine/            # 纯 TypeScript 游戏引擎 — 零 React 依赖，全部可单测
+│   ├── rng.ts         #   种子化骰子权柄（mulberry32）
+│   ├── turn.ts        #   回合解析器：命令 → 新状态 + 叙述（唯一写入者）
+│   ├── audit.ts       #   哈希链与状态不变量（防作弊）
+│   └── save.ts        #   版本化校验和存档信封
+├── data/              # 静态游戏内容（出身/灵根/境界/功法/物品/丹方/事件/地点/NPC/任务/结局）
+├── store/
+│   └── gameStore.ts   # Zustand store：包装引擎、自动存档、吐司通知、快捷键共享状态
+└── components/
+    ├── ui/            # shadcn/ui 原语
+    └── game/          # 叙述卷轴、命令栏、面板、战斗、突破动画、坊市、炼丹、审计等
+```
+
+**架构铁律**：`engine/` 与 `data/` 不引入 React 与浏览器 API（存档适配器注入除外）。
+每条游戏规则都是纯函数 `(state, input, rng) → (state', logs[])`；UI 只渲染状态、派发命令。
+
+## 防作弊（九层）
+
+1. 骰子权柄单点入口，逐次记录理由与 PRNG 状态
+2. 命令白名单（“我希望获得神器” → 天道：“天道不受愿。”）
+3. 隐藏属性【机缘】永不进入任何 UI 字符串
+4. 固定种子，全程可重放
+5. 回合哈希链 `hash = f(prevHash, turn, command, rolls)`
+6. 存档校验和不符 ⇒ “此界因果紊乱，不可续。”
+7. 回合末状态不变量断言，违者回滚
+8. 仅 `turn.ts` 可产生新状态（单一写入者）
+9. `审计` 指令公开全部掷骰记录，玩家可自行验证
+
+## Monorepo：四款小说人生模拟器
+
+本仓库以 npm workspaces 收录四款可独立游玩的纯前端游戏。先在仓库根目录执行一次
+`npm install`，再从下表选择一款启动；各命令应单独运行，开发服务器默认使用
+`http://localhost:3000`。
+
+| 游戏 | 特色 | 源码与说明 | 从仓库根目录启动 |
+|---|---|---|---|
+| 凡人修仙传 | 骰子审计 · 修炼/炼丹/战斗 · 三章主线 | [`/`](./) | `npm run dev` |
+| 烂柯棋缘 | 棋道弈斗 · 游历 · 精怪因果 | [`games/lanke-qiyuan/`](./games/lanke-qiyuan/) | `npm --workspace lanke-qiyuan run dev` |
+| 灭运图录 | 劫运账簿 · 命数推演 · 灭运抉择 | [`games/mieyun-tulu/`](./games/mieyun-tulu/) | `npm --workspace mieyun-tulu run dev` |
+| 道君 | 道纹合成 · 神魂锤炼 · 领地争夺 | [`games/dao-jun/`](./games/dao-jun/) | `npm --workspace dao-jun-life-simulator run dev` |
+
+不想安装开发工具时，可前往
+[GitHub Releases](https://github.com/9997433-bit/PJ03/releases) 下载发布包，解压任一游戏后在
+其目录运行 `python3 -m http.server 8000`，再访问 `http://localhost:8000`。
+
+仓库根目录提供四作聚合命令：
+
+```bash
+npm run test:all       # 运行四套 Vitest 测试
+npm run build:all      # 静态导出并汇集至 dist/{mortal,lanke,mieyun,daojun}/
+npm run package:all    # 生成 dist/zips/*.zip
+npm run benchmark      # 记录四作构建耗时与产物大小
+```
+
+架构与共享引擎契约见 [`.agent_workspace/ARCHITECTURE.md`](./.agent_workspace/ARCHITECTURE.md)
+与 [`packages/engine-core/`](./packages/engine-core/)。
+
+## License
+
+MIT
