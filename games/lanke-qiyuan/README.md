@@ -23,7 +23,7 @@ npm install
 npm run dev        # 开发服务器
 npm run build      # 静态导出到 out/
 npm run serve      # 本地预览 out/（http://localhost:8100）
-npm test           # vitest，296 项
+npm test           # vitest，300 项
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint
 ```
@@ -199,7 +199,7 @@ src/
 npm test
 ```
 
-296 项，覆盖：
+300 项，覆盖：
 
 - **rng** — 决定性、骰面区间、封印掷、加权抽取
 - **creation** — 四步门禁、点数校验、棋缘表全覆盖、隐藏缘法不外泄
@@ -213,6 +213,7 @@ npm test
 - **save** — 往返、篡改的四种拒绝码、迁移、Base64 导出导入
 - **data integrity** — 交叉引用全部可解析、事件表按境界与桶的覆盖、
   十六种结局逐一构造可达状态
+- **motion** — 动效降级契约：兜底规则罩住所有动画，逐字显示自己听同一条媒体查询
 
 ## 设计说明
 
