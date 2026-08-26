@@ -1,7 +1,9 @@
-# dependencies
-/node_modules
+# dependencies (root, games/*, packages/*)
+node_modules/
 /.pnp
 .pnp.*
+games/*/package-lock.json
+packages/*/package-lock.json
 
 # testing
 /coverage

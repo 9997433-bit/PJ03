@@ -4,7 +4,8 @@
   "private": true,
   "description": "《凡人修仙传·人生模拟器》— a text-driven xianxia life simulator. Pure client-side, seeded dice, cold Heaven's Dao narration.",
   "workspaces": [
-    "games/*"
+    "games/*",
+    "packages/*"
   ],
   "scripts": {
     "dev": "next dev",

@@ -1,0 +1,13 @@
+{
+  "name": "@pj03/engine-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared engine contract for the PJ03 novel life simulators: seeded-dice authority, audit chain, save envelope, and turn-resolver types. Types-only in Round 1; implementations are vendored per game and consolidated in Round 3.",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "sideEffects": false,
+  "scripts": {
+    "test": "echo \"@pj03/engine-core: types-only package, no runtime tests in Round 1\" && exit 0"
+  }
+}
