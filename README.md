@@ -125,20 +125,34 @@ src/
 8. 仅 `turn.ts` 可产生新状态（单一写入者）
 9. `审计` 指令公开全部掷骰记录，玩家可自行验证
 
-## Monorepo：更多小说人生模拟器
+## Monorepo：四款小说人生模拟器
 
-本仓库同时是多款小说人生模拟器的 monorepo（npm workspaces，`games/*` + `packages/*`）：
+本仓库以 npm workspaces 收录四款可独立游玩的纯前端游戏。先在仓库根目录执行一次
+`npm install`，再从下表选择一款启动；各命令应单独运行，开发服务器默认使用
+`http://localhost:3000`。
 
-| 游戏 | 目录 | 说明 |
-|---|---|---|
-| 凡人修仙传（本作） | `/`（仓库根） | ✅ 可玩 |
-| 烂柯棋缘 | `games/lanke-qiyuan/` | 命星棋盘 · 因果账本 · 仙/文/妖三道（见其 `PLAN.md`） |
-| 灭运图录 | `games/mieyun-tulu/` | 命轨改命 · 纪元劫数 · 推演功法（见其 `PLAN.md`） |
-| 道君 | `games/dao-jun/` | 道纹合成 · 神魂双轨 · 道途抉择（见其 `PLAN.md`） |
+| 游戏 | 特色 | 源码与说明 | 从仓库根目录启动 |
+|---|---|---|---|
+| 凡人修仙传 | 骰子审计 · 修炼/炼丹/战斗 · 三章主线 | [`/`](./) | `npm run dev` |
+| 烂柯棋缘 | 棋道弈斗 · 游历 · 精怪因果 | [`games/lanke-qiyuan/`](./games/lanke-qiyuan/) | `npm --workspace lanke-qiyuan run dev` |
+| 灭运图录 | 劫运账簿 · 命数推演 · 灭运抉择 | [`games/mieyun-tulu/`](./games/mieyun-tulu/) | `npm --workspace mieyun-tulu run dev` |
+| 道君 | 道纹合成 · 神魂锤炼 · 领地争夺 | [`games/dao-jun/`](./games/dao-jun/) | `npm --workspace dao-jun-life-simulator run dev` |
 
-根目录 `npm run build:all` / `test:all` / `package:all` 一键构建、测试、打包全部游戏
-（产物汇集于 `dist/`）。架构与共享引擎契约见 `.agent_workspace/ARCHITECTURE.md`
-与 `packages/engine-core/`。
+不想安装开发工具时，可前往
+[GitHub Releases](https://github.com/9997433-bit/PJ03/releases) 下载发布包，解压任一游戏后在
+其目录运行 `python3 -m http.server 8000`，再访问 `http://localhost:8000`。
+
+仓库根目录提供四作聚合命令：
+
+```bash
+npm run test:all       # 运行四套 Vitest 测试
+npm run build:all      # 静态导出并汇集至 dist/{mortal,lanke,mieyun,daojun}/
+npm run package:all    # 生成 dist/zips/*.zip
+npm run benchmark      # 记录四作构建耗时与产物大小
+```
+
+架构与共享引擎契约见 [`.agent_workspace/ARCHITECTURE.md`](./.agent_workspace/ARCHITECTURE.md)
+与 [`packages/engine-core/`](./packages/engine-core/)。
 
 ## License
 
