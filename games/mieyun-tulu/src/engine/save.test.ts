@@ -33,7 +33,7 @@ function playedRun(seed: string) {
   let s = forceRealm(newRun(seed), 'yinqi');
   for (const cmd of ['修炼', '修炼', '探索'] as const) {
     const r = execute(s, { kind: cmd });
-    if (r.accepted) s = r.state;
+    if (!r.rejected) s = r.state;
   }
   return s;
 }

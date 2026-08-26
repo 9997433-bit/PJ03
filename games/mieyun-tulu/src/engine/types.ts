@@ -714,6 +714,12 @@ export interface GameState {
   rollSeq: number;
   auditHash: string;
   chain: AuditChainEntry[];
+  /**
+   * Hash the chain's first surviving link was built on. Equal to the genesis
+   * hash until the chain is trimmed, after which it is the hash of the last
+   * dropped link — so verification still replays an unbroken run.
+   */
+  chainBase: string;
   stats: RunStats;
   ending: EndingResult | null;
 }

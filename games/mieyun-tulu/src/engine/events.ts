@@ -252,9 +252,15 @@ function present(state: GameState, ev: GameEvent): LogEntry[] {
   if (!c.seenEvents.includes(ev.id)) c.seenEvents.push(ev.id);
   const out = [entry(state.turn, '图录', `【${ev.name}】${ev.narrative}`, 'violet')];
   const options = resolveChoices(state, ev);
-  if (options.length > 0) {
+  // Only hand the player the wheel when they can actually turn it. An event
+  // whose every option is out of reach passes by instead of trapping the phase.
+  if (options.some((o) => o.affordable)) {
     state.pendingEvent = { eventId: ev.id, options };
     state.phase = 'event';
+    return out;
+  }
+  if (options.length > 0) {
+    out.push(entry(state.turn, '天机', '你站了一会儿,什么也做不了,于是走开。', 'calm'));
     return out;
   }
   if (ev.autoEffect) out.push(...applyEventEffect(state, ev.autoEffect));

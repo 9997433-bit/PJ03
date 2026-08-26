@@ -13,7 +13,7 @@
  * The storage adapter is injected. The engine never touches `window`.
  */
 
-import { saveChecksum, verifyChain } from './audit';
+import { GENESIS_HASH, saveChecksum, verifyChain } from './audit';
 import type { GameState, SaveEnvelope } from './types';
 import { SAVE_KEY, SAVE_MAGIC, SAVE_VERSION } from './types';
 
@@ -63,7 +63,7 @@ export function decodeSave(raw: string): LoadResult {
   if (recomputed !== envelope.checksum) {
     return { ok: false, reason: '因果紊乱:此卷被人改过。' };
   }
-  const chain = verifyChain(envelope.state.chain);
+  const chain = verifyChain(envelope.state.chain, envelope.state.chainBase ?? GENESIS_HASH);
   if (!chain.valid) {
     return { ok: false, reason: `因果紊乱:第 ${(chain.brokenAt ?? 0) + 1} 环对不上。` };
   }

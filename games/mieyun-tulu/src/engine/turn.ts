@@ -25,7 +25,7 @@ import { buildChainEntry, checkInvariants, isForbiddenWish, WISH_REJECTION } fro
 import { attemptBreakthrough } from './breakthrough';
 import { calamityPhase, dissolveCalamity } from './calamity';
 import { combatAction, resolveSpoils, startCombat } from './combat';
-import { cultivate, seclude } from './cultivation';
+import { cultivate, isReadyForBreakthrough, seclude } from './cultivation';
 import { derive, lifespanFor } from './derived';
 import { divine } from './divination';
 import { canRetire, checkEndings } from './endings';
@@ -70,6 +70,12 @@ export type Command =
   | { kind: '战斗'; action: CombatAction }
   | { kind: '战利'; choice: SpoilsChoice }
   | { kind: '抉择'; choiceId: string };
+
+/**
+ * How many links of the hash chain a save carries. Older links are dropped and
+ * their head becomes `chainBase`, so verification stays exact at bounded size.
+ */
+export const CHAIN_WINDOW = 400;
 
 /** Commands that consume a year and therefore trigger the 劫运 phase. */
 const TURN_COSTING: ReadonlySet<Command['kind']> = new Set([
@@ -302,6 +308,11 @@ export function execute(state: GameState, command: Command): TurnResult {
     const blocked = canRetire(state);
     if (blocked) return rejectWith(state, blocked);
   }
+  // Checked before the clone so an unready attempt costs nothing: the 劫运
+  // phase runs first on a turn-costing command and could not be undone.
+  if (command.kind === '突破' && !isReadyForBreakthrough(state.character.realm)) {
+    return rejectWith(state, '此关未满,破亦无门。');
+  }
 
   const next = cloneState(state);
   const rollsBefore = next.rolls.length;
@@ -345,7 +356,10 @@ export function execute(state: GameState, command: Command): TurnResult {
   const chainEntry = buildChainEntry(next.auditHash, next.turn, commandLabel(command), rollValues);
   next.chain.push(chainEntry);
   next.auditHash = chainEntry.hash;
-  if (next.chain.length > 400) next.chain.splice(0, next.chain.length - 400);
+  if (next.chain.length > CHAIN_WINDOW) {
+    const dropped = next.chain.splice(0, next.chain.length - CHAIN_WINDOW);
+    next.chainBase = dropped[dropped.length - 1]!.hash;
+  }
 
   pushLog(next, entries);
   return { state: next, entries };

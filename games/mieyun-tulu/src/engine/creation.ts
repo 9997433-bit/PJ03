@@ -99,6 +99,7 @@ export function initialState(seed: string): GameState {
     rollSeq: 0,
     auditHash: GENESIS_HASH,
     chain: [],
+    chainBase: GENESIS_HASH,
     stats: emptyStats(),
     ending: null,
   };

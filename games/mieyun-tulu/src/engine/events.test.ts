@@ -236,3 +236,45 @@ describe('events · 解析', () => {
     }
   });
 });
+
+describe('events · 不留死局', () => {
+  it('never parks the player in an event with nothing they can pick', () => {
+    for (let i = 0; i < 200; i++) {
+      const s = forceRealm(newRun(`nodeadend-${i}`), 'yinqi');
+      s.character!.spiritStones = 0;
+      s.character!.merit = -300;
+      s.character!.fortune = 0;
+      s.character!.inventory = [];
+      explore(s);
+      if (s.phase === 'event') {
+        expect(s.pendingEvent!.options.some((o) => o.affordable)).toBe(true);
+      }
+    }
+  });
+
+  it('walks past an event whose every option is out of reach', () => {
+    const s = forceRealm(newRun('unreachable'), 'yinqi');
+    const gated = EVENTS.find(
+      (e) =>
+        (e.choices?.length ?? 0) > 0 &&
+        e.choices!.every((c) => (c.pay?.stones ?? c.requires?.stones ?? 0) > 0),
+    );
+    if (!gated) return;
+    const c = s.character!;
+    c.spiritStones = 0;
+    const options = resolveChoices(s, gated);
+    expect(options.every((o) => !o.affordable)).toBe(true);
+  });
+
+  it('always leaves the event phase once a choice is taken', () => {
+    for (let i = 0; i < 120; i++) {
+      const s = forceRealm(newRun(`exit-${i}`), 'tongxuan');
+      explore(s);
+      if (s.phase !== 'event') continue;
+      const pick = s.pendingEvent!.options.find((o) => o.affordable)!;
+      chooseEventOption(s, pick.id);
+      expect(s.pendingEvent).toBeNull();
+      expect(['playing', 'combat']).toContain(s.phase);
+    }
+  });
+});

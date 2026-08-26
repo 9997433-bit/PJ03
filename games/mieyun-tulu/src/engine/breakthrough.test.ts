@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { REALMS } from '@/data/realms';
 import { attemptBreakthrough, breakthroughOdds } from './breakthrough';
+import { execute } from './turn';
 import { forceRealm, newRun, setCalamity } from '@/test/helpers';
 
 describe('breakthrough · 赔率', () => {
@@ -141,6 +142,24 @@ describe('breakthrough · 结果', () => {
       }
     }
     expect(sawFatal).toBe(true);
+  });
+
+  it('costs nothing when the resolver turns an unready attempt away', () => {
+    const s = forceRealm(newRun('bt-free'), 'yinqi');
+    const turn = s.turn;
+    const rolls = s.rolls.length;
+    const result = execute(s, { kind: '突破' });
+    expect(result.rejected).toContain('此关未满');
+    expect(result.state).toBe(s);
+    expect(s.turn).toBe(turn);
+    expect(s.rolls.length).toBe(rolls);
+  });
+
+  it('lets the resolver through once the ceiling is full', () => {
+    const s = forceRealm(newRun('bt-allowed'), 'yinqi', true);
+    const result = execute(s, { kind: '突破' });
+    expect(result.rejected).toBeUndefined();
+    expect(result.state.turn).toBe(s.turn + 1);
   });
 
   it('is byte-identical for the same seed and state', () => {

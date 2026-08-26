@@ -61,9 +61,8 @@ function apply(
     set({ notice: result.rejected });
     return;
   }
-  persist(storage(), result.state);
-  set({ state: result.state, notice: null, hasSave: true });
-  void get;
+  const saved = persist(storage(), result.state);
+  set({ state: result.state, notice: null, hasSave: saved || get().hasSave });
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
