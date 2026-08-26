@@ -14,7 +14,6 @@
 
 import { fateById } from '@/data/fates';
 import { itemById } from '@/data/items';
-import { originById } from '@/data/origins';
 import { realmDef, realmOrder } from '@/data/realms';
 import { sectById } from '@/data/sects';
 import { techniqueById } from '@/data/techniques';
@@ -121,7 +120,6 @@ export function derive(character: Character): Derived {
   const a = character.attributes;
   const fx = aggregateEffects(character);
   const inj = injuryFactors(character);
-  const origin = originById(character.originId);
   const fate = fateById(character.fateId);
   const sect = sectById(character.sectId);
 

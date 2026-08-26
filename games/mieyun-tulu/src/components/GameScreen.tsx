@@ -12,7 +12,7 @@
  * stands down while a text input has focus.
  */
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { breakthroughOdds } from '@/engine/breakthrough';
 import { isReadyForBreakthrough } from '@/engine/cultivation';
 import { canRetire } from '@/engine/endings';
@@ -45,29 +45,33 @@ export function GameScreen() {
   const send = useCallback((c: Command) => dispatch(c), [dispatch]);
   const c = state.character;
 
-  const bo = c ? breakthroughOdds(state) : null;
+  const bo = useMemo(() => (c ? breakthroughOdds(state) : null), [c, state]);
   const retireBlock = canRetire(state);
 
-  const actions: Action[] = c
-    ? [
-        { key: '1', label: '修炼', hint: '静坐一载,稳而慢', run: () => send({ kind: '修炼' }) },
-        {
-          key: '2',
-          label: '突破',
-          hint: bo?.ready ? `成算 ${bo.chance}% → ${bo.targetRealm}` : '此关未满',
-          tone: 'gold',
-          disabled: !isReadyForBreakthrough(c.realm),
-          run: () => send({ kind: '突破' }),
-        },
-        { key: '3', label: '探索', hint: '出门碰运气', run: () => send({ kind: '探索' }) },
-        { key: '4', label: '斗法', hint: '主动寻敌', tone: 'danger', run: () => send({ kind: '斗法' }) },
-        { key: '5', label: '坊市', hint: '买卖', run: () => setPanel('market') },
-        { key: '6', label: '推演命数', hint: '看下一掷', tone: 'primary', run: () => setPanel('divine') },
-        { key: '7', label: '化解劫运', hint: '压住那根柱子', tone: 'danger', run: () => setPanel('mitigate') },
-        { key: '8', label: '闭关', hint: '三倍修为,劫运 +4', run: () => send({ kind: '闭关' }) },
-        { key: '9', label: '功法', hint: '择道途', run: () => setPanel('techniques') },
-      ]
-    : [];
+  const actions: Action[] = useMemo(
+    () =>
+      c
+        ? [
+            { key: '1', label: '修炼', hint: '静坐一载,稳而慢', run: () => send({ kind: '修炼' }) },
+            {
+              key: '2',
+              label: '突破',
+              hint: bo?.ready ? `成算 ${bo.chance}% → ${bo.targetRealm}` : '此关未满',
+              tone: 'gold',
+              disabled: !isReadyForBreakthrough(c.realm),
+              run: () => send({ kind: '突破' }),
+            },
+            { key: '3', label: '探索', hint: '出门碰运气', run: () => send({ kind: '探索' }) },
+            { key: '4', label: '斗法', hint: '主动寻敌', tone: 'danger', run: () => send({ kind: '斗法' }) },
+            { key: '5', label: '坊市', hint: '买卖', run: () => setPanel('market') },
+            { key: '6', label: '推演命数', hint: '看下一掷', tone: 'primary', run: () => setPanel('divine') },
+            { key: '7', label: '化解劫运', hint: '压住那根柱子', tone: 'danger', run: () => setPanel('mitigate') },
+            { key: '8', label: '闭关', hint: '三倍修为,劫运 +4', run: () => send({ kind: '闭关' }) },
+            { key: '9', label: '功法', hint: '择道途', run: () => setPanel('techniques') },
+          ]
+        : [],
+    [c, bo, send],
+  );
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {

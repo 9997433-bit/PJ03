@@ -85,7 +85,7 @@ export function sellItem(state: GameState, itemId: string, count = 1): LogEntry[
   return [entry(state.turn, '系统', `售出 ${item.name}×${n},得灵石 ${total}。`, 'normal')];
 }
 
-export function useItem(state: GameState, itemId: string): LogEntry[] {
+export function consumeItem(state: GameState, itemId: string): LogEntry[] {
   const c = state.character!;
   const item = itemById(itemId);
   if (!item) return [entry(state.turn, '系统', '无此物。', 'danger')];

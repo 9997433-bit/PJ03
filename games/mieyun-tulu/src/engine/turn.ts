@@ -30,7 +30,7 @@ import { derive, lifespanFor } from './derived';
 import { divine } from './divination';
 import { canRetire, checkEndings } from './endings';
 import { chooseEventOption, explore } from './events';
-import { buyItem, equipItem, sellItem, unequipSlot, useItem } from './market';
+import { buyItem, consumeItem, equipItem, sellItem, unequipSlot } from './market';
 import { joinSect, leaveSect, learnTechnique, sectUpkeep } from './progression';
 import { enemiesForRealm } from '@/data/enemies';
 import { realmDef } from '@/data/realms';
@@ -261,7 +261,7 @@ function runBody(state: GameState, command: Command): LogEntry[] {
     case '坊市卖':
       return sellItem(state, command.itemId, command.count ?? 1);
     case '用物':
-      return useItem(state, command.itemId);
+      return consumeItem(state, command.itemId);
     case '装备':
       return equipItem(state, command.itemId);
     case '卸下':

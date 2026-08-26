@@ -10,7 +10,7 @@ import {
   sellItem,
   sellPrice,
   unequipSlot,
-  useItem,
+  consumeItem,
 } from './market';
 import { countItem } from './util';
 import { forceRealm, give, newRun, setCalamity } from '@/test/helpers';
@@ -129,7 +129,7 @@ describe('market · 服食与佩用', () => {
   it('consumes a pill and heals', () => {
     const s = give(newRun('pill'), 'jinchuangyao', 1);
     s.character!.hp = 5;
-    useItem(s, 'jinchuangyao');
+    consumeItem(s, 'jinchuangyao');
     expect(s.character!.hp).toBeGreaterThan(5);
     expect(countItem(s.character!.inventory, 'jinchuangyao')).toBe(0);
   });
@@ -138,7 +138,7 @@ describe('market · 服食与佩用', () => {
     const s = give(newRun('overheal'), 'huiyuandan', 1);
     const c = s.character!;
     c.hp = c.maxHp;
-    useItem(s, 'huiyuandan');
+    consumeItem(s, 'huiyuandan');
     expect(c.hp).toBe(c.maxHp);
   });
 
@@ -147,26 +147,26 @@ describe('market · 服食与佩用', () => {
     const herbalist = give(newRun('pill-cmp', { originId: 'yaotong' }), 'jinchuangyao', 1);
     plain.character!.hp = 1;
     herbalist.character!.hp = 1;
-    useItem(plain, 'jinchuangyao');
-    useItem(herbalist, 'jinchuangyao');
+    consumeItem(plain, 'jinchuangyao');
+    consumeItem(herbalist, 'jinchuangyao');
     expect(herbalist.character!.hp).toBeGreaterThan(plain.character!.hp);
     expect(derive(herbalist.character!).pillMult).toBeGreaterThan(1);
   });
 
   it('reads a relic without spending it', () => {
     const s = give(newRun('relic'), 'tulu1', 1);
-    useItem(s, 'tulu1');
+    consumeItem(s, 'tulu1');
     expect(countItem(s.character!.inventory, 'tulu1')).toBe(1);
   });
 
   it('refuses to eat a sword', () => {
     const s = give(newRun('eat-sword'), 'tiedao', 1);
-    expect(useItem(s, 'tiedao')[0]!.text).toContain('并非服食之物');
+    expect(consumeItem(s, 'tiedao')[0]!.text).toContain('并非服食之物');
     expect(countItem(s.character!.inventory, 'tiedao')).toBe(1);
   });
 
   it('refuses to use what is not carried', () => {
-    expect(useItem(newRun('empty'), 'huiyuandan')[0]!.text).toContain('囊中无此物');
+    expect(consumeItem(newRun('empty'), 'huiyuandan')[0]!.text).toContain('囊中无此物');
   });
 
   it('shelves a 静心丹 injury cure and drops the 劫运 it promises', () => {
@@ -179,7 +179,7 @@ describe('market · 服食与佩用', () => {
       turnsLeft: 6,
       effect: { cultivation: -0.2 },
     });
-    useItem(s, 'jingxindan');
+    consumeItem(s, 'jingxindan');
     expect(s.character!.injuries).toHaveLength(0);
     expect(s.character!.calamity.value).toBeLessThan(40);
   });
