@@ -81,9 +81,9 @@ const SETUPS: Record<string, (s: GameState) => GameState> = {
 };
 
 describe('结局 — the trigger table', () => {
-  it('ships twelve endings', () => {
+  it('ships sixteen endings', () => {
     expect(ENDINGS.length).toBeGreaterThanOrEqual(10);
-    expect(ENDINGS).toHaveLength(12);
+    expect(ENDINGS).toHaveLength(16);
   });
 
   it('wires every authored ending to exactly one trigger — no decoration', () => {

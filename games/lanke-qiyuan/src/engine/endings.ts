@@ -17,7 +17,7 @@ import { getRealm } from '@/data/realms';
 import { PLACES } from '@/data/places';
 import { chessDaoLabel } from './insight';
 import { formatRealm, formatSeason, say } from './prose';
-import { countBefriended } from './spirits';
+import { countBefriended, maxFavor } from './spirits';
 import { realmAtLeast } from './audit';
 import type { EndingResult, GameState } from './types';
 import { MAX_CHESS_DAO, MAX_DUST } from './types';
@@ -115,6 +115,34 @@ export const ENDING_TRIGGERS: readonly EndingTrigger[] = [
   },
 
   // ----------------------------------------------------------------- death
+  {
+    id: 'end_qisheng',
+    kind: 'death',
+    condition: '寿终 · 棋道 ≥ 88 且 胜局 ≥ 20',
+    test: (s) => s.character !== null && s.character.chessDao >= 88 && s.stats.matchesWon >= 20,
+  },
+  {
+    id: 'end_zhihei',
+    kind: 'death',
+    condition: '寿终 · 心尘 ≥ 55 且「旧债未清」',
+    test: (s) =>
+      s.character !== null && s.character.dust >= 55 && s.character.flags['旧债未清'] === true,
+  },
+  {
+    id: 'end_gudeng',
+    kind: 'death',
+    condition: '寿终 · 有一位精怪好感 ≥ 90',
+    test: (s) => maxFavor(s) >= 90,
+  },
+  {
+    id: 'end_guoshou',
+    kind: 'death',
+    condition: '寿终 · 止步通玄之下,而胜局 ≥ 12',
+    test: (s) =>
+      s.character !== null &&
+      !realmAtLeast(s.character.realm.realm, 'tongxuan') &&
+      s.stats.matchesWon >= 12,
+  },
   {
     id: 'end_shouzhong',
     kind: 'death',

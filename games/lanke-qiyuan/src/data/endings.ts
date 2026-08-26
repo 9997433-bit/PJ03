@@ -1,7 +1,7 @@
 import type { EndingDef } from '@/engine/types';
 
 /**
- * 十二结局 — how a quiet life can close.
+ * 十六结局 — how a quiet life can close.
  *
  * Ranked 天/地/玄/黄. None of them is a "game over" in the violent sense:
  * even the saddest ending is somebody finishing their game and putting the
@@ -55,6 +55,38 @@ export const ENDINGS: readonly EndingDef[] = [
     closing: '汝守着这一局,如同前人守着汝。',
     epitaph:
       '云中叟走后,棋台空了很久。汝上去坐下,一坐就是几百年。偶有人攀云而上,汝便让他执黑。他们下不完,汝也不催——这局本就该慢慢下。',
+  },
+  {
+    id: 'end_qisheng',
+    title: '棋圣',
+    rank: '地',
+    closing: '汝这一生,把棋下到了尽头。',
+    epitaph:
+      '汝走后,棋馆把汝坐过的那把椅子空了三年。有人说该收起来,掌柜说不必——总有后生要坐的,让他们知道前头有人坐过就行。汝生前从不肯认「圣」这个字,可汝拦不住别人怎么说。',
+  },
+  {
+    id: 'end_zhihei',
+    title: '执黑者',
+    rank: '黄',
+    closing: '黑子先行,债后行。',
+    epitaph:
+      '汝一辈子执黑:占先手,取便宜,该还的总说下回。最后那一局,汝忽然发现枰上的黑子多得放不下了——每一枚底下压着一件汝没了结的事。汝一枚一枚地拾,拾到天亮,也没拾完。',
+  },
+  {
+    id: 'end_guoshou',
+    title: '人间国手',
+    rank: '玄',
+    closing: '境界没上去,棋倒是下遍了人间。',
+    epitaph:
+      '汝始终没能踏进那道门。可从县城到渡口,从书院到夜市,凡是摆枰的地方都听过汝的名字。汝走的那年,几个素不相识的人从各处赶来,凑齐一局,替汝下完。他们下得很慢,谁也不肯先收子。',
+  },
+  {
+    id: 'end_gudeng',
+    title: '灯前故人',
+    rank: '玄',
+    closing: '有一个,一直在等汝回来。',
+    epitaph:
+      '汝这一生认得的人不多,交心的只有一个——还不是人。汝走的那夜,那盏灯照常亮着,照着空了的对座。它守了三百年,把汝教它的那半部谱翻烂了,却始终没肯换一个对手。',
   },
   {
     id: 'end_qiyou',
