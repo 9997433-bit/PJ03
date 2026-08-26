@@ -1,0 +1,369 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   青竹枯枰 — Green Bamboo & Weathered Goban
+   A shaded courtyard at dusk: wet bamboo, cold stone, a board
+   nobody has cleared in a very long time.
+   Palette: 竹青 · 苔绿 · 月白 · 檀褐 · 墨玉
+   Deliberately NOT the root simulator's ink-and-gold.
+   ============================================================ */
+
+@theme {
+  /* ===== 墨玉 ink (base) ===== */
+  --color-ink-950: #070b0a; /* page bg */
+  --color-ink-900: #0c1211; /* rails */
+  --color-ink-800: #111917; /* panels */
+  --color-ink-700: #16201d; /* cards */
+  --color-ink-600: #22302b; /* hairline borders */
+  --color-ink-500: #33453e; /* hover borders */
+
+  /* ===== 竹青 bamboo (identity) ===== */
+  --color-bamboo-200: #cfe8cd;
+  --color-bamboo-300: #a5d3a6;
+  --color-bamboo-400: #7cbe86; /* primary */
+  --color-bamboo-500: #589c68;
+  --color-bamboo-600: #3d7550;
+  --color-bamboo-700: #2a5439;
+
+  /* ===== 苔玉 jade (gain, vitality) ===== */
+  --color-jade-300: #6ee4c4;
+  --color-jade-400: #3ecfa9;
+  --color-jade-600: #17836a;
+
+  /* ===== 月白 moon (rare, revelation) ===== */
+  --color-moon-100: #eaf2fb;
+  --color-moon-300: #b9cee6;
+  --color-moon-500: #7d9ab8;
+
+  /* ===== 檀褐 dusk (setback, dust) ===== */
+  --color-dusk-300: #dCa886;
+  --color-dusk-400: #c08356;
+  --color-dusk-600: #8a5233;
+
+  /* ===== 纸 paper (text) ===== */
+  --color-paper-50: #edf3ea;
+  --color-paper-200: #cfdccb;
+  --color-paper-400: #96a795;
+  --color-paper-500: #6f8072;
+
+  --font-serif: 'Noto Serif SC', 'Songti SC', 'SimSun', 'STSong', serif;
+  --font-sans: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
+
+  --animate-stone-drop: stone-drop 0.34s cubic-bezier(0.2, 1.3, 0.4, 1) both;
+  --animate-fade-rise: fade-rise 0.5s ease-out both;
+  --animate-breathe: breathe 4.2s ease-in-out infinite;
+  --animate-ripple: ripple 2.6s ease-out infinite;
+}
+
+:root {
+  color-scheme: dark;
+  --radius: 0.25rem;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-ink-950);
+  color: var(--color-paper-50);
+  font-family: var(--font-serif);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-bamboo-400) 32%, transparent);
+  color: var(--color-paper-50);
+}
+
+/* ============ 棋盘纹理 — the signature texture ============
+   A 19-line goban rendered in CSS, laid under everything at a
+   whisper of opacity. Star points are a second layer so they do
+   not scale with the grid. */
+
+.goban-field {
+  position: relative;
+  isolation: isolate;
+}
+.goban-field::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  opacity: 0.5;
+  background-image:
+    repeating-linear-gradient(
+      to right,
+      color-mix(in srgb, var(--color-bamboo-600) 22%, transparent) 0 1px,
+      transparent 1px 44px
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--color-bamboo-600) 22%, transparent) 0 1px,
+      transparent 1px 44px
+    );
+  background-position: center;
+  mask-image: radial-gradient(ellipse 90% 70% at 50% 40%, #000 20%, transparent 78%);
+}
+.goban-field::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      ellipse 70% 50% at 22% 18%,
+      color-mix(in srgb, var(--color-bamboo-700) 26%, transparent),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 60% 55% at 82% 78%,
+      color-mix(in srgb, #10312a 55%, transparent),
+      transparent 70%
+    ),
+    linear-gradient(to bottom, transparent 60%, rgba(3, 6, 5, 0.8));
+}
+
+/* star points (天元 and the eight 星) */
+.goban-stars {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.35;
+  background-image: radial-gradient(
+    circle,
+    color-mix(in srgb, var(--color-bamboo-400) 60%, transparent) 0 2px,
+    transparent 2px
+  );
+  background-size: 176px 176px;
+  background-position: center;
+  mask-image: radial-gradient(ellipse 80% 62% at 50% 40%, #000 10%, transparent 72%);
+}
+
+/* faint bamboo-leaf grain over the whole page */
+.leaf-grain::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.dusk-vignette::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 49;
+  background:
+    radial-gradient(ellipse 120% 92% at 50% 44%, transparent 52%, rgba(2, 5, 4, 0.62) 100%),
+    linear-gradient(to bottom, rgba(2, 5, 4, 0.4), transparent 14%, transparent 86%, rgba(2, 5, 4, 0.5));
+}
+
+/* ============ scrollbar ============ */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-ink-500) transparent;
+}
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink-500);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-bamboo-600);
+}
+
+/* ============ panels ============ */
+
+.panel {
+  position: relative;
+  border: 1px solid var(--color-ink-600);
+  background: color-mix(in srgb, var(--color-ink-800) 82%, transparent);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* a hairline inner rule, like the border of a printed 棋谱 */
+.panel-ruled::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border: 1px solid color-mix(in srgb, var(--color-bamboo-600) 20%, transparent);
+  pointer-events: none;
+}
+
+/* 棋子 corner marks */
+.stone-corners > .sc {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: color-mix(in srgb, var(--color-bamboo-500) 55%, transparent);
+  pointer-events: none;
+}
+.stone-corners > .sc-tl { top: -3px; left: -3px; }
+.stone-corners > .sc-tr { top: -3px; right: -3px; }
+.stone-corners > .sc-bl { bottom: -3px; left: -3px; }
+.stone-corners > .sc-br { bottom: -3px; right: -3px; }
+
+/* ============ text ============ */
+
+.text-bamboo-gradient {
+  background: linear-gradient(
+    112deg,
+    var(--color-bamboo-700) 0%,
+    var(--color-bamboo-300) 34%,
+    #f2fff0 52%,
+    var(--color-bamboo-300) 68%,
+    var(--color-bamboo-700) 100%
+  );
+  background-size: 220% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.glow-bamboo {
+  text-shadow: 0 0 16px rgba(124, 190, 134, 0.4), 0 0 38px rgba(124, 190, 134, 0.15);
+}
+.glow-moon {
+  text-shadow: 0 0 16px rgba(185, 206, 230, 0.45), 0 0 40px rgba(185, 206, 230, 0.18);
+}
+
+/* engraved divider with a centered stone */
+.rule-stone {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(61, 117, 80, 0.6), transparent);
+}
+.rule-stone::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  transform: translate(-50%, -50%);
+  background: var(--color-bamboo-500);
+}
+
+/* ============ meters ============ */
+
+.meter {
+  background: var(--color-ink-600);
+  overflow: hidden;
+  border-radius: 1px;
+}
+.meter > i {
+  display: block;
+  height: 100%;
+  transition: width 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.meter-bamboo > i {
+  background: linear-gradient(90deg, var(--color-bamboo-700), var(--color-bamboo-400));
+}
+.meter-jade > i {
+  background: linear-gradient(90deg, var(--color-jade-600), var(--color-jade-300));
+}
+.meter-dusk > i {
+  background: linear-gradient(90deg, var(--color-dusk-600), var(--color-dusk-300));
+}
+.meter-moon > i {
+  background: linear-gradient(90deg, var(--color-moon-500), var(--color-moon-100));
+}
+
+/* ============ buttons ============ */
+
+.btn {
+  position: relative;
+  border: 1px solid var(--color-ink-600);
+  background: color-mix(in srgb, var(--color-ink-700) 88%, transparent);
+  color: var(--color-paper-200);
+  transition: border-color 0.18s ease, color 0.18s ease, background-color 0.18s ease,
+    transform 0.12s ease;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--color-bamboo-600);
+  color: var(--color-bamboo-200);
+  background: color-mix(in srgb, var(--color-bamboo-700) 24%, var(--color-ink-700));
+}
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  opacity: 0.36;
+  cursor: not-allowed;
+}
+.btn-primary {
+  border-color: var(--color-bamboo-600);
+  color: var(--color-bamboo-200);
+  background: color-mix(in srgb, var(--color-bamboo-700) 34%, var(--color-ink-700));
+}
+.btn-primary:hover:not(:disabled) {
+  border-color: var(--color-bamboo-400);
+  color: #f2fff0;
+  background: color-mix(in srgb, var(--color-bamboo-600) 46%, var(--color-ink-700));
+}
+
+/* a placed stone, used as a selection marker */
+.stone {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  animation: var(--animate-stone-drop);
+}
+.stone-black {
+  background: radial-gradient(circle at 32% 28%, #4a5a52, #05100c 72%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.stone-white {
+  background: radial-gradient(circle at 32% 28%, #ffffff, #b9c7b8 78%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+}
+
+/* ============ keyframes ============ */
+
+@keyframes stone-drop {
+  0% { transform: scale(2.1); opacity: 0; }
+  60% { transform: scale(0.9); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes fade-rise {
+  0% { opacity: 0; transform: translateY(7px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes breathe {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+@keyframes ripple {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-bamboo-400) 34%, transparent); }
+  70% { box-shadow: 0 0 0 14px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
