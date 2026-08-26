@@ -2,6 +2,7 @@
   "name": "dao-jun-life-simulator",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "《道君·人生模拟器》— 道纹、神魂与领地争夺文字策略游戏",
   "scripts": {
     "dev": "next dev",
