@@ -5,6 +5,7 @@ import { CreationWizard } from '@/components/creation/CreationWizard';
 import { GameLayout } from '@/components/game/GameLayout';
 import { EndingScreen } from '@/components/game/EndingScreen';
 import { Toasts } from '@/components/game/Toasts';
+import { useRouter } from 'next/navigation';
 import { Button, Stone } from '@/components/ui/primitives';
 import { useGameStore } from '@/store/gameStore';
 
@@ -15,6 +16,7 @@ import { useGameStore } from '@/store/gameStore';
  */
 export default function GamePage() {
   const { state, hydrated, corruptSave, hydrate } = useGameStore();
+  const router = useRouter();
 
   useEffect(() => {
     hydrate();
@@ -33,7 +35,7 @@ export default function GamePage() {
     return (
       <main className="flex min-h-dvh flex-col items-center justify-center gap-4 px-6 text-center">
         <p className="font-display text-xl text-yan-900">{corruptSave ?? '此间尚无棋局。'}</p>
-        <Button tone="zhu" onClick={() => (window.location.href = './../')}>
+        <Button tone="zhu" onClick={() => router.push('/')}>
           回到标题
         </Button>
       </main>

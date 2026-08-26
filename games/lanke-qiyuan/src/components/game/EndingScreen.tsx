@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button, NodeRule } from '@/components/ui/primitives';
+import { useRouter } from 'next/navigation';
 import { useGameStore } from '@/store/gameStore';
 import { cn } from '@/lib/utils';
 import type { EndingResult } from '@/engine/types';
@@ -16,6 +17,7 @@ const RANK_CLASS: Record<EndingResult['rank'], string> = {
 export function EndingScreen({ ending, log }: { ending: EndingResult; log: readonly { id: number; text: string }[] }) {
   const abandon = useGameStore((s) => s.abandonSave);
   const exportSave = useGameStore((s) => s.exportSaveString);
+  const router = useRouter();
   const [copied, setCopied] = useState(false);
 
   return (
@@ -56,7 +58,7 @@ export function EndingScreen({ ending, log }: { ending: EndingResult; log: reado
             tone="zhu"
             onClick={() => {
               abandon();
-              window.location.href = './';
+              router.push('/');
             }}
           >
             再入一世

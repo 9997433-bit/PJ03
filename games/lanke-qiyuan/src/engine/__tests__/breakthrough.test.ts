@@ -146,7 +146,6 @@ describe('breakthrough — resolution', () => {
   });
 
   it('burns 修为, floods 心尘 and raises pity on failure', () => {
-    const s = readyToBreak();
     // A chance of 3 makes failure overwhelmingly likely; loop until it lands.
     let failed = false;
     for (let i = 0; i < 20 && !failed; i++) {

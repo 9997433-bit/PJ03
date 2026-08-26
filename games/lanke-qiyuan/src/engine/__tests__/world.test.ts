@@ -3,11 +3,11 @@ import { fareFor, isRoadWise, reachablePlaces, travel, WANDER_SPIRIT_COST } from
 import { buy, buyPrice, marketStock, sell, sellPrice, SELL_RATE } from '../economy';
 import {
   addToInventory,
+  consumeItem,
   countOf,
   giftItem,
   removeFromInventory,
   satchelView,
-  useItem,
 } from '../inventory';
 import { adjustFavor, BEFRIENDED_AT, countBefriended, FAVOR_MAX, FAVOR_MIN, maxFavor, spiritsHere, visibleSpirits } from '../spirits';
 import { getItem, ITEMS } from '@/data/items';
@@ -198,17 +198,17 @@ describe('行囊 — the satchel', () => {
     c.inventory = [];
     addToInventory(c, consumable!.id, 1);
     addToInventory(c, curio!.id, 1);
-    expect(useItem(s, consumable!.id).ok).toBe(true);
+    expect(consumeItem(s, consumable!.id).ok).toBe(true);
     expect(countOf(c, consumable!.id)).toBe(0);
-    expect(useItem(s, curio!.id).ok).toBe(true);
+    expect(consumeItem(s, curio!.id).ok).toBe(true);
     expect(countOf(c, curio!.id)).toBe(1);
   });
 
   it('refuses to use what is not held, or what does nothing', () => {
     const s = playableState();
     s.character!.inventory = [];
-    expect(useItem(s, 'tea_cuya').ok).toBe(false);
-    expect(useItem(s, 'no_such_item').ok).toBe(false);
+    expect(consumeItem(s, 'tea_cuya').ok).toBe(false);
+    expect(consumeItem(s, 'no_such_item').ok).toBe(false);
   });
 });
 

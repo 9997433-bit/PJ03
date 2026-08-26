@@ -21,7 +21,7 @@ import { cultivate, settleStageUps, tickMoods } from './cultivation';
 import { buy, sell } from './economy';
 import { checkLivingEndings, chooseDeathEnding, finishGame, isPastLifespan } from './endings';
 import { resolveChoice } from './events';
-import { giftItem, useItem } from './inventory';
+import { consumeItem, giftItem } from './inventory';
 import { learnManual, sitForget, spectate, studyManual } from './insight';
 import {
   addDust,
@@ -200,7 +200,7 @@ export function runCommand(prev: GameState, cmd: Command): TurnResult {
       break;
     }
     case 'use': {
-      const out = useItem(state, cmd.itemId);
+      const out = consumeItem(state, cmd.itemId);
       if (!out.ok) return refuse(prev, out.message);
       notices.push(good(out.message));
       break;

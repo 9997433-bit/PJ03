@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Button, NodeRule, Stone } from '@/components/ui/primitives';
 import { useGameStore } from '@/store/gameStore';
+import { useRouter } from 'next/navigation';
 import { formatRealm } from '@/engine/prose';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +14,7 @@ import { cn } from '@/lib/utils';
 export default function TitlePage() {
   const { state, hydrated, corruptSave, hydrate, startNewLife, abandonSave, importSaveString } =
     useGameStore();
+  const router = useRouter();
   const [confirmReset, setConfirmReset] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [blob, setBlob] = useState('');
@@ -23,9 +25,7 @@ export default function TitlePage() {
   }, [hydrate]);
 
   const hasSave = state !== null;
-  const go = () => {
-    window.location.href = './game/';
-  };
+  const go = () => router.push('/game');
 
   return (
     <main className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden px-6 py-16">

@@ -57,8 +57,11 @@ export interface UseResult {
 /**
  * Uses an item. Consumables vanish; curios stay and can be used again, which
  * is deliberate — a 寒玉棋 keeps being cold.
+ *
+ * Named `consumeItem` rather than `useItem` so the engine never trips React's
+ * rules-of-hooks lint: anything called `use*` is assumed to be a hook.
  */
-export function useItem(state: GameState, itemId: string): UseResult {
+export function consumeItem(state: GameState, itemId: string): UseResult {
   const c = state.character;
   if (!c) return { ok: false, message: '命格未定。', lines: [] };
   const item = getItem(itemId);
