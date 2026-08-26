@@ -245,7 +245,7 @@ function AffinityStep() {
   return (
     <Panel title="棋缘">
       <p className="mb-4 text-sm leading-relaxed text-yan-700">
-        最后一件事,由天道来掷。
+        最后一件事,由弈者来掷。
         <br />
         <span className="text-yan-500">
           此掷一次而定,落子无悔。掷出的品第会写进棋录,任何人都可以复核。
@@ -263,12 +263,12 @@ function AffinityStep() {
       </ul>
 
       <p className="mb-4 text-[11px] leading-relaxed text-yan-500">
-        另有一掷,汝看不见结果——天道封了它。那一项此后不会出现在任何面板上,却一直在替汝
+        另有一掷,汝看不见结果——弈者封了它。那一项此后不会出现在任何面板上,却一直在替汝
         （或不替汝）说话。
       </p>
 
       <Button tone="zhu" onClick={() => draw()} className="w-full">
-        请天道落子
+        请弈者落子
       </Button>
     </Panel>
   );

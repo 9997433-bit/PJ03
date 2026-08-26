@@ -18,7 +18,7 @@ const TABS: { id: ContextTab; label: string }[] = [
   { id: 'panel', label: '命盘' },
   { id: 'satchel', label: '行囊' },
   { id: 'places', label: '舆图' },
-  { id: 'market', label: '坊市' },
+  { id: 'market', label: '墟市' },
   { id: 'register', label: '精怪录' },
   { id: 'audit', label: '棋录' },
 ];
@@ -256,9 +256,9 @@ function MarketView({ state }: { state: GameState }) {
   const place = getPlace(state.placeId);
 
   return (
-    <Panel title={`坊市 · ${place?.name ?? ''}`}>
+    <Panel title={`墟市 · ${place?.name ?? ''}`}>
       <p className="mb-2 text-[11px] text-yan-500">
-        身上 {c.coin} 银钱。卖价约买价的四成半——坊市是方便,不是生财之道。
+        身上 {c.coin} 银钱。卖价约买价的四成半——墟市是方便,不是生财之道。
       </p>
       <ul className="space-y-1.5">
         {stock.map((item) => {
@@ -346,7 +346,7 @@ function AuditView({ state }: { state: GameState }) {
 
   return (
     <div className="space-y-3">
-      <Panel title="棋录 · 天道掷骰">
+      <Panel title="棋录 · 弈者掷骰">
         <p className="mb-2 break-all text-[10px] leading-relaxed text-yan-500">
           种子 {state.seed}
           <br />

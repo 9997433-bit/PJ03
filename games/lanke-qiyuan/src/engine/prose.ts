@@ -2,9 +2,9 @@
  * prose.ts — narration helpers shared by every engine module.
  *
  * The log is a capped ring buffer with monotonic ids so React keys stay
- * stable even after the oldest lines are dropped. Four speakers: 天道 (the
- * impersonal narrator), 棋录 (mechanical bookkeeping), 弈 (the board), and
- * 汝 (you).
+ * stable even after the oldest lines are dropped. Four speakers: 弈者 (the
+ * unnamed immortal narrator), 棋录 (mechanical bookkeeping), 弈 (the board),
+ * and 汝 (you).
  */
 
 import type { Character, GameState, LogEntry, LogTone, RealmState, Speaker } from './types';
@@ -21,9 +21,9 @@ export function log(state: GameState, speaker: Speaker, text: string, tone?: Log
   }
 }
 
-/** 天道 — the narrator. */
+/** 弈者 — the narrator. */
 export function say(state: GameState, text: string, tone?: LogTone): void {
-  log(state, '天道', text, tone);
+  log(state, '弈者', text, tone);
 }
 
 /** 棋录 — bookkeeping lines (gains, losses, refusals). */

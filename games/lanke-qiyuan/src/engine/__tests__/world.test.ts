@@ -92,7 +92,7 @@ describe('游历 — the road', () => {
   });
 });
 
-describe('坊市 — the market', () => {
+describe('墟市 — the market', () => {
   it('sorts the shelf cheapest-first and never shows hidden goods', () => {
     const stock = marketStock(playableState());
     expect(stock.length).toBeGreaterThan(0);

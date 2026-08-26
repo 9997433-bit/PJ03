@@ -1,5 +1,5 @@
 /**
- * audit.ts — 天道棋录 (roll log, hash chain, state invariants)
+ * audit.ts — 弈者棋录 (roll log, hash chain, state invariants)
  *
  * Adapted from the root simulator. Provides:
  *   - a synchronous, dependency-free SHA-256 so the engine stays pure;
@@ -159,7 +159,7 @@ export function saveChecksum(state: GameState): string {
 // ============================================================================
 
 export const SEALED_ROLL_DISPLAY = '封';
-export const SEALED_ROLL_NOTE = '天道已掷,缘法已定';
+export const SEALED_ROLL_NOTE = '弈者已掷,缘法已定';
 
 /** QL-XXXX record number (棋录). */
 export function formatAuditId(id: number): string {
@@ -196,7 +196,7 @@ export function buildAuditTable(rolls: readonly DiceRoll[]): AuditRecord[] {
 // No wishing
 // ============================================================================
 
-export const WISH_REJECTION = '枰上无侥幸,天道不受愿。';
+export const WISH_REJECTION = '枰上无侥幸,弈者不受愿。';
 
 const WISH_PATTERNS: readonly RegExp[] = [
   /我希望/,

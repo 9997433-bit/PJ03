@@ -460,7 +460,7 @@ export interface EndingResult {
 
 export type LogTone = 'normal' | 'jade' | 'bamboo' | 'dusk' | 'muted' | 'moon';
 
-export type Speaker = '天道' | '棋录' | '弈' | '汝';
+export type Speaker = '弈者' | '棋录' | '弈' | '汝';
 
 export interface LogEntry {
   id: number;
@@ -489,7 +489,7 @@ export interface OriginDef {
   id: string;
   name: string;
   desc: string;
-  /** the line 天道 speaks when the origin is chosen */
+  /** the line 弈者 speaks when the origin is chosen */
   flavor: string;
   attributeMods: Partial<Record<VisibleAttribute, number>>;
   startCoin: number;
@@ -520,7 +520,7 @@ export type Command =
   | { kind: 'match'; opponentId?: string }                 // 弈道 (open the board)
   | { kind: 'play'; style: BoardStyle }                    // one exchange
   | { kind: 'resign' }                                     // 投子
-  | { kind: 'market' }                                     // 坊市
+  | { kind: 'market' }                                     // 墟市
   | { kind: 'buy'; itemId: string; count?: number }
   | { kind: 'sell'; itemId: string; count?: number }
   | { kind: 'use'; itemId: string }

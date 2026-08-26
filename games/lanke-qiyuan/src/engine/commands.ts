@@ -51,7 +51,7 @@ const ALIASES: Record<string, Command['kind']> = {
   投子: 'resign',
   认负: 'resign',
   resign: 'resign',
-  坊市: 'market',
+  墟市: 'market',
   市集: 'market',
   market: 'market',
   破境: 'breakthrough',

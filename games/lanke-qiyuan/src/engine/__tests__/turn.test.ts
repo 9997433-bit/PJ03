@@ -32,7 +32,7 @@ describe('指令解析', () => {
     expect(parseCommand('游历').kind).toBe('travel');
     expect(parseCommand('弈道').kind).toBe('match');
     expect(parseCommand('破境').kind).toBe('breakthrough');
-    expect(parseCommand('坊市').kind).toBe('market');
+    expect(parseCommand('墟市').kind).toBe('market');
     expect(parseCommand('棋录').kind).toBe('audit');
   });
 
@@ -266,6 +266,6 @@ describe('审计 — the hash chain', () => {
     const out = runCommand(broken, { kind: 'cultivate' });
     expect(out.accepted).toBe(false);
     expect(out.state).toBe(broken);
-    expect(out.notices[0]!.text).toContain('天道不容');
+    expect(out.notices[0]!.text).toContain('弈者不容');
   });
 });

@@ -1,5 +1,5 @@
 /**
- * economy.ts — 坊市.
+ * economy.ts — 墟市.
  *
  * The shelf is filtered by realm, so the market grows with you rather than
  * dumping every object on the first screen. Selling always loses money
@@ -48,7 +48,7 @@ export function buy(state: GameState, itemId: string, count = 1): TradeResult {
   if (!c) return { ok: false, message: '命格未定。' };
   if (!Number.isInteger(count) || count <= 0) return { ok: false, message: '数目不对。' };
   const item = getItem(itemId);
-  if (!item) return { ok: false, message: `坊市无此物:${itemId}` };
+  if (!item) return { ok: false, message: `墟市无此物:${itemId}` };
   if (!marketStock(state).some((i) => i.id === itemId)) {
     return { ok: false, message: `〔${item.name}〕此境不售。` };
   }

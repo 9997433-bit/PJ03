@@ -15,14 +15,14 @@ const TONE_CLASS: Record<LogTone, string> = {
 };
 
 const SPEAKER_MARK: Record<Speaker, string> = {
-  天道: '天',
+  弈者: '弈',
   棋录: '录',
-  弈: '弈',
+  弈: '枰',
   汝: '汝',
 };
 
 const SPEAKER_CLASS: Record<Speaker, string> = {
-  天道: 'border-zhu-500 text-zhu-600',
+  弈者: 'border-zhu-500 text-zhu-600',
   棋录: 'border-xuan-400 text-yan-500',
   弈: 'border-yue-500 text-yue-500',
   汝: 'border-xia-500 text-xia-700',

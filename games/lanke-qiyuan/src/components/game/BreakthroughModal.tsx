@@ -66,7 +66,7 @@ export function BreakthroughModal() {
             ? '汝并没有觉得自己变强。只是从今往后,有些事看得懂了。'
             : fx.backlash
               ? '这一跤摔得重。棋道退了一步,心尘涨了一层——但汝还在。'
-              : '未成不算输。天道记下了这一次,下回的门槛会低一点。'}
+              : '未成不算输。弈者记下了这一次,下回的门槛会低一点。'}
         </p>
 
         <Button tone="zhu" onClick={clear} className="mt-6 w-full">

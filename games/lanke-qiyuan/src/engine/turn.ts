@@ -266,7 +266,7 @@ export function runCommand(prev: GameState, cmd: Command): TurnResult {
     return {
       state: prev,
       accepted: false,
-      notices: [bad(`天道不容:${violation}。此手作废。`)],
+      notices: [bad(`弈者不容:${violation}。此手作废。`)],
       advanced: false,
       endingId: null,
     };

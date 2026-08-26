@@ -111,8 +111,8 @@ export function CommandBar({ state }: { state: GameState }) {
             <Button onClick={() => setTab('places')} title="舆图:择地远行">
               远行
             </Button>
-            <Button onClick={() => setTab('market')} title="坊市:买卖">
-              坊市
+            <Button onClick={() => setTab('market')} title="墟市:买卖">
+              墟市
             </Button>
             {opponents.length > 0 && (
               <Button

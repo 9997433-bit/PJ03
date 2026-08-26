@@ -7,7 +7,7 @@ const eslintConfig = defineConfig([
   ...nextTs,
   globalIgnores(['.next/**', 'out/**', 'node_modules/**', 'next-env.d.ts']),
   {
-    // 天道不容私掷: every random outcome must flow through the audited gateway.
+    // 弈者不容私掷: every random outcome must flow through the audited gateway.
     files: ['src/engine/**/*.ts', 'src/data/**/*.ts', 'src/store/**/*.ts'],
     ignores: ['src/engine/rng.ts'],
     rules: {

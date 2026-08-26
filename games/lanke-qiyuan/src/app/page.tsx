@@ -119,7 +119,7 @@ export default function TitlePage() {
               <input
                 value={seed}
                 onChange={(e) => setSeed(e.target.value)}
-                placeholder="种子（留白则由天道随取）"
+                placeholder="种子（留白则由弈者随取）"
                 aria-label="种子"
                 className="w-full border border-xuan-400 bg-xuan-50 px-3 py-1.5 text-sm rounded-sm focus:border-zhu-500 focus:outline-none"
               />
