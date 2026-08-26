@@ -13,6 +13,7 @@
  */
 
 import { endingById, ENDINGS } from '@/data/endings';
+import { enemyById } from '@/data/enemies';
 import { realmDef } from '@/data/realms';
 import { realmLabel } from './cultivation';
 import type { EndingResult, GameState, RunStats } from './types';
@@ -25,7 +26,7 @@ export const ENDING_TRIGGERS: Record<string, string> = {
   shouyuan: '年岁逾寿数',
   zhanwang: '斗法气血归零',
   posui: '突破失手,气机崩于关中',
-  tianzhu: '劫运满盈或败于天诛神使',
+  tianzhu: '劫运满盈,或败于任一劫相',
   zouhuo: '修炼走火,气血归零',
   xinmo: '败于心魔虚影',
   duoyun_mo: '灭运十二次以上且功德低于 −150',
@@ -85,7 +86,11 @@ export function checkEndings(state: GameState, retiring = false): EndingResult |
     if (c.flags.zouhuoFatal) return makeEnding(state, 'zouhuo');
     if (c.flags.breakFatal) return makeEnding(state, 'posui');
     if (c.flags.slainBy === 'xinmo') return makeEnding(state, 'xinmo');
-    if (c.flags.slainBy === 'tianzhu') return makeEnding(state, 'tianzhu');
+    // 天雷法相 and 业火魔相 are 劫数所化 no less than 天诛神使 is. Naming only the
+    // last of them made a death under the lightning read as 陨于斗法 — "someone
+    // out-calculated you" — when nobody was there at all.
+    const slayer = enemyById(String(c.flags.slainBy ?? ''));
+    if (slayer?.isCalamity) return makeEnding(state, 'tianzhu');
     return makeEnding(state, 'zhanwang');
   }
 
