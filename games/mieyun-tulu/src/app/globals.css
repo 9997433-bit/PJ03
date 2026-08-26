@@ -1,0 +1,170 @@
+@import 'tailwindcss';
+
+/*
+ * 玄紫 · 星轨 — the palette of 《灭运图录》
+ *
+ * Everything sits on a near-black violet void. Two accents carry the two
+ * meters the game is about: 星轨金 for 气运 (what you gain) and 劫血 for 劫运
+ * (what it costs you). Nothing in this file is shared with the other games in
+ * the repo — the token names, the values and the type stack are all local.
+ */
+@theme {
+  --color-void: #06040e;
+  --color-abyss: #0c0720;
+  --color-nebula: #150e30;
+  --color-nebula-2: #1e1544;
+  --color-rim: #2e2160;
+  --color-rim-soft: #241a4d;
+
+  --color-violet-core: #8257ff;
+  --color-amethyst: #b79aff;
+  --color-orchid: #d9c9ff;
+
+  --color-star: #ece7ff;
+  --color-star-dim: #a79cd4;
+  --color-star-faint: #6f6698;
+
+  --color-track: #f2c879;
+  --color-track-dim: #a8874a;
+  --color-jie: #ff6180;
+  --color-jie-dim: #a33b4f;
+  --color-jade: #5fe0b4;
+
+  --font-serif-cjk:
+    'Songti SC', 'STSong', 'Noto Serif CJK SC', 'Source Han Serif SC',
+    'SimSun', 'Georgia', serif;
+  --font-sans-cjk:
+    'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC',
+    system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+:root {
+  --ring: var(--color-amethyst);
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-void);
+  color: var(--color-star);
+  font-family: var(--font-sans-cjk);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  /* 星轨 — a slow spiral of stars behind everything. */
+  background-image:
+    radial-gradient(1px 1px at 12% 18%, rgba(236, 231, 255, 0.55), transparent 60%),
+    radial-gradient(1px 1px at 78% 12%, rgba(183, 154, 255, 0.5), transparent 60%),
+    radial-gradient(1.4px 1.4px at 42% 72%, rgba(242, 200, 121, 0.42), transparent 60%),
+    radial-gradient(1px 1px at 88% 64%, rgba(236, 231, 255, 0.35), transparent 60%),
+    radial-gradient(1px 1px at 26% 88%, rgba(183, 154, 255, 0.34), transparent 60%),
+    radial-gradient(ellipse 120% 90% at 50% -10%, rgba(130, 87, 255, 0.16), transparent 70%),
+    radial-gradient(ellipse 90% 70% at 84% 110%, rgba(242, 200, 121, 0.07), transparent 70%);
+  background-attachment: fixed;
+  min-height: 100dvh;
+}
+
+*:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* ---- 版式 ------------------------------------------------------------- */
+
+.font-cjk-serif {
+  font-family: var(--font-serif-cjk);
+}
+
+.panel {
+  background: linear-gradient(160deg, rgba(21, 14, 48, 0.94), rgba(12, 7, 32, 0.94));
+  border: 1px solid var(--color-rim-soft);
+  border-radius: 6px;
+  box-shadow:
+    0 0 0 1px rgba(130, 87, 255, 0.06) inset,
+    0 18px 50px -30px rgba(130, 87, 255, 0.6);
+}
+
+.hairline {
+  border-color: var(--color-rim-soft);
+}
+
+/* A thin star-track rule used to separate sections. */
+.startrack {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(130, 87, 255, 0.5) 18%,
+    rgba(242, 200, 121, 0.55) 50%,
+    rgba(130, 87, 255, 0.5) 82%,
+    transparent
+  );
+}
+
+/* ---- 动效(尊重系统降级设置)---------------------------------------- */
+
+@keyframes drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(0, -6px, 0);
+  }
+}
+
+@keyframes pulse-jie {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 97, 128, 0);
+  }
+  50% {
+    box-shadow: 0 0 18px 2px rgba(255, 97, 128, 0.4);
+  }
+}
+
+.anim-drift {
+  animation: drift 7s ease-in-out infinite alternate;
+}
+
+.anim-jie {
+  animation: pulse-jie 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---- 滚动条 ----------------------------------------------------------- */
+
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-rim) transparent;
+}
+.scroll-thin::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-thin::-webkit-scrollbar-thumb {
+  background: var(--color-rim);
+  border-radius: 4px;
+}
