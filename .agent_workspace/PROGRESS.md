@@ -57,18 +57,18 @@
 - ⚠️ 根游戏缺口（R2/R3 备选补课）：结局 16 定义仅 5 接线（data/endings.ts 未入引擎）；lifecycle.advanceTime/rest 死代码双轨；缺 prefers-reduced-motion
 - ⚠️ 硬约束：同源部署下 localStorage 共享 —— 各游戏 SAVE_KEY/SAVE_MAGIC 必须唯一（lanke_save_v1 / mieyun_save_v1 / daojun_save_v1）；结局须「引擎接线可达」而非仅存数据
 
-## Round 2 进展（进行中）
+## Round 2 进展（✅ 完成）
 
 | 代理 | 状态 | 要点 |
 |------|------|------|
 | R2-S1 道君 | ✅ | 98 测试 · 40 事件 · e2e/smoke 5/5 · `daojun_save_v1` |
-| R2-S2 流水线 | 🔄 | mortal+lanke+daojun zip 已产出 · mieyun 待 build |
-| R2-F1/F2 文档 | ✅ | PLAN ×3（lanke/mieyun/daojun 全交付，R2-F1 已按落盘代码重接地：五心/棋缘、气运劫运、纹魂疆域，各 16 结局全接线表）· ARCHITECTURE.md（R1-F1 基底 + R2-F1 增补 §10 命名冲突登记 / §11 文档冲突裁定）· engine-core 契约包（types-only）· briefs 三份 |
-| R2-F2 道君审计 | ✅ | [AUDIT_daojun_R2.md](./AUDIT_daojun_R2.md) · **7.5/12**（修复前 5.5）· 320 局 bot 通关模拟 · 4 项快修（lint+Math.random 禁令 / noUncheckedIndexedAccess / 软锁 / 结局优先级）· 101 测试全绿 |
-| R2-O1 烂柯 | ✅ | 211 测试 · build 通过 · out/index.html · 青竹枯枰 UI |
-| R2-O2 灭运 | 🔄 | **仍缺 app/** · build/test 失败 |
+| R2-S2 流水线 | ✅ | 4/4 zip · [PIPELINE_R2.md](./PIPELINE_R2.md) |
+| R2-F1/F2 文档 | ✅ | PLAN ×3 · ARCHITECTURE.md · briefs 三份 · AUDIT_daojun_R2.md |
+| R2-F2 道君审计 | ✅ | 7.5/12 · 320 局 bot 模拟 |
+| R2-O1 烂柯 | ✅ | 292 测试 · title+game 路由 · 青竹枯枰 UI |
+| R2-O2 灭运 | ✅ | 412 测试 · 劫运账簿/推演/灭运 · `mieyun_save_v1` |
 
-当前可打包游玩：凡人 + 烂柯 + 道君（`dist/zips/`）
+当前可打包游玩：四款全部就绪（`dist/zips/`）
 
 ## 日志
 - 2026-08-26: 初始化分支与 PROGRESS.md，启动 Round 1（6 并发子代理）
