@@ -6,11 +6,15 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   globalIgnores([
-    ".next/**",
-    "out/**",
-    "build/**",
-    "node_modules/**",
-    "next-env.d.ts",
+    // Each game is its own Next project, so build output also lands under
+    // games/*/{out,.next}; without the ** prefix those minified bundles get
+    // linted and bury the real findings under thousands of warnings.
+    "**/.next/**",
+    "**/out/**",
+    "**/build/**",
+    "**/dist/**",
+    "**/node_modules/**",
+    "**/next-env.d.ts",
   ]),
   {
     // PLAN §3.1: all randomness must flow through the audited dice engine.
