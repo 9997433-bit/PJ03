@@ -814,7 +814,40 @@ export const EVENTS: readonly GameEvent[] = [
     forbidsFlag: 'tulu3',
     once: true,
     narrative: '他背后的气运之柱通天彻地,而顶端已被人削去一截。削它的正是第三卷。',
-    autoEffect: { combat: 'mojun' },
+    choices: [
+      {
+        id: 'duo',
+        text: '夺',
+        upside: '第三卷,今日就到手',
+        downside: '他是洞真,且此战无从遁走',
+        success: { combat: 'mojun' },
+      },
+      {
+        id: 'deng',
+        text: '等他的劫',
+        check: { attr: 'dingLi', dc: 19 },
+        upside: '柱子已被削去一截,劫迟早自己来',
+        downside: '站在劫旁边的人,账上也有名字',
+        success: {
+          items: [{ itemId: 'tulu3', count: 1 }],
+          flag: ['tulu3', true],
+          calamity: 10,
+          fortune: -6,
+          exp: 800,
+          narrative:
+            '你在城外坐了四十年。他的劫来时你连头都没抬——雷停之后,你从灰里拾起那一卷,封皮还是凉的。',
+        },
+        failure: {
+          items: [{ itemId: 'tulu3', count: 1 }],
+          flag: ['tulu3', true],
+          calamity: 26,
+          hp: -400,
+          injury: 'shenhunCan',
+          narrative:
+            '你等到了,却站得太近。雷落下来时,他的账和你的账烧在了一处。第三卷到手,可你有半年认不出自己的字。',
+        },
+      },
+    ],
   },
   {
     id: 't_hebing',

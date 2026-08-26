@@ -178,6 +178,13 @@ function runUpkeep(state: GameState): LogEntry[] {
   c.hp = clamp(c.hp + Math.round(d.maxHp * 0.06), 0, d.maxHp);
   c.mana = clamp(c.mana + Math.round(d.maxMana * 0.2), 0, d.maxMana);
 
+  // A volume taken off a corpse counts the same as one handed over: the chain
+  // asks whether you hold it, not how it reached you. Without this, winning
+  // 窃录之人 left the flag unset and closed the hunt on the winner only.
+  for (const vol of ['tulu1', 'tulu2', 'tulu3'] as const) {
+    if (!c.flags[vol] && countItem(c.inventory, vol) > 0) c.flags[vol] = true;
+  }
+
   // 图录三卷齐备
   if (
     !c.flags.tuluAll &&
