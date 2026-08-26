@@ -34,7 +34,6 @@ import type {
   LogEntry,
 } from './types';
 import { REALMS } from './types';
-import { GENESIS_HASH } from './audit';
 
 const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
 const copy = (state: GameState): GameState => JSON.parse(JSON.stringify(state)) as GameState;
@@ -93,14 +92,6 @@ export function createGame(options: CreationOptions, seed = Date.now()): GameSta
     inventory,
     seenEvents: [],
     pendingEvent: null,
-    pendingMilestone: null,
-    declinedEndings: [],
-    combat: null,
-    rolls: [],
-    rollCount: 0,
-    auditChain: [],
-    chainStart: GENESIS_HASH,
-    auditHash: GENESIS_HASH,
     logs: [{ turn: 0, tone: 'thunder', text: `十六岁，${options.name.trim() || '无名'}在雷雨中感应到第一缕道纹。` }],
     ending: null,
   };

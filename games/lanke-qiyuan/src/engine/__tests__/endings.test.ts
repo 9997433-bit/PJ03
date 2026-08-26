@@ -58,6 +58,24 @@ const SETUPS: Record<string, (s: GameState) => GameState> = {
     }),
   end_chenman: (s) => withCharacter(s, { dust: MAX_DUST }),
   end_shenhun: (s) => withCharacter(s, { flags: { ...s.character!.flags, 枯坐: 6 } }),
+  end_qisheng: (s) => {
+    const next = withCharacter(s, { chessDao: 92 });
+    next.stats.matchesWon = 24;
+    return next;
+  },
+  end_zhihei: (s) =>
+    withCharacter(s, { dust: 62, flags: { ...s.character!.flags, 旧债未清: true } }),
+  end_gudeng: (s) => {
+    const next = structuredClone(s);
+    const first = Object.keys(next.spirits)[0]!;
+    next.spirits[first]!.favor = 95;
+    return next;
+  },
+  end_guoshou: (s) => {
+    const next = structuredClone(s);
+    next.stats.matchesWon = 14;
+    return next;
+  },
   end_shouzhong: (s) => withCharacter(s, { dust: 10, chessDao: 55 }),
   end_wuming: (s) => withCharacter(s, { dust: 80, chessDao: 3 }),
 };
