@@ -37,3 +37,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# next dev writes these into each app on boot; the root pair is the real one
+games/*/AGENTS.md
+games/*/CLAUDE.md
