@@ -16,6 +16,7 @@ describe('monorepo tooling', () => {
       'build:all': 'bash scripts/build-all.sh',
       'test:all': 'bash scripts/test-all.sh',
       'package:all': 'bash scripts/package-all.sh',
+      'validate:exports': 'node scripts/validate-exports.mjs',
       benchmark: 'node scripts/benchmark.mjs',
     });
     expect(tsconfig.exclude).toContain('games');
@@ -41,6 +42,18 @@ describe('monorepo tooling', () => {
 
     expect(result.status, result.stderr).toBe(0);
     expect(result.stdout).toContain('--no-build');
+    expect(result.stdout).toContain('--output');
+  });
+
+  it('loads the export validator without checking artifacts', () => {
+    const result = spawnSync(
+      process.execPath,
+      [path.join(rootDir, 'scripts', 'validate-exports.mjs'), '--help'],
+      { encoding: 'utf8' },
+    );
+
+    expect(result.status, result.stderr).toBe(0);
+    expect(result.stdout).toContain('out/index.html');
   });
 
   it('registers all game directories in each orchestrator', () => {
@@ -49,6 +62,7 @@ describe('monorepo tooling', () => {
       'test-all.sh',
       'package-all.sh',
       'benchmark.mjs',
+      'validate-exports.mjs',
     ].map((script) => readFileSync(path.join(rootDir, 'scripts', script), 'utf8'));
 
     for (const gameDirectory of ['lanke-qiyuan', 'mieyun-tulu', 'dao-jun']) {

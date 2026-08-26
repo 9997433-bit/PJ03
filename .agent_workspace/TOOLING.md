@@ -24,19 +24,28 @@ npm run test:all
 # Zip existing static exports to dist/zips/{mortal,lanke,mieyun,daojun}.zip
 npm run package:all
 
+# Verify every source export has an out/index.html entry point
+npm run validate:exports
+
 # Rebuild each game, time it, measure all files in out/, and write a JSON report
 npm run benchmark
 
 # Measure existing out/ directories without rebuilding
 npm run benchmark -- --no-build
+
+# Write a named report for a specific validation round
+npm run benchmark -- --no-build --output dist/benchmark-r2.json
 ```
 
 `build:all` expects each build to create an `out/index.html` entry point, which
 prevents an incomplete Next project that exports only a 404 page from passing.
-`package:all` therefore runs after `build:all`; it uses `zip`, with Python 3's
-`zipfile` as a fallback. The benchmark records elapsed wall-clock build time,
-exported file count, and total uncompressed static-export bytes in
-`dist/benchmark.json`.
+It clears the prior source and collected exports before each build so stale
+artifacts cannot mask a failure. `package:all` therefore runs after `build:all`;
+it uses `zip`, with Python 3's `zipfile` as a fallback, removes stale archives,
+and verifies that every ZIP contains `index.html` at its root. The benchmark
+records elapsed wall-clock build time, exported file count, and total
+uncompressed static-export bytes in `dist/benchmark.json` by default; `--output`
+selects a different report path.
 
 All orchestrators print a clear skip when a game directory has not landed yet,
 so the scripts remain usable while games are integrated concurrently. Once a
