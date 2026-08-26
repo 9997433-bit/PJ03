@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-08-26T07:41:07.010Z",
+  "buildsExecuted": true,
+  "environment": {
+    "node": "v22.14.0",
+    "platform": "linux-x64"
+  },
+  "games": [
+    {
+      "id": "mortal",
+      "status": "ok",
+      "buildSeconds": 2.9,
+      "bytes": 16218990,
+      "files": 332
+    },
+    {
+      "id": "lanke",
+      "status": "ok",
+      "buildSeconds": 2.368,
+      "bytes": 17766578,
+      "files": 472
+    },
+    {
+      "id": "mieyun",
+      "status": "ok",
+      "buildSeconds": 2.328,
+      "bytes": 809956,
+      "files": 25
+    },
+    {
+      "id": "daojun",
+      "status": "ok",
+      "buildSeconds": 2.092,
+      "bytes": 687615,
+      "files": 23
+    }
+  ]
+}
