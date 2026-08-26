@@ -133,7 +133,7 @@ function runCommand(
 export function actionAvailability(state: GameState, action: CoreAction): { available: boolean; reason: string } {
   if (state.ending) return { available: false, reason: '此生已成定局' };
   if (state.combat) return { available: false, reason: '先了结眼前这一战' };
-  if (state.pendingMilestone) return { available: false, reason: '先回应天道之问' };
+  if (state.pendingMilestone) return { available: false, reason: '先回应道枢之问' };
   if (state.pendingEvent) return { available: false, reason: '先作出当前抉择' };
   // 悟道 and 调息 are always available: with a drained soul 悟道 degrades to a
   // rest turn, so the resource-regeneration path can never soft-lock.
@@ -295,7 +295,7 @@ function finishIfNeeded(state: GameState): void {
   if (!milestone) return;
   state.pendingMilestone = milestone;
   const detail = ENDINGS.find((item) => item.id === milestone);
-  log(state, `天道垂问：${detail?.title ?? milestone}已在眼前，就此收官，抑或继续问道？`, 'thunder');
+  log(state, `道枢垂问：${detail?.title ?? milestone}已在眼前，就此收官，抑或继续问道？`, 'thunder');
 }
 
 /**
@@ -304,7 +304,7 @@ function finishIfNeeded(state: GameState): void {
  */
 export function resolveMilestone(current: GameState, accept: boolean): ActionResult {
   const milestone = current.pendingMilestone;
-  if (!milestone) return { ok: false, message: '天道并未垂问', state: current };
+  if (!milestone) return { ok: false, message: '道枢并未垂问', state: current };
   return runCommand(current, accept ? `收官:${milestone}` : `续道:${milestone}`, (state) => {
     state.pendingMilestone = null;
     if (accept) {

@@ -1,5 +1,5 @@
 /**
- * audit.ts — 天道审计: audited dice, a per-command hash chain, and post-command
+ * audit.ts — 道枢审计: audited dice, a per-command hash chain, and post-command
  * invariants.
  *
  * Every random number in 道君 flows through `recordSpan`, so each roll carries
@@ -248,7 +248,7 @@ export function buildAuditTable(rolls: readonly DiceRoll[]): AuditRecord[] {
 // Post-command invariants (a violation rolls the whole command back)
 // ============================================================================
 
-export const INVARIANT_ROLLBACK_MESSAGE = '道基紊乱，此举已被天道回溯。';
+export const INVARIANT_ROLLBACK_MESSAGE = '道基紊乱，此举已被道枢回溯。';
 
 /**
  * Assertions run after every command. Returns null when the state is lawful,

@@ -102,7 +102,7 @@ describe('milestone offers', () => {
     const after = performAction(onTheBrinkOf('magnate'), '调息').state;
     expect(actionAvailability(after, '悟道')).toMatchObject({
       available: false,
-      reason: '先回应天道之问',
+      reason: '先回应道枢之问',
     });
   });
 
@@ -145,7 +145,7 @@ describe('milestone offers', () => {
   });
 
   it('refuses an answer when nothing was asked', () => {
-    expect(resolveMilestone(newGame(), true)).toMatchObject({ ok: false, message: '天道并未垂问' });
+    expect(resolveMilestone(newGame(), true)).toMatchObject({ ok: false, message: '道枢并未垂问' });
   });
 
   it('seals the answer into the audit chain', () => {

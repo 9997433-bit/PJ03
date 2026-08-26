@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   ACTIONS,
+  ANTI_CHEAT_LAYERS,
   COMBAT_TACTICS,
   CREATION_STEPS,
   EVENTS,
@@ -16,6 +17,7 @@ import {
   VOWS,
   actionAvailability,
   advanceCreation,
+  buildAuditTable,
   buyItem,
   buyPrice,
   canAdvanceCreation,
@@ -44,6 +46,7 @@ import {
   tacticAvailability,
   totalPower,
   useItem,
+  verifyStateChain,
   type CombatTactic,
   type CoreAction,
   type CreationOptions,
@@ -70,7 +73,7 @@ const TACTIC_META: Record<CombatTactic, { seal: string; subtitle: string }> = {
   周旋: { seal: '旋', subtitle: '游走试探，伤敌浅而自保深' },
   布纹: { seal: '纹', subtitle: '铺纹蓄势，下一记力破威力倍增' },
   摄神: { seal: '摄', subtitle: '神念夺魄，无视护体外甲' },
-  吞丹: { seal: '丹', subtitle: '仰头服丹，敌手趁隙一击' },
+  吞丹: { seal: '丹', subtitle: '仰头吞丹，敌手趁隙一击' },
   遁土: { seal: '遁', subtitle: '敛去气机，遁土而走' },
 };
 
@@ -323,6 +326,43 @@ function TerritoryPanel({
   );
 }
 
+/** 道枢审计: the roll trail, the chain head, and what each layer guarantees. */
+function AuditPanel({ state, onClose }: { state: GameState; onClose: () => void }) {
+  const records = buildAuditTable(state.rolls).slice().reverse();
+  const intact = verifyStateChain(state);
+  return (
+    <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="audit-title">
+      <section className="audit-modal">
+        <p className="step-kicker">道枢审计</p>
+        <h2 id="audit-title">命卷可查，天机可验</h2>
+        <div className="audit-chain">
+          <p><span>链首</span><code>{state.chainStart.slice(0, 16)}…</code></p>
+          <p><span>链尾</span><code>{state.auditHash.slice(0, 16)}…</code></p>
+          <p><span>共 {state.rollCount} 掷 · {state.auditChain.length} 令</span>
+            <b className={intact ? 'intact' : 'broken'}>{intact ? '链完好' : '链已断'}</b>
+          </p>
+        </div>
+        <div className="audit-table" aria-label="逐掷记录">
+          {records.length ? records.map((record) => (
+            <p key={record.recordId} className={record.sealed ? 'sealed' : ''}>
+              <code>{record.recordId}</code>
+              <span>第 {record.turn} 回</span>
+              <b>{record.die}={record.display}</b>
+              <small>{record.reason}</small>
+            </p>
+          )) : <span className="empty">尚未掷出一骰。</span>}
+        </div>
+        <ol className="audit-layers">
+          {ANTI_CHEAT_LAYERS.map((layer) => (
+            <li key={layer.layer}><b>{layer.name}</b><small>{layer.desc}</small></li>
+          ))}
+        </ol>
+        <button type="button" className="button-primary" onClick={onClose}>合卷</button>
+      </section>
+    </div>
+  );
+}
+
 /** The duel takes over the stage: no other command is legal until it resolves. */
 function CombatPanel({
   state,
@@ -387,6 +427,7 @@ export function DaoJunGame() {
   const [loaded, setLoaded] = useState(false);
   const [notice, setNotice] = useState('');
   const [storage, setStorage] = useState<StorageAdapter | null>(null);
+  const [auditOpen, setAuditOpen] = useState(false);
 
   useEffect(() => {
     const adapter = getBrowserStorage();
@@ -509,7 +550,11 @@ export function DaoJunGame() {
       <header className="topbar">
         <div className="brand"><span>道</span><div><b>道君</b><small>人生模拟器</small></div></div>
         <p>天有常道 · 人定其纹</p>
-        <div className="top-actions"><span>自动存卷</span><button type="button" onClick={restart}>重开此生</button></div>
+        <div className="top-actions">
+          <span>自动存卷</span>
+          <button type="button" onClick={() => setAuditOpen(true)}>道枢审计</button>
+          <button type="button" onClick={restart}>重开此生</button>
+        </div>
       </header>
 
       <div className="game-grid">
@@ -554,11 +599,13 @@ export function DaoJunGame() {
 
       {notice && <div className="toast" role="status">{notice}</div>}
 
+      {auditOpen && <AuditPanel state={state} onClose={() => setAuditOpen(false)} />}
+
       {milestone && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="milestone-title" aria-describedby="milestone-description">
           <section className="event-modal">
             <div className="event-rune">问</div>
-            <p className="step-kicker">天道垂问 · {milestone.rank}品结局</p>
+            <p className="step-kicker">道枢垂问 · {milestone.rank}品结局</p>
             <h2 id="milestone-title">{milestone.title}</h2>
             <p className="event-text" id="milestone-description">{milestone.description}</p>
             <div className="event-choices">
